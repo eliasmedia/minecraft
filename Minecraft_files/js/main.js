@@ -1,0 +1,1105 @@
+/* ============================================================
+   main.js  -  Spielsteuerung, Chunk-Streaming, Interaktion, Speichern
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var B = MC.Blocks, I = MC.Items, U = MC.U, R = MC.Recipes;
+  var CS = MC.CHUNK_SIZE, WH = MC.WORLD_HEIGHT;
+  var SAVE_KEY = 'minecraft_html_world_v1';
+
+  // ============================================================
+  //  Eingabe
+  // ============================================================
+  function Input(canvas, game) {
+    var self = this;
+    this.keys = {};
+    this.mouse = [false, false, false];
+    this.dx = 0; this.dy = 0;
+    this.wheel = 0;
+    this.locked = false;
+    this.game = game;
+    this.lastSpace = 0;
+    this.sprintToggle = false;
+
+    window.addEventListener('keydown', function (e) {
+      if (e.code === 'F3' || e.code === 'Tab') e.preventDefault();
+      if (self.keys[e.code]) return;
+      self.keys[e.code] = true;
+      game.onKeyDown(e);
+    });
+    window.addEventListener('keyup', function (e) { self.keys[e.code] = false; });
+    window.addEventListener('blur', function () { self.keys = {}; self.mouse = [false, false, false]; });
+
+    canvas.addEventListener('mousedown', function (e) {
+      if (!self.locked) {
+        game.showClickHint(false);
+        game._lastUnlock = 0;
+        game.requestPointerLock();
+        return;
+      }
+      self.mouse[e.button] = true;
+      game.onMouseDown(e.button);
+    });
+    window.addEventListener('mouseup', function (e) {
+      self.mouse[e.button] = false;
+      game.onMouseUp(e.button);
+    });
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    window.addEventListener('wheel', function (e) {
+      if (game.ui.isOpen()) return;
+      self.wheel += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('pointerlockchange', function () {
+      self.locked = (document.pointerLockElement === canvas);
+      if (self.locked) { game.showClickHint(false); return; }
+      game._lastUnlock = performance.now();
+      if (game.ui.isOpen() || game.paused || !game.started || !game.player || game.player.dead) return;
+      // Haben wir selbst gerade entsperrt (Fenster geöffnet/geschlossen)? Dann nicht pausieren.
+      if (performance.now() < (game.suppressPauseUntil || 0)) { game.showClickHint(true); return; }
+      game.pause(true);
+    });
+    document.addEventListener('pointerlockerror', function () {
+      if (game.started && !game.paused && !game.ui.isOpen()) game.showClickHint(true);
+    });
+    document.addEventListener('mousemove', function (e) {
+      if (!self.locked) return;
+      self.dx += e.movementX || 0;
+      self.dy += e.movementY || 0;
+    });
+  }
+  Input.prototype.key = function (c) { return !!this.keys[c]; };
+
+  // ============================================================
+  //  Spiel
+  // ============================================================
+  function Game() {
+    this.canvas = document.getElementById('gl');
+    this.mode = 'survival';
+    this.difficulty = 'normal';
+    this.paused = false;
+    this.started = false;
+    this.time = 0;
+    this.tickCount = 0;
+    this.fps = 0;
+    this.damageFlash = 0;
+    this.camShake = 0;
+    this.camBob = 0;
+    this.target = null;
+    this.mining = null;
+    this.sensitivity = 0.0022;
+    this.autoSaveTimer = 0;
+    this.bowCharge = 0;
+  }
+  MC.Game = Game;
+
+  Game.prototype.init = function () {
+    var self = this;
+    this.renderer = new MC.Renderer(this.canvas);
+    this.audio = new MC.Audio();
+    this.ui = new MC.UI(this);
+    this.ui.init();
+    this.input = new Input(this.canvas, this);
+    this.buildMenu();
+    window.addEventListener('resize', function () { self.renderer.resize(); });
+    this.loop = this.loop.bind(this);
+    requestAnimationFrame(this.loop);
+  };
+
+  // ---------- Welt starten ----------
+  Game.prototype.newWorld = function (seedStr, mode) {
+    var self = this;
+    var seed = seedStr ? (/^\d+$/.test(seedStr) ? (parseInt(seedStr, 10) >>> 0) : U.hashString(seedStr)) : (Math.random() * 4294967295) >>> 0;
+    this.mode = mode || 'survival';
+    this.world = new MC.World(seed);
+    this.world.entities = [];
+    this.particles = new MC.Particles(this.world);
+    this.attachWorldHooks();
+
+    var sp = this.world.gen.findSpawn();
+    this.player = new MC.Player(this.world, sp.x, sp.y, sp.z);
+    this.player.spawnPoint = { x: sp.x, y: sp.y, z: sp.z };
+    if (this.mode === 'creative') this.player.flying = true;
+
+    this.ensureChunksAround(this.player.x, this.player.z, 2);
+    this.settleSpawn();
+    this.started = true;
+    this.paused = false;
+    this.ui.hideDeath();
+    this.hideMenu();
+    this.audio.init();
+    this.requestPointerLock();
+    this.ui.updateHotbar();
+    this.ui.toast('Welt erzeugt — Seed ' + seed);
+  };
+
+  Game.prototype.settleSpawn = function () {
+    var p = this.player;
+    for (var y = WH - 2; y > 1; y--) {
+      if (this.world.getBlock(Math.floor(p.x), y, Math.floor(p.z)) !== 0) { p.y = y + 1.05; break; }
+    }
+    p.spawnPoint = { x: p.x, y: p.y, z: p.z };
+  };
+
+  Game.prototype.attachWorldHooks = function () {
+    var self = this;
+    this.world.onChunkUnload = function (c) { self.renderer.dropChunk(c); };
+    this.world.onBlockBreak = function (x, y, z, id, meta, tool) { self.dropBlock(x, y, z, id, meta, tool); };
+    this.world.onFizz = function (x, y, z) { self.audio.play('fizz'); self.particles.smoke(x, y + 1, z, 8); };
+  };
+
+  // ---------- Chunk-Streaming ----------
+  // blockingRadius > 0: sofort erzeugen (Weltstart). Sonst zeitbudgetiert.
+  Game.prototype.ensureChunksAround = function (px, pz, blockingRadius) {
+    var w = this.world;
+    var rd = blockingRadius ? blockingRadius : this.renderer.renderDistance;
+    var cx = Math.floor(px / CS), cz = Math.floor(pz / CS);
+    var t0 = performance.now();
+    var budget = blockingRadius ? 1e9 : 7;
+
+    // ringweise von innen nach außen
+    outer:
+    for (var r = 0; r <= rd + 1; r++) {
+      for (var dz = -r; dz <= r; dz++) {
+        for (var dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          if (dx * dx + dz * dz > (rd + 1) * (rd + 1)) continue;
+          var c = w.getChunk(cx + dx, cz + dz);
+          if (!c) c = w.createChunk(cx + dx, cz + dz);
+          if (c.state === 0) {
+            w.generateChunk(c);
+            if (performance.now() - t0 > budget) break outer;
+          }
+        }
+      }
+    }
+
+    // Belichten, sobald alle 4 Nachbarn generiert sind
+    for (var i = 0; i < w.chunkList.length; i++) {
+      var ch = w.chunkList[i];
+      if (ch.state !== 1) continue;
+      var n0 = w.getChunk(ch.cx + 1, ch.cz), n1 = w.getChunk(ch.cx - 1, ch.cz);
+      var n2 = w.getChunk(ch.cx, ch.cz + 1), n3 = w.getChunk(ch.cx, ch.cz - 1);
+      if (!n0 || !n1 || !n2 || !n3) continue;
+      if (n0.state === 0 || n1.state === 0 || n2.state === 0 || n3.state === 0) continue;
+      w.lightChunk(ch);
+      if (performance.now() - t0 > budget * 2.5) break;
+    }
+
+    // Entladen
+    if (!blockingRadius) {
+      var keep = this.renderer.renderDistance + 3;
+      for (var k = w.chunkList.length - 1; k >= 0; k--) {
+        var cc = w.chunkList[k];
+        if (Math.abs(cc.cx - cx) > keep || Math.abs(cc.cz - cz) > keep) w.unloadChunk(cc);
+      }
+    }
+  };
+
+  Game.prototype.buildMeshes = function (blocking) {
+    var w = this.world, self = this;
+    var t0 = performance.now();
+    var budget = blocking ? 100000 : 9;
+    var px = this.player.x, pz = this.player.z;
+    // Solange noch viel Licht unterwegs ist, lohnt Meshen nicht (würde sofort veralten)
+    if (!blocking && w.lightPending() > 40000) { w.processLight(6); return; }
+    var candidates = [];
+    for (var i = 0; i < w.chunkList.length; i++) {
+      var c = w.chunkList[i];
+      if (c.state < 2 || !c.dirty) continue;
+      // Nachbarn müssen belichtet sein, damit Ränder stimmen
+      var ready = true;
+      for (var d = 0; d < 4; d++) {
+        var n = w.getChunk(c.cx + (d === 0 ? 1 : d === 1 ? -1 : 0), c.cz + (d === 2 ? 1 : d === 3 ? -1 : 0));
+        if (!n || n.state < 2) { ready = false; break; }
+      }
+      if (!ready) continue;
+      var dx = c.cx * CS + 8 - px, dz = c.cz * CS + 8 - pz;
+      candidates.push({ c: c, d: dx * dx + dz * dz });
+    }
+    candidates.sort(function (a, b) { return a.d - b.d; });
+    for (var k = 0; k < candidates.length; k++) {
+      var ch = candidates[k].c;
+      var mesh = MC.Mesher.build(w, ch);
+      this.renderer.uploadChunk(ch, mesh);
+      if (performance.now() - t0 > budget) break;
+    }
+  };
+
+  // ---------- Drops ----------
+  Game.prototype.spawnItem = function (x, y, z, stack) {
+    if (!stack || stack.count <= 0) return;
+    var e = new MC.ItemEntity(this.world, x, y, z, { id: stack.id, count: stack.count, dur: stack.dur });
+    e.vx = (Math.random() - 0.5) * 2.2;
+    e.vy = 2 + Math.random();
+    e.vz = (Math.random() - 0.5) * 2.2;
+    this.world.entities.push(e);
+  };
+
+  Game.prototype.dropBlock = function (x, y, z, id, meta, toolName) {
+    var b = B.byId[id];
+    if (!b || !b.drop) return;
+    if (this.mode === 'creative') return;
+    if (!I.canHarvest(toolName, b)) return;
+    var drops = [];
+    var d = b.drop;
+
+    if (d === 'special_leaves_oak' || d === 'special_leaves_birch' || d === 'special_leaves_spruce') {
+      var kind = d.replace('special_leaves_', '');
+      if (toolName === 'shears') drops.push({ id: 'leaves_' + kind, n: 1 });
+      else {
+        if (Math.random() < 0.06) drops.push({ id: 'sapling_' + kind, n: 1 });
+        if (kind === 'oak' && Math.random() < 0.008) drops.push({ id: 'apple', n: 1 });
+        if (Math.random() < 0.02) drops.push({ id: 'stick', n: 1 });
+      }
+    } else if (d === 'special_grass') {
+      if (toolName === 'shears') drops.push({ id: 'tall_grass', n: 1 });
+      else if (Math.random() < 0.16) drops.push({ id: 'seeds', n: 1 });
+    } else if (d === 'special_wheat') {
+      if (meta >= 7) { drops.push({ id: 'wheat_item', n: 1 }); drops.push({ id: 'seeds', n: 1 + ((Math.random() * 3) | 0) }); }
+      else drops.push({ id: 'seeds', n: 1 });
+    } else if (id === B.id('gravel')) {
+      if (Math.random() < 0.12) drops.push({ id: 'flint', n: 1 });
+      else drops.push({ id: 'gravel', n: 1 });
+    } else if (id === B.id('wool_white') && false) { /* Platzhalter */ }
+    else {
+      drops.push({ id: d, n: b.dropCount || 1 });
+    }
+
+    for (var i = 0; i < drops.length; i++) {
+      if (!I.get(drops[i].id)) continue;
+      this.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: drops[i].id, count: drops[i].n });
+    }
+
+    // XP aus Erzen
+    var xpOres = { coal_ore: 1, diamond_ore: 5, emerald_ore: 6, lapis_ore: 3, redstone_ore: 3 };
+    if (xpOres[b.name]) {
+      this.world.entities.push(new MC.XPOrb(this.world, x + 0.5, y + 0.5, z + 0.5, xpOres[b.name]));
+    }
+  };
+
+  // ---------- Interaktion ----------
+  Game.prototype.updateTarget = function () {
+    var p = this.player;
+    var d = p.lookDir();
+    var reach = this.mode === 'creative' ? 6 : 4.5;
+    this.target = this.world.raycast(p.x, p.eyeY(), p.z, d.x, d.y, d.z, reach, false);
+    this.targetEntity = this.pickEntity(reach);
+    if (this.targetEntity && this.target) {
+      var de = this.targetEntity.dist;
+      if (de > this.target.dist) this.targetEntity = null;
+    }
+  };
+
+  Game.prototype.pickEntity = function (maxDist) {
+    var p = this.player, d = p.lookDir();
+    var ox = p.x, oy = p.eyeY(), oz = p.z;
+    var best = null, bestT = maxDist;
+    var ents = this.world.entities;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e.dead || !(e.type === 'mob')) continue;
+      var w = e.width / 2;
+      var hit = MC.rayBox(ox, oy, oz, d.x, d.y, d.z,
+        e.x - w - 0.1, e.y - 0.05, e.z - w - 0.1, e.x + w + 0.1, e.y + e.height + 0.1, e.z + w + 0.1);
+      if (hit && hit.t < bestT) { bestT = hit.t; best = e; }
+    }
+    if (!best) return null;
+    best.dist = bestT;
+    return best;
+  };
+
+  Game.prototype.onMouseDown = function (button) {
+    if (this.ui.isOpen() || this.paused || !this.started) return;
+    var p = this.player;
+    if (p.dead) return;
+    if (button === 0) {
+      this.updateTarget();
+      p.swingTime = 1;
+      if (this.targetEntity) this.attackEntity(this.targetEntity);
+      else if (this.target) this.startMining();
+    } else if (button === 2) {
+      this.useItem();
+    }
+  };
+
+  Game.prototype.onMouseUp = function (button) {
+    if (button === 0) this.mining = null;
+    if (button === 2) {
+      if (this.bowCharge > 0.25) this.shootBow();
+      this.bowCharge = 0;
+      this.player.eatTime = 0;
+      this.eating = false;
+    }
+  };
+
+  Game.prototype.attackEntity = function (e) {
+    var p = this.player;
+    if (p.attackCd > 0) return;
+    p.attackCd = 0.25;
+    var st = p.inventory.selectedStack();
+    var it = st ? I.get(st.id) : null;
+    // Schere auf Schaf
+    if (it && it.name === 'shears' && e.mobType === 'sheep' && !e.sheared) {
+      e.sheared = true;
+      this.spawnItem(e.x, e.y + 0.6, e.z, { id: 'wool_' + e.woolColor, count: 1 + ((Math.random() * 2) | 0) });
+      p.inventory.damageSelected(1, this);
+      this.audio.play('click');
+      return;
+    }
+    var dmg = it ? it.damage : 1;
+    if (!p.onGround && p.vy < 0) { dmg *= 1.5; this.particles.crit(e.x, e.y + e.height * 0.7, e.z); }
+    e.hurt(dmg, p, this);
+    p.exhaust(0.1);
+    if (it && it.tool && it.tool.type === 'sword') p.inventory.damageSelected(1, this);
+  };
+
+  Game.prototype.startMining = function () {
+    var t = this.target;
+    if (!t) return;
+    var b = B.byId[t.id];
+    if (b.hardness < 0 && this.mode !== 'creative') return;
+    if (this.mode === 'creative') {
+      this.breakBlock(t.x, t.y, t.z);
+      this.mining = null;
+      return;
+    }
+    this.mining = { x: t.x, y: t.y, z: t.z, progress: 0 };
+  };
+
+  Game.prototype.breakBlock = function (x, y, z) {
+    var id = this.world.getBlock(x, y, z);
+    if (!id) return;
+    var meta = this.world.getMeta(x, y, z);
+    var b = B.byId[id];
+    var st = this.player.inventory.selectedStack();
+    var toolName = st ? st.id : null;
+
+    this.particles.blockBreak(x, y, z, id, meta);
+    this.audio.breakBlock(b.sound);
+    this.dropBlock(x, y, z, id, meta, toolName);
+
+    // Truheninhalt ausschütten
+    var te = this.world.tileEntities[x + ',' + y + ',' + z];
+    if (te && te.items) {
+      for (var i = 0; i < te.items.length; i++) if (te.items[i]) this.spawnItem(x + 0.5, y + 0.5, z + 0.5, te.items[i]);
+    }
+    if (te && te.type === 'furnace') {
+      ['input', 'fuel', 'output'].forEach(function (k) { if (te[k]) this.spawnItem(x + 0.5, y + 0.5, z + 0.5, te[k]); }, this);
+    }
+
+    // Bett: beide Hälften entfernen
+    if (b.shape === B.SHAPE_BED) {
+      var dir = BED_DIRS[(meta >> 1) & 3];
+      var other = (meta & 1) ? [x - dir[0], y, z - dir[1]] : [x + dir[0], y, z + dir[1]];
+      if (this.world.getBlock(other[0], other[1], other[2]) === id) this.world.setBlock(other[0], other[1], other[2], 0, 0);
+    }
+
+    this.world.setBlock(x, y, z, 0, 0);
+    if (this.mode !== 'creative') {
+      var it = st ? I.get(st.id) : null;
+      if (it && it.tool) this.player.inventory.damageSelected(1, this);
+      this.player.exhaust(0.005);
+    }
+    this.mining = null;
+  };
+
+  var BED_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+  Game.prototype.facingFromYaw = function () {
+    var y = this.player.yaw;
+    var d = Math.round(y / (Math.PI / 2)) & 3;
+    // 0 = Blick nach +Z -> Vorderseite zeigt zum Spieler (-Z)
+    return [0, 3, 2, 1][d];
+  };
+
+  Game.prototype.useItem = function () {
+    var p = this.player, w = this.world;
+    this.updateTarget();
+    var st = p.inventory.selectedStack();
+    var it = st ? I.get(st.id) : null;
+
+    // Entity-Interaktion (Schaf scheren)
+    if (this.targetEntity && it && it.name === 'shears' && this.targetEntity.mobType === 'sheep') {
+      this.attackEntity(this.targetEntity);
+      return;
+    }
+
+    // Blockinteraktion (Werkbank, Ofen, Truhe, Bett, TNT)
+    if (this.target && !p.sneaking) {
+      var t = this.target;
+      var id = w.getBlock(t.x, t.y, t.z);
+      var b = B.byId[id];
+      if (b.name === 'crafting_table') { this.ui.openScreen('crafting'); return; }
+      if (b.name === 'furnace' || b.name === 'furnace_lit') {
+        var te = w.tileEntity(t.x, t.y, t.z, function () { return { type: 'furnace', input: null, fuel: null, output: null, burn: 0, burnMax: 0, cook: 0 }; });
+        this.ui.openScreen('furnace', te);
+        return;
+      }
+      if (b.name === 'chest') {
+        var tc = w.tileEntity(t.x, t.y, t.z, function () { return { type: 'chest', items: new Array(27) }; });
+        this.ui.openScreen('chest', tc);
+        return;
+      }
+      if (b.shape === B.SHAPE_BED) { this.trySleep(t); return; }
+      if (b.name === 'tnt' && it && it.name === 'flint_and_steel') {
+        w.setBlock(t.x, t.y, t.z, 0, 0);
+        var tnt = new MC.TNTEntity(w, t.x + 0.5, t.y, t.z + 0.5, 3.5);
+        w.entities.push(tnt);
+        p.inventory.damageSelected(1, this);
+        this.audio.play('fizz');
+        return;
+      }
+    }
+
+    if (!it) return;
+
+    // Essen
+    if (it.food) { this.eating = true; p.eatTime = 1.4; return; }
+    // Bogen
+    if (it.name === 'bow') {
+      if (this.mode === 'creative' || p.inventory.count('arrow') > 0) this.bowCharge = 0.001;
+      return;
+    }
+    // Eimer
+    if (it.name === 'bucket' || it.name === 'water_bucket' || it.name === 'lava_bucket') { this.useBucket(it); return; }
+    // Hacke
+    if (it.tool && it.tool.type === 'hoe' && this.target) {
+      var gid = w.getBlock(this.target.x, this.target.y, this.target.z);
+      if ((gid === B.id('grass') || gid === B.id('dirt')) && w.getBlock(this.target.x, this.target.y + 1, this.target.z) === 0) {
+        w.setBlock(this.target.x, this.target.y, this.target.z, B.id('farmland'), 0);
+        p.inventory.damageSelected(1, this);
+        this.audio.place('grass');
+        p.swingTime = 1;
+        return;
+      }
+    }
+    // Samen
+    if (it.name === 'seeds' && this.target) {
+      if (w.getBlock(this.target.x, this.target.y, this.target.z) === B.id('farmland') &&
+          w.getBlock(this.target.x, this.target.y + 1, this.target.z) === 0) {
+        w.setBlock(this.target.x, this.target.y + 1, this.target.z, B.id('wheat'), 0);
+        if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+        this.audio.place('grass');
+        p.swingTime = 1;
+        return;
+      }
+    }
+    // Bett platzieren
+    if (it.name === 'bed') { this.placeBed(); return; }
+    // Block platzieren
+    if (it.block) this.placeBlock(it);
+  };
+
+  Game.prototype.placeBlock = function (it) {
+    var w = this.world, p = this.player, t = this.target;
+    if (!t) return;
+    var block = B.byName[it.block];
+    if (!block) return;
+
+    var tx = t.x, ty = t.y, tz = t.z;
+    var targetId = w.getBlock(tx, ty, tz);
+    var replaceTarget = B.isReplaceable(targetId) && targetId !== 0;
+    var nx = tx, ny = ty, nz = tz;
+    if (!replaceTarget) {
+      var n = MC.NEI[t.face];
+      nx += n[0]; ny += n[1]; nz += n[2];
+    }
+    var cur = w.getBlock(nx, ny, nz);
+    if (cur !== 0 && !B.isReplaceable(cur)) return;
+    if (ny < 0 || ny >= WH) return;
+
+    // Kollision mit Spieler/Mobs
+    if (block.collide) {
+      var boxes = B.boxes(block.id, 0);
+      if (boxes) {
+        for (var bi = 0; bi < boxes.length; bi++) {
+          var bx = boxes[bi];
+          if (overlapAABB(p.x - 0.3, p.y, p.z - 0.3, p.x + 0.3, p.y + p.height, p.z + 0.3,
+                          nx + bx[0], ny + bx[1], nz + bx[2], nx + bx[3], ny + bx[4], nz + bx[5])) return;
+        }
+      }
+    }
+    // Halt für Pflanzen
+    if (B.needsSupport(block.id) && !B.validGround(block.id, w.getBlock(nx, ny - 1, nz))) return;
+
+    var meta = 0;
+    if (block.shape === B.SHAPE_SLAB) {
+      if (t.face === 3) meta = 1;
+      else if (t.face !== 2 && (t.hy - Math.floor(t.hy)) > 0.5) meta = 1;
+    } else if (block.name.indexOf('log_') === 0) {
+      meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
+    } else if (typeof block.tex === 'object' && block.tex.front) {
+      meta = this.facingFromYaw();
+    }
+
+    w.setBlock(nx, ny, nz, block.id, meta);
+    if (block.liquid) w.scheduleFluid(nx, ny, nz, 2);
+    this.audio.place(block.sound);
+    p.swingTime = 1;
+    if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+  };
+
+  Game.prototype.placeBed = function () {
+    var w = this.world, p = this.player, t = this.target;
+    if (!t) return;
+    var n = MC.NEI[t.face];
+    var x = t.x + n[0], y = t.y + n[1], z = t.z + n[2];
+    if (w.getBlock(x, y, z) !== 0) return;
+    // Kopfteil zeigt in Blickrichtung (facingFromYaw liefert die Vorderseite = zum Spieler)
+    var facing = (this.facingFromYaw() + 2) & 3;
+    var dir = BED_DIRS[facing];
+    var hx = x + dir[0], hz = z + dir[1];
+    if (w.getBlock(hx, y, hz) !== 0) return;
+    if (!B.isSolid(w.getBlock(x, y - 1, z)) || !B.isSolid(w.getBlock(hx, y - 1, hz))) return;
+    w.setBlock(x, y, z, B.id('bed'), (facing << 1));
+    w.setBlock(hx, y, hz, B.id('bed'), (facing << 1) | 1);
+    this.audio.place('cloth');
+    if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+  };
+
+  Game.prototype.trySleep = function (t) {
+    var w = this.world, p = this.player;
+    p.spawnPoint = { x: t.x + 0.5, y: t.y + 1.05, z: t.z + 0.5 };
+    if (!w.isNight()) { this.ui.toast('Du kannst nur nachts schlafen. Spawnpunkt gesetzt.'); return; }
+    // Monster in der Nähe?
+    for (var i = 0; i < w.entities.length; i++) {
+      var e = w.entities[i];
+      if (e.type === 'mob' && e.hostile && !e.dead && e.distTo(p) < 12) {
+        this.ui.toast('Du kannst jetzt nicht schlafen, es sind Monster in der Nähe!');
+        return;
+      }
+    }
+    w.time = 0.02;
+    p.heal(2);
+    this.ui.toast('Gute Nacht. Spawnpunkt gesetzt.');
+    this.audio.play('levelup');
+  };
+
+  Game.prototype.useBucket = function (it) {
+    var w = this.world, p = this.player;
+    var d = p.lookDir();
+    if (it.name === 'bucket') {
+      var hit = w.raycast(p.x, p.eyeY(), p.z, d.x, d.y, d.z, 5, true);
+      if (!hit) return;
+      var id = w.getBlock(hit.x, hit.y, hit.z);
+      var b = B.byId[id];
+      if (!b || !b.liquid || w.getMeta(hit.x, hit.y, hit.z) !== 0) return;
+      w.setBlock(hit.x, hit.y, hit.z, 0, 0);
+      if (this.mode !== 'creative') {
+        p.inventory.consumeSelected(1);
+        var left = p.inventory.add(I.newStack(b.name === 'water' ? 'water_bucket' : 'lava_bucket', 1));
+        if (left > 0) this.spawnItem(p.x, p.y + 1, p.z, I.newStack(b.name === 'water' ? 'water_bucket' : 'lava_bucket', left));
+      }
+      this.audio.play('splash');
+    } else {
+      if (!this.target) return;
+      var n = MC.NEI[this.target.face];
+      var x = this.target.x + n[0], y = this.target.y + n[1], z = this.target.z + n[2];
+      var curId = w.getBlock(x, y, z);
+      if (curId !== 0 && !B.isReplaceable(curId)) return;
+      var fluid = it.name === 'water_bucket' ? 'water' : 'lava';
+      w.setBlock(x, y, z, B.id(fluid), 0);
+      w.scheduleFluid(x, y, z, 2);
+      if (this.mode !== 'creative') {
+        p.inventory.consumeSelected(1);
+        p.inventory.add(I.newStack('bucket', 1));
+      }
+      this.audio.play('splash');
+    }
+  };
+
+  Game.prototype.shootBow = function () {
+    var p = this.player;
+    if (this.mode !== 'creative') {
+      var found = false;
+      for (var i = 0; i < p.inventory.size; i++) {
+        var s = p.inventory.slots[i];
+        if (s && s.id === 'arrow') { s.count--; if (s.count <= 0) p.inventory.slots[i] = null; found = true; break; }
+      }
+      if (!found) return;
+      p.inventory.damageSelected(1, this);
+    }
+    var d = p.lookDir();
+    var power = Math.min(1, this.bowCharge) * 34 + 12;
+    var a = new MC.Arrow(this.world, p.x + d.x * 0.5, p.eyeY() - 0.1, p.z + d.z * 0.5,
+      d.x * power, d.y * power + 1.2, d.z * power, p, Math.round(4 + Math.min(1, this.bowCharge) * 5));
+    this.world.entities.push(a);
+    this.audio.play('bow');
+    p.swingTime = 1;
+  };
+
+  // ---------- Ofen ----------
+  Game.prototype.tickFurnaces = function () {
+    var w = this.world;
+    for (var k in w.tileEntities) {
+      var te = w.tileEntities[k];
+      if (te.type !== 'furnace') continue;
+      var parts = k.split(',');
+      var x = +parts[0], y = +parts[1], z = +parts[2];
+      var changed = false;
+      var recipe = te.input ? R.smeltResult(te.input.id) : null;
+      var canSmelt = false;
+      if (recipe) {
+        if (!te.output) canSmelt = true;
+        else if (te.output.id === recipe.id && te.output.count + recipe.count <= I.stackMax(recipe.id)) canSmelt = true;
+      }
+      if (te.burn > 0) { te.burn--; changed = true; }
+      if (te.burn <= 0 && canSmelt && te.fuel) {
+        var fv = R.fuelValue(te.fuel.id);
+        if (fv > 0) {
+          te.burn = fv; te.burnMax = fv;
+          te.fuel.count--;
+          if (te.fuel.id === 'lava_bucket') { te.fuel = I.newStack('bucket', 1); }
+          else if (te.fuel.count <= 0) te.fuel = null;
+          changed = true;
+        }
+      }
+      if (te.burn > 0 && canSmelt) {
+        te.cook++;
+        if (te.cook >= R.SMELT_TIME) {
+          te.cook = 0;
+          if (!te.output) te.output = I.newStack(recipe.id, recipe.count);
+          else te.output.count += recipe.count;
+          te.input.count--;
+          if (te.input.count <= 0) te.input = null;
+          this.player.addXP(1);
+        }
+        changed = true;
+      } else if (te.cook > 0) { te.cook = Math.max(0, te.cook - 2); changed = true; }
+
+      // Blockzustand (an/aus)
+      var cur = w.getBlock(x, y, z);
+      var want = te.burn > 0 ? B.id('furnace_lit') : B.id('furnace');
+      if ((cur === B.id('furnace') || cur === B.id('furnace_lit')) && cur !== want) {
+        w.setBlock(x, y, z, want, w.getMeta(x, y, z), { keepTile: true, noUpdate: true });
+      }
+      if (te.burn > 0 && Math.random() < 0.1) this.particles.smoke(x + 0.5, y + 1, z + 0.5, 1);
+    }
+  };
+
+  Game.prototype.refreshFurnaceUI = function () {
+    if (this.ui.open !== 'furnace' || !this.ui.furnace) return;
+    var te = this.ui.furnace;
+    if (this.ui.fireEl) this.ui.fireEl.style.height = (te.burnMax ? (te.burn / te.burnMax) * 100 : 0) + '%';
+    if (this.ui.progEl) this.ui.progEl.firstChild.style.width = (te.cook / R.SMELT_TIME * 100) + '%';
+    this.ui.refreshSlots();
+  };
+
+  // ---------- Tasten ----------
+  Game.prototype.onKeyDown = function (e) {
+    var code = e.code;
+    if (!this.started) return;
+    if (code === 'Escape') {
+      if (this.ui.isOpen()) this.ui.close();
+      else this.pause(!this.paused);
+      return;
+    }
+    if (this.player.dead) {
+      if (code === 'Space' || code === 'Enter') this.player.respawn(this);
+      return;
+    }
+    if (this.ui.isOpen()) {
+      if (code === 'KeyE' || code === 'KeyI') this.ui.close();
+      return;
+    }
+    if (this.paused) return;
+
+    switch (code) {
+      case 'KeyE': case 'KeyI':
+        this.ui.openScreen(this.mode === 'creative' ? 'creative' : 'inventory');
+        break;
+      case 'KeyQ': this.dropSelected(e.shiftKey); break;
+      case 'F3': this.ui.debugVisible = !this.ui.debugVisible; break;
+      case 'KeyP':
+        this.mode = this.mode === 'creative' ? 'survival' : 'creative';
+        if (this.mode !== 'creative') this.player.flying = false;
+        this.ui.toast('Modus: ' + (this.mode === 'creative' ? 'Kreativ' : 'Überleben'));
+        break;
+      case 'F5': this.hideHand = !this.hideHand; break;
+      case 'Space':
+        var now = performance.now();
+        if (this.mode === 'creative' && now - (this.input.lastSpace || 0) < 320) {
+          this.player.flying = !this.player.flying;
+          this.player.vy = 0;
+        }
+        this.input.lastSpace = now;
+        break;
+      case 'KeyF': this.ui.toast('Sichtweite: ' + this.cycleRenderDistance()); break;
+      case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.ui.toast('Musik ' + (this.audio.musicOn ? 'an' : 'aus')); break;
+      case 'KeyR': this.saveWorld(); break;
+    }
+    if (code.indexOf('Digit') === 0) {
+      var n = parseInt(code.slice(5), 10);
+      if (n >= 1 && n <= 9) { this.player.inventory.selected = n - 1; this.ui.updateHotbar(); }
+    }
+  };
+
+  Game.prototype.cycleRenderDistance = function () {
+    var opts = [4, 5, 6, 7, 8, 10, 12];
+    var i = opts.indexOf(this.renderer.renderDistance);
+    this.renderer.renderDistance = opts[(i + 1) % opts.length];
+    return this.renderer.renderDistance;
+  };
+
+  Game.prototype.dropSelected = function (all) {
+    var p = this.player;
+    var s = p.inventory.selectedStack();
+    if (!s) return;
+    var d = p.lookDir();
+    var n = all ? s.count : 1;
+    var stack = { id: s.id, count: n, dur: s.dur };
+    var e = new MC.ItemEntity(this.world, p.x + d.x * 0.6, p.eyeY() - 0.3, p.z + d.z * 0.6, stack);
+    e.vx = d.x * 6; e.vy = d.y * 6 + 1.5; e.vz = d.z * 6;
+    e.pickupDelay = 1.2;
+    this.world.entities.push(e);
+    s.count -= n;
+    if (s.count <= 0) p.inventory.slots[p.inventory.selected] = null;
+    this.ui.updateHotbar();
+  };
+
+  // ---------- Pointer Lock / Pause ----------
+  Game.prototype.requestPointerLock = function () {
+    var self = this;
+    if (this.paused || this.ui.isOpen() || !this.started || !this.player || this.player.dead) return;
+    if (!this.canvas.requestPointerLock) return;
+    // Chrome verweigert eine sofortige Neuanforderung nach dem Freigeben.
+    // Darum kurz warten und den Klick-Hinweis zeigen, falls es nicht klappt.
+    var tryLock = function () {
+      if (self.paused || self.ui.isOpen() || !self.started) return;
+      var p = self.canvas.requestPointerLock();
+      if (p && p.catch) p.catch(function () { self.showClickHint(true); });
+    };
+    if (performance.now() - (this._lastUnlock || 0) < 1300) setTimeout(tryLock, 1300);
+    else tryLock();
+  };
+
+  Game.prototype.exitPointerLock = function () {
+    this._lastUnlock = performance.now();
+    this.suppressPauseUntil = performance.now() + 900;
+    if (document.exitPointerLock) document.exitPointerLock();
+  };
+
+  Game.prototype.showClickHint = function (on) {
+    var el = document.getElementById('clickhint');
+    if (el) el.style.display = on ? 'flex' : 'none';
+  };
+
+  Game.prototype.pause = function (on) {
+    this.paused = on;
+    if (on) { this.exitPointerLock(); this.showMenu('pause'); }
+    else { this.hideMenu(); this.requestPointerLock(); }
+  };
+
+  // ---------- Menü ----------
+  Game.prototype.buildMenu = function () {
+    var self = this;
+    var m = document.getElementById('menu');
+    this.menuEl = m;
+    m.innerHTML = '';
+    var box = document.createElement('div');
+    box.className = 'menubox';
+    m.appendChild(box);
+    this.menuBox = box;
+    this.showMenu('main');
+
+    document.getElementById('respawnbtn').addEventListener('click', function () {
+      self.player.respawn(self);
+      self.requestPointerLock();
+    });
+  };
+
+  Game.prototype.showMenu = function (which) {
+    var self = this;
+    var box = this.menuBox;
+    this.menuEl.style.display = 'flex';
+    box.innerHTML = '';
+    function h(txt, cls) { var e = document.createElement('div'); e.className = cls || 'mtitle'; e.innerHTML = txt; box.appendChild(e); return e; }
+    function btn(txt, fn) {
+      var b = document.createElement('button');
+      b.className = 'mbtn'; b.textContent = txt;
+      b.addEventListener('click', function () { self.audio.init(); self.audio.play('click'); fn(); });
+      box.appendChild(b); return b;
+    }
+
+    if (which === 'main') {
+      h('<span class="logo">MINECRAFT</span><span class="sub">HTML Edition</span>', 'mhead');
+      var row = document.createElement('div'); row.className = 'mrow'; box.appendChild(row);
+      var seed = document.createElement('input');
+      seed.className = 'minput'; seed.placeholder = 'Seed (optional)';
+      row.appendChild(seed);
+      var modeSel = document.createElement('select');
+      modeSel.className = 'minput';
+      modeSel.innerHTML = '<option value="survival">Überleben</option><option value="creative">Kreativ</option>';
+      row.appendChild(modeSel);
+      btn('Neue Welt erschaffen', function () { self.newWorld(seed.value.trim(), modeSel.value); });
+      if (this.hasSave()) btn('Welt laden', function () { self.loadWorld(); });
+      btn('Steuerung & Ziele', function () { self.showMenu('help'); });
+      var f = document.createElement('div'); f.className = 'mfoot';
+      f.innerHTML = 'Läuft komplett offline aus dem Ordner. Benötigt WebGL2.';
+      box.appendChild(f);
+    } else if (which === 'pause') {
+      h('Pause', 'mtitle');
+      btn('Weiterspielen', function () { self.pause(false); });
+      btn('Speichern', function () { self.saveWorld(); });
+      btn('Sichtweite: ' + this.renderer.renderDistance, function () { self.cycleRenderDistance(); self.showMenu('pause'); });
+      btn('Musik: ' + (this.audio.musicOn ? 'an' : 'aus'), function () { self.audio.musicOn = !self.audio.musicOn; self.showMenu('pause'); });
+      btn('Lautstärke: ' + Math.round(this.audio.volume * 100) + '%', function () {
+        var v = self.audio.volume + 0.2; if (v > 1.01) v = 0;
+        self.audio.setVolume(v); self.showMenu('pause');
+      });
+      btn('Modus: ' + (this.mode === 'creative' ? 'Kreativ' : 'Überleben'), function () {
+        self.mode = self.mode === 'creative' ? 'survival' : 'creative';
+        if (self.mode !== 'creative') self.player.flying = false;
+        self.showMenu('pause');
+      });
+      btn('Welt exportieren (.json)', function () { self.exportWorld(); });
+      btn('Welt importieren', function () { self.importWorld(); });
+      btn('Steuerung', function () { self.showMenu('help'); });
+      btn('Hauptmenü', function () { self.saveWorld(); self.started = false; self.showMenu('main'); });
+    } else if (which === 'help') {
+      h('Steuerung', 'mtitle');
+      var d = document.createElement('div');
+      d.className = 'mhelp';
+      d.innerHTML = [
+        '<b>W A S D</b> Bewegen &nbsp; <b>Leertaste</b> Springen &nbsp; <b>Shift</b> Schleichen &nbsp; <b>Strg</b> Sprinten',
+        '<b>Maus</b> Umsehen &nbsp; <b>Links</b> Abbauen/Angreifen &nbsp; <b>Rechts</b> Platzieren/Benutzen',
+        '<b>1–9 / Mausrad</b> Hotbar &nbsp; <b>E</b> Inventar &nbsp; <b>Q</b> Item wegwerfen',
+        '<b>F3</b> Debug &nbsp; <b>F</b> Sichtweite &nbsp; <b>P</b> Spielmodus &nbsp; <b>M</b> Musik &nbsp; <b>R</b> Speichern',
+        '<b>Doppel-Leertaste</b> Fliegen (Kreativ) &nbsp; <b>Esc</b> Pause',
+        '<hr>',
+        '<b>Ziel:</b> Holz schlagen → Bretter → Werkbank → Werkzeuge → Stein → Erze →',
+        'Ofen bauen, Essen braten, Rüstung schmieden, Nacht überleben, bauen.'
+      ].join('<br>');
+      box.appendChild(d);
+      btn('Zurück', function () { self.showMenu(self.started ? 'pause' : 'main'); });
+    }
+  };
+
+  Game.prototype.hideMenu = function () { this.menuEl.style.display = 'none'; };
+
+  // ---------- Speichern ----------
+  Game.prototype.collectSave = function () {
+    var w = this.world;
+    if (!w.savedChunks) w.savedChunks = {};
+    for (var i = 0; i < w.chunkList.length; i++) {
+      var c = w.chunkList[i];
+      if (c.modified) w.savedChunks[c.cx + ',' + c.cz] = c.modified;
+    }
+    return {
+      version: 1,
+      seed: w.seed,
+      time: w.time,
+      mode: this.mode,
+      player: this.player.serialize(),
+      chunks: w.savedChunks,
+      tileEntities: w.tileEntities
+    };
+  };
+
+  Game.prototype.saveWorld = function () {
+    if (!this.started) return;
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.collectSave()));
+      this.ui.toast('Welt gespeichert');
+    } catch (err) {
+      this.ui.toast('Speichern fehlgeschlagen — nutze „Welt exportieren"');
+    }
+  };
+
+  Game.prototype.hasSave = function () {
+    try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+  };
+
+  Game.prototype.loadWorld = function () {
+    var data;
+    try { data = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { }
+    if (!data) { this.ui.toast('Kein Spielstand gefunden'); return; }
+    this.applySave(data);
+  };
+
+  Game.prototype.applySave = function (data) {
+    var self = this;
+    this.mode = data.mode || 'survival';
+    this.world = new MC.World(data.seed, { time: data.time });
+    this.world.entities = [];
+    this.world.savedChunks = data.chunks || {};
+    this.world.tileEntities = data.tileEntities || {};
+    this.particles = new MC.Particles(this.world);
+    this.attachWorldHooks();
+
+    this.player = new MC.Player(this.world, 0, 80, 0);
+    this.player.load(data.player);
+    var keys = Object.keys(this.renderer.chunkMeshes);
+    for (var ki = 0; ki < keys.length; ki++) {
+      var kp = keys[ki].split(',');
+      this.renderer.dropChunk({ cx: +kp[0], cz: +kp[1] });
+    }
+    this.ensureChunksAround(this.player.x, this.player.z, 2);
+    this.started = true;
+    this.paused = false;
+    this.ui.hideDeath();
+    this.hideMenu();
+    this.audio.init();
+    this.requestPointerLock();
+    this.ui.updateHotbar();
+    this.ui.toast('Welt geladen');
+  };
+
+  Game.prototype.exportWorld = function () {
+    var data = JSON.stringify(this.collectSave());
+    var blob = new Blob([data], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'minecraft-welt-' + this.world.seed + '.json';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    this.ui.toast('Welt exportiert');
+  };
+
+  Game.prototype.importWorld = function () {
+    var self = this;
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json,application/json';
+    inp.addEventListener('change', function () {
+      var f = inp.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () {
+        try { self.applySave(JSON.parse(fr.result)); }
+        catch (e) { self.ui.toast('Datei konnte nicht gelesen werden'); }
+      };
+      fr.readAsText(f);
+    });
+    inp.click();
+  };
+
+  // ---------- Hauptschleife ----------
+  Game.prototype.loop = function (now) {
+    requestAnimationFrame(this.loop);
+    var dt = Math.min(0.1, (now - (this.lastTime || now)) / 1000);
+    this.lastTime = now;
+    this.time += dt;
+    this.fps = this.fps * 0.92 + (1 / Math.max(0.0001, dt)) * 0.08;
+
+    if (!this.started) { return; }
+
+    var input = this.input;
+    var p = this.player;
+
+    // Maus
+    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead) {
+      p.yaw -= input.dx * this.sensitivity;
+      p.pitch += input.dy * this.sensitivity;
+      p.pitch = U.clamp(p.pitch, -Math.PI / 2 + 0.001, Math.PI / 2 - 0.001);
+      while (p.yaw > Math.PI) p.yaw -= Math.PI * 2;
+      while (p.yaw < -Math.PI) p.yaw += Math.PI * 2;
+    }
+    input.dx = 0; input.dy = 0;
+
+    if (input.wheel !== 0 && !this.ui.isOpen()) {
+      var d = input.wheel > 0 ? 1 : -1;
+      p.inventory.selected = (p.inventory.selected + d + 9) % 9;
+      this.ui.updateHotbar();
+      input.wheel = 0;
+    }
+
+    if (!this.paused && !this.ui.isOpen()) {
+      this.tickCount++;
+      input.sprintToggle = false;
+      p.update(dt, input, this);
+      this.updateTarget();
+      this.handleMining(dt);
+      this.handleUseHold(dt);
+
+      // Entities
+      var ents = this.world.entities;
+      for (var i = ents.length - 1; i >= 0; i--) {
+        var e = ents[i];
+        if (e.dead) { ents.splice(i, 1); continue; }
+        e.update(dt, this);
+      }
+      MC.Spawner.tick(this, dt);
+      this.particles.update(dt);
+      this.world.update(dt, p.x, p.y, p.z);
+      if ((this.tickCount % 4) === 0) this.tickFurnaces();
+
+      this.camBob = Math.sin(p.bobPhase * 2) * 0.022 * (p.sprinting ? 1.4 : 1);
+      if (this.damageFlash > 0) this.damageFlash -= dt * 2;
+      if (this.camShake > 0) this.camShake -= dt * 2;
+
+      this.autoSaveTimer += dt;
+      if (this.autoSaveTimer > 120) { this.autoSaveTimer = 0; this.saveWorld(); }
+      this.audio.tickMusic(dt);
+    }
+
+    this.ensureChunksAround(p.x, p.z, false);
+    this.buildMeshes(false);
+    this.renderer.render(this, dt);
+    this.ui.updateHUD();
+    this.ui.updateDebug();
+    if (this.ui.open === 'furnace') this.refreshFurnaceUI();
+  };
+
+  Game.prototype.handleMining = function (dt) {
+    var p = this.player;
+    if (!this.input.mouse[0] || this.player.dead) { this.mining = null; return; }
+    if (!this.target) { this.mining = null; return; }
+    if (this.targetEntity) return;
+    var t = this.target;
+    if (!this.mining || this.mining.x !== t.x || this.mining.y !== t.y || this.mining.z !== t.z) {
+      this.startMining();
+      if (!this.mining) return;
+    }
+    p.swingTime = Math.max(p.swingTime, 0.35);
+    var b = B.byId[t.id];
+    var st = p.inventory.selectedStack();
+    var time = I.breakTime(st ? st.id : null, b);
+    if (time === Infinity) return;
+    this.mining.progress += dt / Math.max(0.001, time);
+    this.miningSoundTimer = (this.miningSoundTimer || 0) + dt;
+    if (this.miningSoundTimer > 0.28) {
+      this.miningSoundTimer = 0;
+      this.audio.dig(b.sound);
+      var n = MC.NEI[t.face];
+      this.particles.blockHit(t.x, t.y, t.z, t.id, this.world.getMeta(t.x, t.y, t.z), n[0], n[1], n[2]);
+    }
+    if (this.mining.progress >= 1) this.breakBlock(t.x, t.y, t.z);
+  };
+
+  Game.prototype.handleUseHold = function (dt) {
+    var p = this.player;
+    if (!this.input.mouse[2]) { this.bowCharge = 0; this.eating = false; p.eatTime = 0; return; }
+    var st = p.inventory.selectedStack();
+    var it = st ? I.get(st.id) : null;
+    if (this.bowCharge > 0) { this.bowCharge = Math.min(1.6, this.bowCharge + dt); return; }
+    if (this.eating && it && it.food) {
+      p.eatTime -= dt;
+      if ((this.tickCount % 6) === 0) this.particles.crit(p.x, p.eyeY() - 0.4, p.z);
+      if (p.eatTime <= 0) { p.eat(this); this.eating = false; }
+    }
+  };
+
+  function overlapAABB(ax0, ay0, az0, ax1, ay1, az1, bx0, by0, bz0, bx1, by1, bz1) {
+    return ax0 < bx1 && ax1 > bx0 && ay0 < by1 && ay1 > by0 && az0 < bz1 && az1 > bz0;
+  }
+
+  // ---------- Start ----------
+  window.addEventListener('load', function () {
+    var loading = document.getElementById('loading');
+    try {
+      var game = new Game();
+      MC.game = game;
+      game.init();
+      loading.style.display = 'none';
+    } catch (err) {
+      loading.innerHTML = '<div class="err"><h2>Start fehlgeschlagen</h2><p>' + err.message + '</p>' +
+        '<p>Diese App benötigt einen Browser mit WebGL2 (Chrome, Edge, Firefox).</p></div>';
+      console.error(err);
+    }
+  });
+
+})();

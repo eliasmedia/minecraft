@@ -1,0 +1,453 @@
+/* ============================================================
+   player.js  -  Inventar + Spieler (Bewegung, Überleben, Interaktion)
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var B = MC.Blocks, I = MC.Items, U = MC.U, P = MC.Physics;
+
+  // ============================================================
+  //  Inventar
+  // ============================================================
+  function Inventory(size) {
+    this.size = size || 36;
+    this.slots = new Array(this.size);
+    for (var i = 0; i < this.size; i++) this.slots[i] = null;
+    this.armor = [null, null, null, null];
+    this.selected = 0;
+  }
+  MC.Inventory = Inventory;
+
+  Inventory.prototype.get = function (i) { return this.slots[i]; };
+  Inventory.prototype.set = function (i, s) { this.slots[i] = s; };
+  Inventory.prototype.selectedStack = function () { return this.slots[this.selected]; };
+
+  // fügt hinzu, gibt Rest zurück
+  Inventory.prototype.add = function (stack) {
+    if (!stack) return 0;
+    var max = I.stackMax(stack.id);
+    var i;
+    if (max > 1) {
+      for (i = 0; i < this.size; i++) {
+        var s = this.slots[i];
+        if (s && s.id === stack.id && s.dur === undefined && s.count < max) {
+          var can = Math.min(max - s.count, stack.count);
+          s.count += can; stack.count -= can;
+          if (stack.count <= 0) return 0;
+        }
+      }
+    }
+    for (i = 0; i < this.size; i++) {
+      if (!this.slots[i]) {
+        var put = Math.min(max, stack.count);
+        var ns = { id: stack.id, count: put };
+        if (stack.dur !== undefined) ns.dur = stack.dur;
+        this.slots[i] = ns;
+        stack.count -= put;
+        if (stack.count <= 0) return 0;
+      }
+    }
+    return stack.count;
+  };
+
+  Inventory.prototype.count = function (id) {
+    var n = 0;
+    for (var i = 0; i < this.size; i++) if (this.slots[i] && this.slots[i].id === id) n += this.slots[i].count;
+    return n;
+  };
+
+  Inventory.prototype.consumeSelected = function (n) {
+    var s = this.slots[this.selected];
+    if (!s) return false;
+    s.count -= (n || 1);
+    if (s.count <= 0) this.slots[this.selected] = null;
+    return true;
+  };
+
+  Inventory.prototype.damageSelected = function (n, game) {
+    var s = this.slots[this.selected];
+    if (!s || s.dur === undefined) return;
+    if (game && game.mode === 'creative') return;
+    s.dur -= (n || 1);
+    if (s.dur <= 0) {
+      this.slots[this.selected] = null;
+      if (game) game.audio.play('break_tool');
+    }
+  };
+
+  Inventory.prototype.damageArmor = function (n, game) {
+    for (var i = 0; i < 4; i++) {
+      var a = this.armor[i];
+      if (!a || a.dur === undefined) continue;
+      if (game && game.mode === 'creative') continue;
+      a.dur -= n;
+      if (a.dur <= 0) { this.armor[i] = null; if (game) game.audio.play('break_tool'); }
+    }
+  };
+
+  Inventory.prototype.defense = function () {
+    var d = 0;
+    for (var i = 0; i < 4; i++) {
+      var a = this.armor[i];
+      if (!a) continue;
+      var it = I.get(a.id);
+      if (it && it.armor) d += it.armor.defense;
+    }
+    return d;
+  };
+
+  Inventory.prototype.clear = function () {
+    for (var i = 0; i < this.size; i++) this.slots[i] = null;
+    this.armor = [null, null, null, null];
+  };
+
+  Inventory.prototype.serialize = function () {
+    return { slots: this.slots, armor: this.armor, selected: this.selected };
+  };
+  Inventory.prototype.load = function (d) {
+    if (!d) return;
+    for (var i = 0; i < this.size; i++) this.slots[i] = (d.slots && d.slots[i]) || null;
+    this.armor = d.armor || [null, null, null, null];
+    this.selected = d.selected || 0;
+  };
+
+  // ============================================================
+  //  Spieler
+  // ============================================================
+  function Player(world, x, y, z) {
+    this.world = world;
+    this.x = x; this.y = y; this.z = z;
+    this.vx = 0; this.vy = 0; this.vz = 0;
+    this.yaw = 0; this.pitch = 0;
+    this.width = 0.6; this.height = 1.8;
+    this.eyeHeight = 1.62;
+    this.onGround = false;
+    this.collidedH = false;
+    this.flying = false;
+    this.sprinting = false;
+    this.sneaking = false;
+    this.inWater = false;
+    this.type = 'player';
+
+    this.health = 20; this.maxHealth = 20;
+    this.food = 20; this.saturation = 5; this.exhaustion = 0;
+    this.air = 10; this.maxAir = 10;
+    this.xp = 0; this.level = 0;
+    this.dead = false;
+    this.hurtTime = 0;
+    this.fallStart = null;
+    this.regenTimer = 0; this.starveTimer = 0;
+    this.walkTime = 0;
+    this.bobPhase = 0;
+    this.swingTime = 0;
+    this.eatTime = 0;
+    this.attackCd = 0;
+    this.spawnPoint = { x: x, y: y, z: z };
+
+    this.inventory = new Inventory(36);
+    this.mining = null;
+    this.placeCd = 0;
+    this.breakCd = 0;
+    this.lastDamageSource = null;
+  }
+  MC.Player = Player;
+
+  Player.prototype.eyeY = function () {
+    return this.y + (this.sneaking ? this.eyeHeight - 0.18 : this.eyeHeight);
+  };
+
+  Player.prototype.lookDir = function () { return U.dirFromAngles(this.yaw, this.pitch); };
+
+  // ---------- Update ----------
+  Player.prototype.update = function (dt, input, game) {
+    if (this.hurtTime > 0) this.hurtTime -= dt;
+    if (this.swingTime > 0) this.swingTime -= dt * 3.2;
+    if (this.attackCd > 0) this.attackCd -= dt;
+    if (this.placeCd > 0) this.placeCd -= dt;
+    if (this.breakCd > 0) this.breakCd -= dt;
+
+    if (this.dead) { this.vx = this.vz = 0; return; }
+
+    var world = this.world;
+    this.inWater = P.inLiquid(world, this, 'water');
+    var inLava = P.inLiquid(world, this, 'lava');
+    var creative = game.mode === 'creative';
+
+    // ---- Eingabe -> Bewegung ----
+    var fwd = 0, side = 0;
+    if (input.key('KeyW')) fwd += 1;
+    if (input.key('KeyS')) fwd -= 1;
+    if (input.key('KeyA')) side -= 1;
+    if (input.key('KeyD')) side += 1;
+    this.sneaking = input.key('ShiftLeft') || input.key('ShiftRight');
+    var wantSprint = input.key('ControlLeft') || input.sprintToggle;
+    this.sprinting = wantSprint && fwd > 0 && !this.sneaking && (creative || this.food > 6);
+
+    var speed = 4.317;
+    if (this.sprinting) speed = 5.6;
+    if (this.sneaking && !this.flying) speed = 1.45;
+    if (this.flying) speed = this.sprinting ? 21 : 10.5;
+    if (this.inWater && !this.flying) speed *= 0.62;
+
+    var len = Math.sqrt(fwd * fwd + side * side);
+    var wx = 0, wz = 0;
+    if (len > 0) {
+      fwd /= len; side /= len;
+      // vorwärts = (sin yaw, cos yaw), rechts = (-cos yaw, sin yaw)
+      var sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+      wx = (sy * fwd - cy * side);
+      wz = (cy * fwd + sy * side);
+    }
+
+    if (this.flying) {
+      var vy = 0;
+      if (input.key('Space')) vy += 1;
+      if (this.sneaking) vy -= 1;
+      this.vx = wx * speed; this.vz = wz * speed;
+      this.vy = vy * speed * 0.8;
+      P.move(world, this, this.vx * dt, this.vy * dt, this.vz * dt);
+      this.fallStart = null;
+    } else {
+      var accel = this.onGround ? 42 : 12;
+      this.vx += wx * speed * accel * dt;
+      this.vz += wz * speed * accel * dt;
+      var hv = Math.sqrt(this.vx * this.vx + this.vz * this.vz);
+      if (hv > speed) { this.vx = this.vx / hv * speed; this.vz = this.vz / hv * speed; }
+
+      // Springen / Schwimmen
+      if (input.key('Space')) {
+        if (this.inWater) this.vy = 4.4;
+        else if (this.onGround) {
+          this.vy = 8.85;   // ~1,2 Blöcke Sprunghöhe wie im Original
+          this.exhaust(this.sprinting ? 0.2 : 0.05);
+        }
+      }
+
+      this.vy -= (this.inWater ? 9 : 32) * dt;
+      if (this.inWater && this.vy < -3) this.vy = -3;
+      if (this.vy < -78) this.vy = -78;
+
+      var beforeY = this.y;
+      var sneakGuard = this.sneaking && this.onGround;
+      var oldX = this.x, oldZ = this.z;
+      P.move(world, this, this.vx * dt, 0, this.vz * dt);
+      if (sneakGuard && !this.onFloorAt(this.x, this.y, this.z)) {
+        // Schleichen: nicht von der Kante fallen
+        if (this.onFloorAt(oldX, this.y, this.z)) { this.x = oldX; this.vx = 0; }
+        else if (this.onFloorAt(this.x, this.y, oldZ)) { this.z = oldZ; this.vz = 0; }
+        else { this.x = oldX; this.z = oldZ; this.vx = 0; this.vz = 0; }
+      }
+      P.move(world, this, 0, this.vy * dt, 0);
+
+      var friction = this.onGround ? 0.0015 : 0.35;
+      var k = Math.pow(friction, dt);
+      this.vx *= k; this.vz *= k;
+
+      // Fallschaden
+      if (!this.onGround && this.vy < 0) {
+        if (this.fallStart === null) this.fallStart = beforeY;
+        else this.fallStart = Math.max(this.fallStart, beforeY);
+      }
+      if (this.inWater) this.fallStart = null;
+      if (this.onGround && this.fallStart !== null) {
+        var fd = this.fallStart - this.y;
+        if (fd > 3.2) {
+          var dmg = Math.floor(fd - 3);
+          if (dmg > 0) { this.hurt(dmg, null, game); game.audio.play('fall'); }
+        }
+        this.fallStart = null;
+      }
+    }
+
+    var moved = Math.abs(this.vx) + Math.abs(this.vz);
+    if (moved > 0.3 && (this.onGround || this.inWater)) {
+      this.walkTime += dt * (this.sprinting ? 11 : 8);
+      this.bobPhase += dt * (this.sprinting ? 11 : 8);
+      this.exhaust(dt * (this.sprinting ? 0.1 : 0.01));
+      // Schrittgeräusch
+      this.stepTimer = (this.stepTimer || 0) + dt * moved;
+      if (this.stepTimer > 2.4) {
+        this.stepTimer = 0;
+        var gb = world.getBlock(Math.floor(this.x), Math.floor(this.y - 0.2), Math.floor(this.z));
+        if (gb) game.audio.step(B.byId[gb].sound);
+      }
+    }
+
+    // ---- Umgebung ----
+    var headBlock = world.getBlock(Math.floor(this.x), Math.floor(this.eyeY()), Math.floor(this.z));
+    var headB = B.byId[headBlock];
+    this.headInWater = headB && headB.name === 'water';
+    this.headInLava = headB && headB.name === 'lava';
+
+    if (this.headInWater && !creative) {
+      this.air -= dt;
+      if (this.air <= 0) { this.air = 0; this.drownTimer = (this.drownTimer || 0) + dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2, null, game); game.audio.play('hurt'); } }
+      if (Math.random() < dt * 4) game.particles.splash(this.x, this.eyeY(), this.z, 1);
+    } else {
+      this.air = Math.min(this.maxAir, this.air + dt * 4);
+      this.drownTimer = 0;
+    }
+
+    if (inLava && !creative) {
+      this.lavaTimer = (this.lavaTimer || 0) + dt;
+      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4, null, game); }
+    }
+    // Kaktus
+    var touchCactus = false;
+    var cx0 = Math.floor(this.x - 0.35), cx1 = Math.floor(this.x + 0.35);
+    var cz0 = Math.floor(this.z - 0.35), cz1 = Math.floor(this.z + 0.35);
+    for (var cy = Math.floor(this.y); cy <= Math.floor(this.y + this.height); cy++)
+      for (var czz = cz0; czz <= cz1; czz++)
+        for (var cxx = cx0; cxx <= cx1; cxx++)
+          if (world.getBlock(cxx, cy, czz) === B.id('cactus')) touchCactus = true;
+    if (touchCactus && !creative) {
+      this.cactusTimer = (this.cactusTimer || 0) + dt;
+      if (this.cactusTimer > 0.5) { this.cactusTimer = 0; this.hurt(1, null, game); }
+    }
+
+    // ---- Hunger & Regeneration ----
+    if (!creative) {
+      if (this.exhaustion >= 4) {
+        this.exhaustion -= 4;
+        if (this.saturation > 0) this.saturation = Math.max(0, this.saturation - 1);
+        else this.food = Math.max(0, this.food - 1);
+      }
+      if (this.food >= 18 && this.health < this.maxHealth) {
+        this.regenTimer += dt;
+        if (this.regenTimer > 3.5) { this.regenTimer = 0; this.health = Math.min(this.maxHealth, this.health + 1); this.exhaust(3); }
+      } else this.regenTimer = 0;
+      if (this.food === 0) {
+        this.starveTimer += dt;
+        if (this.starveTimer > 4) { this.starveTimer = 0; this.hurt(1, null, game); }
+      } else this.starveTimer = 0;
+    }
+
+    if (this.y < -24) this.hurt(999, null, game);
+  };
+
+  Player.prototype.onFloorAt = function (x, y, z) {
+    var boxes = [];
+    this.world.collectBoxes(x - 0.3, y - 0.55, z - 0.3, x + 0.3, y - 0.02, z + 0.3, boxes);
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i];
+      if (b[4] > y - 0.55 && b[4] <= y + 0.02 &&
+          x + 0.3 > b[0] && x - 0.3 < b[3] && z + 0.3 > b[2] && z - 0.3 < b[5]) return true;
+    }
+    return false;
+  };
+
+  Player.prototype.exhaust = function (n) { this.exhaustion += n; };
+
+  Player.prototype.hurt = function (amount, source, game) {
+    if (this.dead) return;
+    if (game.mode === 'creative' && amount < 900) return;
+    if (this.hurtTime > 0.35 && amount < 900) return;
+    var def = this.inventory.defense();
+    if (amount < 900 && def > 0) amount = amount * (1 - Math.min(20, def) * 0.04);
+    amount = Math.max(0, amount);
+    this.health -= amount;
+    this.hurtTime = 0.6;
+    this.inventory.damageArmor(1, game);
+    game.audio.play('hurt');
+    game.damageFlash = 1;
+    if (source) {
+      var dx = this.x - source.x, dz = this.z - source.z;
+      var d = Math.sqrt(dx * dx + dz * dz) || 1;
+      this.vx += dx / d * 6; this.vz += dz / d * 6; this.vy = Math.max(this.vy, 5);
+    }
+    if (this.health <= 0) this.die(game);
+  };
+
+  Player.prototype.heal = function (n) { this.health = Math.min(this.maxHealth, this.health + n); };
+
+  Player.prototype.die = function (game) {
+    this.health = 0;
+    this.dead = true;
+    game.audio.play('death');
+    game.particles.death(this.x, this.y + 1, this.z);
+    // Inventar fallen lassen
+    if (game.mode !== 'creative' && game.keepInventory !== true) {
+      for (var i = 0; i < this.inventory.size; i++) {
+        var s = this.inventory.slots[i];
+        if (s) { game.spawnItem(this.x, this.y + 1, this.z, s); this.inventory.slots[i] = null; }
+      }
+      for (var a = 0; a < 4; a++) {
+        if (this.inventory.armor[a]) { game.spawnItem(this.x, this.y + 1, this.z, this.inventory.armor[a]); this.inventory.armor[a] = null; }
+      }
+    }
+    game.ui.showDeath();
+  };
+
+  Player.prototype.respawn = function (game) {
+    this.dead = false;
+    this.health = this.maxHealth;
+    this.food = 20; this.saturation = 5; this.exhaustion = 0;
+    this.air = this.maxAir;
+    this.vx = this.vy = this.vz = 0;
+    this.hurtTime = 0;
+    this.fallStart = null;
+    this.exhaustion = 0;
+    this.regenTimer = 0;
+    this.starveTimer = 0;
+    this.drownTimer = 0;
+    var sp = this.spawnPoint;
+    this.x = sp.x; this.y = sp.y; this.z = sp.z;
+    game.ensureChunksAround(this.x, this.z, 2);
+    // sicheren Boden finden
+    for (var y = MC.WORLD_HEIGHT - 2; y > 1; y--) {
+      if (this.world.getBlock(Math.floor(this.x), y, Math.floor(this.z)) !== 0) { this.y = y + 1.05; break; }
+    }
+    game.ui.hideDeath();
+  };
+
+  Player.prototype.addXP = function (n) {
+    this.xp += n;
+    var need = this.xpNeeded();
+    while (this.xp >= need) { this.xp -= need; this.level++; need = this.xpNeeded(); }
+  };
+  Player.prototype.xpNeeded = function () {
+    var l = this.level;
+    if (l < 16) return 2 * l + 7;
+    if (l < 31) return 5 * l - 38;
+    return 9 * l - 158;
+  };
+
+  Player.prototype.eat = function (game) {
+    var s = this.inventory.selectedStack();
+    if (!s) return false;
+    var it = I.get(s.id);
+    if (!it || !it.food) return false;
+    if (this.food >= 20 && it.name !== 'golden_apple') return false;
+    this.food = Math.min(20, this.food + it.food.hunger);
+    this.saturation = Math.min(this.food, this.saturation + it.food.sat);
+    if (it.name === 'golden_apple') this.heal(4);
+    if (it.name === 'chicken_raw' && Math.random() < 0.3) this.food = Math.max(0, this.food - 2);
+    this.inventory.consumeSelected(1);
+    game.audio.play('eat');
+    game.particles.crit(this.x, this.eyeY() - 0.3, this.z);
+    return true;
+  };
+
+  Player.prototype.serialize = function () {
+    return {
+      x: this.x, y: this.y, z: this.z, yaw: this.yaw, pitch: this.pitch,
+      health: this.health, food: this.food, saturation: this.saturation,
+      xp: this.xp, level: this.level, air: this.air,
+      spawnPoint: this.spawnPoint, inventory: this.inventory.serialize()
+    };
+  };
+
+  Player.prototype.load = function (d) {
+    if (!d) return;
+    this.x = d.x; this.y = d.y; this.z = d.z;
+    this.yaw = d.yaw || 0; this.pitch = d.pitch || 0;
+    this.health = d.health === undefined ? 20 : d.health;
+    this.food = d.food === undefined ? 20 : d.food;
+    this.saturation = d.saturation || 0;
+    this.xp = d.xp || 0; this.level = d.level || 0;
+    this.air = d.air === undefined ? 10 : d.air;
+    if (d.spawnPoint) this.spawnPoint = d.spawnPoint;
+    this.inventory.load(d.inventory);
+  };
+
+})();

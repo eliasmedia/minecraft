@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Minecraft — HTML Edition</title>
+<link rel="stylesheet" href="Minecraft_files/css/style.css">
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+
+<div id="ui">
+  <div id="overlay"></div>
+  <div id="crosshair"></div>
+
+  <div id="hud">
+    <div id="itemname"></div>
+    <div id="survivalhud">
+      <div class="bars">
+        <div class="barcol">
+          <div id="armorbar" class="bar"></div>
+          <div id="health" class="bar"></div>
+        </div>
+        <div class="barcol">
+          <div id="air" class="bar right"></div>
+          <div id="hunger" class="bar right"></div>
+        </div>
+      </div>
+      <div id="xpbar"><i id="xpfill"></i><span id="xplevel"></span></div>
+    </div>
+    <div id="hotbar"></div>
+  </div>
+
+  <div id="clickhint"><span>Klicken, um weiterzuspielen</span></div>
+  <div id="debug"></div>
+  <div id="toasts"></div>
+  <div id="screen"></div>
+
+  <div id="death">
+    <h1>Du bist gestorben!</h1>
+    <p>Dein Inventar liegt am Todesort.</p>
+    <button id="respawnbtn" class="mbtn">Wiederbeleben</button>
+  </div>
+
+  <div id="menu"></div>
+
+  <div id="loading">
+    <div class="lg">MINECRAFT — HTML EDITION</div>
+    <div class="lb"><i></i></div>
+    <div style="font-size:12px;opacity:.6">Texturen und Welt werden erzeugt …</div>
+  </div>
+</div>
+
+<script src="Minecraft_files/js/util.js"></script>
+<script src="Minecraft_files/js/blocks.js"></script>
+<script src="Minecraft_files/js/items.js"></script>
+<script src="Minecraft_files/js/recipes.js"></script>
+<script src="Minecraft_files/js/textures.js"></script>
+<script src="Minecraft_files/js/glcore.js"></script>
+<script src="Minecraft_files/js/mesher.js"></script>
+<script src="Minecraft_files/js/particles.js"></script>
+<script src="Minecraft_files/js/icons.js"></script>
+<script src="Minecraft_files/js/worldgen.js"></script>
+<script src="Minecraft_files/js/world.js"></script>
+<script src="Minecraft_files/js/entities.js"></script>
+<script src="Minecraft_files/js/player.js"></script>
+<script src="Minecraft_files/js/renderer.js"></script>
+<script src="Minecraft_files/js/audio.js"></script>
+<script src="Minecraft_files/js/ui.js"></script>
+<script src="Minecraft_files/js/main.js"></script>
+
+</body>
+</html>

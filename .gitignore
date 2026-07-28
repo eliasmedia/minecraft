@@ -1,0 +1,12 @@
+# Betriebssystem
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editoren
+.vscode/
+.idea/
+*.swp
+
+# Exportierte Spielstände
+minecraft-welt-*.json
