@@ -328,12 +328,14 @@
   });
 
   // ---- Funktionsblöcke ----
+  // Fackel: Stiel liegt exakt in den Spalten 7..8, Flamme in den Zeilen 6..7.
+  // Der Mesher bildet genau diesen Ausschnitt auf den 2x10x2-Pixel-Quader ab.
   tex('torch', function (g) {
     g.fill([0, 0, 0], 0);
-    for (var y = 6; y < 16; y++) { g.set(7, y, [140, 105, 62]); g.set(8, y, [110, 82, 48]); }
-    g.set(7, 5, [255, 235, 120]); g.set(8, 5, [255, 205, 60]);
-    g.set(7, 4, [255, 250, 190]); g.set(8, 4, [255, 235, 120]);
-    g.set(6, 5, [255, 180, 40]); g.set(9, 5, [255, 180, 40]);
+    for (var y = 8; y < 16; y++) { g.set(7, y, [152, 114, 67]); g.set(8, y, [118, 87, 50]); }
+    g.set(7, 10, [128, 95, 55]); g.set(8, 13, [102, 75, 43]);
+    g.set(7, 7, [255, 168, 38]); g.set(8, 7, [255, 138, 24]);
+    g.set(7, 6, [255, 242, 176]); g.set(8, 6, [255, 214, 108]);
   });
   tex('crafting_table_top', function (g) {
     g.fill(C.plank); g.noise(0.06);
@@ -752,42 +754,130 @@
     wood: [150, 112, 62], stone: [125, 125, 125], iron: [216, 216, 216],
     gold: [250, 210, 60], diamond: [110, 235, 225]
   };
-  var handle = [122, 88, 48];
-
-  function drawHandle(g, x0, y0, len) {
-    for (var i = 0; i < len; i++) { g.set(x0 + i, y0 + i, handle); g.set(x0 + i + 1, y0 + i, dark(handle, 0.8)); }
-  }
-  var toolShapes = {
-    pickaxe: function (g, c) {
-      drawHandle(g, 6, 6, 8);
-      for (var x = 3; x < 13; x++) g.set(x, 5 - Math.abs(x - 8) * 0.4 | 0, c);
-      g.rect(3, 4, 10, 1, c); g.rect(4, 3, 2, 1, c); g.rect(10, 3, 2, 1, c);
-      g.rect(7, 5, 2, 2, dark(c, 0.85));
-    },
-    axe: function (g, c) {
-      drawHandle(g, 6, 6, 8);
-      g.rect(4, 3, 5, 6, c); g.rect(3, 4, 1, 4, c); g.rect(9, 4, 1, 3, dark(c, 0.85));
-      g.rect(5, 4, 2, 3, mix(c, [255, 255, 255], 0.25));
-    },
-    shovel: function (g, c) {
-      drawHandle(g, 6, 6, 8);
-      g.rect(4, 3, 4, 4, c); g.rect(5, 2, 2, 1, c);
-      g.rect(5, 4, 2, 2, mix(c, [255, 255, 255], 0.2));
-    },
-    sword: function (g, c) {
-      for (var i = 0; i < 8; i++) { g.set(5 + i, 10 - i, c); g.set(6 + i, 10 - i, mix(c, [255, 255, 255], 0.3)); }
-      g.rect(3, 10, 5, 1, [110, 80, 44]); g.rect(4, 11, 3, 1, [110, 80, 44]);
-      g.set(3, 12, [90, 66, 36]); g.set(4, 13, [90, 66, 36]); g.set(5, 13, [90, 66, 36]);
-    },
-    hoe: function (g, c) {
-      drawHandle(g, 6, 6, 8);
-      g.rect(4, 3, 6, 2, c); g.rect(4, 5, 2, 2, c);
-      g.rect(5, 3, 3, 1, mix(c, [255, 255, 255], 0.25));
-    }
+  // Werkzeuge als Pixel-Vorlagen (16x16). H = Kopf, h = Kopfschatten,
+  // S/s = Stiel, G/g = Griff. Kopf oben, Stiel diagonal nach unten links.
+  var TOOL_ART = {
+    pickaxe: [
+      '................',
+      '....hhh...hhh...',
+      '...hHHHhhhHHHh..',
+      '...hHHHHHHHHHh..',
+      '....hhHHHHHhh...',
+      '......SSSS......',
+      '.....SSSs.......',
+      '....SSSs........',
+      '...SSSs.........',
+      '..SSSs..........',
+      '..SSs...........',
+      '.SSs............',
+      '.Ss.............',
+      '................',
+      '................',
+      '................'
+    ],
+    axe: [
+      '................',
+      '....hhhh........',
+      '...hHHHHh.......',
+      '..hHHHHHHh......',
+      '..hHHHHHHHh.....',
+      '..hHHHHHSSS.....',
+      '..hHHHHSSSs.....',
+      '...hHHSSSs......',
+      '....hhSSs.......',
+      '.....SSs........',
+      '....SSs.........',
+      '...SSs..........',
+      '..SSs...........',
+      '..Ss............',
+      '................',
+      '................'
+    ],
+    shovel: [
+      '................',
+      '........hhhh....',
+      '.......hHHHHh...',
+      '.......hHHHHh...',
+      '.......hHHHHh...',
+      '........hHHh....',
+      '.........SS.....',
+      '........SSs.....',
+      '.......SSs......',
+      '......SSs.......',
+      '.....SSs........',
+      '....SSs.........',
+      '...SSs..........',
+      '..SSs...........',
+      '..Ss............',
+      '................'
+    ],
+    sword: [
+      '................',
+      '............hHh.',
+      '...........hHHh.',
+      '..........hHHHh.',
+      '.........hHHHh..',
+      '........hHHHh...',
+      '.......hHHHh....',
+      '......hHHHh.....',
+      '.....hHHHh......',
+      '....gHHHg.......',
+      '...ggGgg........',
+      '....gGg.........',
+      '...gGg..........',
+      '..gGg...........',
+      '..gg............',
+      '................'
+    ],
+    hoe: [
+      '................',
+      '.......hhhhhh...',
+      '......hHHHHHHh..',
+      '......hHHhhhh...',
+      '......hHHh......',
+      '......SSS.......',
+      '.....SSs........',
+      '....SSs.........',
+      '...SSs..........',
+      '..SSs...........',
+      '..Ss............',
+      '................',
+      '................',
+      '................',
+      '................',
+      '................'
+    ]
   };
+
+  function drawArt(g, art, pal) {
+    for (var y = 0; y < 16; y++) {
+      var row = art[y];
+      if (!row) continue;
+      for (var x = 0; x < 16; x++) {
+        var c = pal[row.charAt(x)];
+        if (c) g.set(x, y, c);
+      }
+    }
+  }
+
   Object.keys(tierCol).forEach(function (t) {
-    Object.keys(toolShapes).forEach(function (tp) {
-      itemTex(t + '_' + tp, function (g) { toolShapes[tp](g, tierCol[t]); });
+    var col = tierCol[t];
+    var pal = {
+      H: col, h: dark(col, 0.62),
+      S: [154, 116, 68], s: [110, 80, 44],
+      G: [146, 110, 62], g: [88, 63, 34]
+    };
+    Object.keys(TOOL_ART).forEach(function (tp) {
+      itemTex(t + '_' + tp, function (g) {
+        drawArt(g, TOOL_ART[tp], pal);
+        // dezenter Glanz auf dem Kopf
+        for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+          if (TOOL_ART[tp][y] && TOOL_ART[tp][y].charAt(x) === 'H' &&
+              TOOL_ART[tp][y - 1] && TOOL_ART[tp][y - 1].charAt(x) !== 'H') {
+            g.set(x, y, mix(col, [255, 255, 255], 0.32));
+          }
+        }
+      });
     });
   });
 
@@ -796,14 +886,32 @@
     g.rect(5, 9, 2, 4, [120, 120, 125]); g.rect(9, 9, 2, 4, [120, 120, 125]);
     g.set(7, 8, [80, 80, 85]); g.set(8, 8, [80, 80, 85]);
   });
-  itemTex('bow', function (g) {
-    for (var i = 0; i < 14; i++) {
-      var a = (i / 13) * Math.PI;
-      var x = (3 + Math.sin(a) * 8) | 0, y = (1 + i) | 0;
-      g.set(x, y, [130, 95, 50]);
-    }
-    for (var k = 1; k < 15; k++) g.set(3, k, [235, 235, 235]);
-  });
+  // Bogen: Bogenrücken rechts, Sehne links. pull = 0..3 (0 = entspannt)
+  function bowTex(name, pull) {
+    itemTex(name, function (g) {
+      var bend = 8 - pull * 1.6;          // Bogen wird beim Spannen flacher
+      var stringX = 3 + pull * 1.6;       // Sehne wandert nach hinten
+      for (var i = 0; i <= 14; i++) {
+        var a = (i / 14) * Math.PI;
+        var x = Math.round(3 + Math.sin(a) * bend);
+        var y = 1 + i;
+        g.set(x, y, [138, 100, 52]);
+        g.set(x + 1, y, [104, 74, 38]);
+      }
+      // Sehne
+      for (var k = 1; k <= 15; k++) g.set(Math.round(stringX), k, [238, 238, 238]);
+      if (pull > 0) {
+        // eingelegter Pfeil
+        for (var xx = 1; xx < 14; xx++) { g.set(xx, 8, [150, 112, 66]); }
+        g.set(14, 8, [225, 225, 230]); g.set(13, 8, [200, 200, 205]);
+        g.set(2, 7, [240, 240, 240]); g.set(2, 9, [240, 240, 240]); g.set(3, 8, [240, 240, 240]);
+      }
+    });
+  }
+  bowTex('bow', 0);
+  bowTex('bow_pull_0', 1);
+  bowTex('bow_pull_1', 2);
+  bowTex('bow_pull_2', 3);
   itemTex('bucket', function (g) {
     for (var y = 5; y < 14; y++) { var pad = 3 + ((y - 5) * 0.15) | 0; for (var x = pad; x < 16 - pad; x++) g.set(x, y, [190, 190, 195]); }
     g.rect(3, 5, 10, 1, [225, 225, 230]);
@@ -844,6 +952,78 @@
       g.rect(2, 11, 6, 3, c); g.rect(8, 11, 6, 3, c);
       g.rect(3, 7, 3, 1, mix(c, [255, 255, 255], 0.25));
     });
+  });
+
+  // ============================================================
+  //  Nachträge: Mob-Körperteile ohne Gesicht, Entities, neue Blöcke
+  // ============================================================
+  mobTex('mob_sheep_skin', [222, 210, 198]);
+  mobTex('mob_chicken_leg', [238, 170, 48]);
+  mobTex('mob_player_arm', [222, 175, 138]);
+  mobTex('mob_cow_horn', [226, 222, 205]);
+
+  // Pfeil als Entity: Schaft mit Spitze und Federn, längs der Flugrichtung
+  tex('arrow_entity', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var x = 3; x < 13; x++) { g.set(x, 7, [150, 112, 66]); g.set(x, 8, [116, 86, 50]); }
+    // Spitze
+    g.set(13, 7, [200, 200, 205]); g.set(13, 8, [200, 200, 205]);
+    g.set(14, 7, [225, 225, 230]); g.set(14, 8, [180, 180, 185]);
+    g.set(15, 7, [235, 235, 240]);
+    // Federn
+    for (var i = 0; i < 3; i++) {
+      g.set(3 + i, 5 + i, [238, 238, 240]); g.set(3 + i, 10 - i, [212, 212, 216]);
+      g.set(2 + i, 6 + i, [222, 222, 226]);
+    }
+  });
+
+  // Feuer (zwei Animationsstufen)
+  for (var fi = 0; fi < 2; fi++) {
+    (function (s) {
+      tex('fire_' + s, function (g) {
+        g.fill([0, 0, 0], 0);
+        var rr = MC.U.rng(4711 + s * 97);
+        for (var x = 0; x < 16; x++) {
+          var hgt = 7 + ((rr() * 8) | 0) - Math.abs(x - 7.5) * 0.55;
+          for (var y = 15; y > 15 - hgt; y--) {
+            var t = (15 - y) / Math.max(1, hgt);
+            var c = t < 0.35 ? [255, 232, 150] : (t < 0.7 ? [255, 168, 40] : [214, 78, 18]);
+            if (rr() < 0.14 && t > 0.5) continue;
+            g.set(x, y, c);
+          }
+        }
+      });
+    })(fi);
+  }
+
+  // Türen
+  function doorTex(name, base, iron) {
+    tex(name + '_upper', function (g) {
+      g.fill(base); g.noise(0.05);
+      g.frame(0, 0, 16, 16, dark(base, 0.7));
+      g.rect(3, 3, 10, 8, dark(base, 0.86));
+      g.frame(3, 3, 10, 8, dark(base, 0.62));
+      if (iron) { g.rect(4, 4, 8, 6, mix(base, [255, 255, 255], 0.22)); }
+      g.rect(1, 13, 14, 2, dark(base, 0.72));
+      g.rect(12, 12, 2, 2, [232, 202, 90]);          // Knauf
+    });
+    tex(name + '_lower', function (g) {
+      g.fill(base); g.noise(0.05);
+      g.frame(0, 0, 16, 16, dark(base, 0.7));
+      g.rect(3, 4, 10, 9, dark(base, 0.86));
+      g.frame(3, 4, 10, 9, dark(base, 0.62));
+      g.rect(1, 1, 14, 2, dark(base, 0.72));
+      g.rect(12, 2, 2, 2, [232, 202, 90]);
+    });
+  }
+  doorTex('door_oak', [156, 124, 74], false);
+  doorTex('door_iron', [196, 196, 200], true);
+
+  // Leiter
+  tex('ladder', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 0; y < 16; y++) { g.set(2, y, [138, 104, 60]); g.set(3, y, [110, 82, 47]); g.set(12, y, [138, 104, 60]); g.set(13, y, [110, 82, 47]); }
+    for (var r = 1; r < 16; r += 5) for (var x = 3; x < 13; x++) { g.set(x, r, [150, 114, 66]); g.set(x, r + 1, [116, 86, 50]); }
   });
 
   // ============================================================

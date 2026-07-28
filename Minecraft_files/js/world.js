@@ -262,6 +262,9 @@
       }
     }
 
+    // Flüssigkeit verschwunden -> Umgebung neu bewerten
+    if (B.isLiquid(old) && !B.isLiquid(id)) this.wakeFluids(x, y, z, 7);
+
     this.markDirty(x, y, z);
     if (!opts.noUpdate) {
       this.scheduleUpdate(x, y, z);
@@ -297,6 +300,9 @@
 
   var NEI = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
   MC.NEI = NEI;
+  // Wand, an der eine Leiter mit meta 0..3 hängt (relativ, horizontal)
+  var LADDER_SUPPORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  MC.LADDER_SUPPORT = LADDER_SUPPORT;
 
   // ---------- Sonnenlicht-Spalte ----------
   World.prototype.updateSkyColumn = function (x, z) {
@@ -605,6 +611,42 @@
       this.scheduleFluid(x, y, z, b.name === 'water' ? 5 : 15);
       return;
     }
+    // Feuer: brennt aus, frisst brennbare Nachbarn
+    if (b.shape === B.SHAPE_FIRE) {
+      var age = this.getMeta(x, y, z);
+      var fuel = false;
+      for (var fd = 0; fd < 6; fd++) {
+        var fn = NEI[fd];
+        var nb2 = B.byId[this.getBlock(x + fn[0], y + fn[1], z + fn[2])];
+        if (nb2 && nb2.flammable) { fuel = true; break; }
+      }
+      if (!fuel && age >= 3) { this.setBlock(x, y, z, 0, 0); return; }
+      if (fuel && Math.random() < 0.28) {
+        var pick = NEI[(Math.random() * 6) | 0];
+        var tx = x + pick[0], ty = y + pick[1], tz = z + pick[2];
+        var tb = B.byId[this.getBlock(tx, ty, tz)];
+        if (tb && tb.flammable) {
+          this.setBlock(tx, ty, tz, 0, 0);
+          if (this.getBlock(tx, ty + 1, tz) === 0) this.setBlock(tx, ty + 1, tz, b.id, 0);
+        }
+      }
+      if (age >= 6) { this.setBlock(x, y, z, 0, 0); return; }
+      this.setMetaOnly(x, y, z, age + 1);
+      this.scheduleUpdate(x, y, z, 14 + ((Math.random() * 14) | 0));
+      return;
+    }
+    // Leiter braucht eine Wand dahinter
+    if (b.shape === B.SHAPE_LADDER) {
+      var ln = LADDER_SUPPORT[this.getMeta(x, y, z) & 3];
+      if (!B.isOpaque(this.getBlock(x + ln[0], y, z + ln[1]))) { this.breakBlockNatural(x, y, z); return; }
+    }
+    // Tür: fehlt eine Hälfte, verschwindet die andere
+    if (b.shape === B.SHAPE_DOOR) {
+      var m = this.getMeta(x, y, z);
+      var otherY = (m & 1) ? y - 1 : y + 1;
+      if (this.getBlock(x, otherY, z) !== id) { this.setBlock(x, y, z, 0, 0); return; }
+      if (!(m & 1) && !B.isSolid(this.getBlock(x, y - 1, z))) { this.breakBlockNatural(x, y, z); return; }
+    }
     // Blätter zerfallen ohne Stamm in der Nähe
     if (b.name.indexOf('leaves_') === 0) {
       if (!this.hasLogNear(x, y, z, 4)) {
@@ -640,6 +682,22 @@
     this.fluidQueue.push({ x: x, y: y, z: z, t: this.ticks + delay, k: k });
   };
 
+  // Wird eine Quelle entfernt, müssen alle davon gespeisten Blöcke neu prüfen,
+  // ob sie noch Nachschub haben – sonst bleiben Pfützen stehen.
+  World.prototype.wakeFluids = function (x, y, z, r) {
+    var rv = 3;
+    for (var dy = -rv; dy <= rv; dy++) {
+      for (var dz = -r; dz <= r; dz++) {
+        for (var dx = -r; dx <= r; dx++) {
+          var id = this.getBlock(x + dx, y + dy, z + dz);
+          if (id === 0) continue;
+          var b = B.byId[id];
+          if (b && b.liquid) this.scheduleFluid(x + dx, y + dy, z + dz, 2 + ((Math.abs(dx) + Math.abs(dz)) >> 1));
+        }
+      }
+    }
+  };
+
   World.prototype.processFluids = function (max) {
     var keep = [], n = 0;
     for (var i = 0; i < this.fluidQueue.length; i++) {
@@ -653,6 +711,16 @@
   };
 
   function lvlOf(meta) { return meta === 8 ? 0 : meta; }
+
+  // Wirksamer Fließlevel eines Nachbarn. Eine Fallmarke (8) zählt nur dann als
+  // voller Block, wenn wirklich Flüssigkeit darüber steht – sonst würde ein
+  // übriggebliebener Marker wie eine Quelle wirken und die Pfütze am Leben halten.
+  World.prototype.effectiveLevel = function (x, y, z, id) {
+    var m = this.getMeta(x, y, z);
+    if (m === 0) return 0;
+    if (m === 8) return this.getBlock(x, y + 1, z) === id ? 0 : 9;
+    return m;
+  };
 
   World.prototype.doFluid = function (x, y, z) {
     var id = this.getBlock(x, y, z);
@@ -696,7 +764,7 @@
         for (var k = 0; k < 4; k++) {
           var h = HOR[k];
           if (this.getBlock(x + h[0], y, z + h[1]) === id) {
-            var lm2 = lvlOf(this.getMeta(x + h[0], y, z + h[1]));
+            var lm2 = this.effectiveLevel(x + h[0], y, z + h[1], id);
             if (lm2 < best) best = lm2;
           }
         }
@@ -705,6 +773,11 @@
       // 8 = fallende Flüssigkeit (voller Block) und damit immer gültig
       if (newMeta !== 8 && newMeta > maxSpread) {
         this.setBlock(x, y, z, 0, 0);
+        // Nachbarn zwingend neu bewerten, sonst bleibt die Kaskade stehen und
+        // zurückgebliebene Fallmarken wirken wie Quellen
+        for (var rk = 0; rk < 4; rk++) this.scheduleFluid(x + HOR[rk][0], y, z + HOR[rk][1], delay);
+        this.scheduleFluid(x, y - 1, z, delay);
+        this.scheduleFluid(x, y + 1, z, delay);
         return;
       }
       if (newMeta !== meta) {
@@ -712,24 +785,39 @@
         meta = newMeta;
         for (var kk = 0; kk < 4; kk++) this.scheduleFluid(x + HOR[kk][0], y, z + HOR[kk][1], delay);
         this.scheduleFluid(x, y - 1, z, delay);
+        this.scheduleFluid(x, y + 1, z, delay);
+      }
+    } else if (this.getBlock(x, y + 1, z) === id) {
+      // Quelle unter fließendem Wasser: das darüber muss nachrechnen
+      this.scheduleFluid(x, y + 1, z, delay);
+    }
+
+    // Fließen. Grundregel: seitlich wird nur verteilt, wenn es nach unten nicht
+    // weitergeht – sonst entstehen Wasserflächen mitten in der Luft.
+    var belowId = this.getBlock(x, y - 1, z);
+    var belowB = B.byId[belowId];
+    if (y > 0) {
+      if (belowId === 0 || (belowB && belowB.replaceable && !belowB.liquid)) {
+        this.setBlock(x, y - 1, z, id, 8);
+        this.scheduleFluid(x, y - 1, z, delay);
+        return;
+      }
+      if (belowId === id) {
+        var bm = this.getMeta(x, y - 1, z);
+        if (bm !== 0 && bm !== 8) {
+          // darunter nur teilgefüllt -> auffüllen statt seitlich auszuweichen
+          this.setMetaOnly(x, y - 1, z, 8);
+          this.scheduleFluid(x, y - 1, z, delay);
+          for (var sk = 0; sk < 4; sk++) this.scheduleFluid(x + HOR[sk][0], y - 1, z + HOR[sk][1], delay);
+          return;
+        }
+        if (bm === 8) return;   // Fallstrecke geht darunter weiter
+        // bm === 0: darunter ist eine Quelle, hier darf seitlich verteilt werden
       }
     }
 
-    // Fließen
-    var belowId = this.getBlock(x, y - 1, z);
-    var belowB = B.byId[belowId];
-    if (y > 0 && (belowId === 0 || (belowB && belowB.replaceable && !belowB.liquid))) {
-      this.setBlock(x, y - 1, z, id, 8);
-      this.scheduleFluid(x, y - 1, z, delay);
-      return;
-    }
-    if (belowId === id && this.getMeta(x, y - 1, z) !== 0) {
-      this.scheduleFluid(x, y - 1, z, delay);
-    }
-    var canFlowDown = (belowId === 0 || belowId === id);
-    if (canFlowDown && this.getMeta(x, y - 1, z) === 8) return;
-
-    var lvl = lvlOf(meta);
+    // eigener Level ebenfalls "effektiv": eine ungültige Fallmarke verteilt nichts mehr
+    var lvl = this.effectiveLevel(x, y, z, id);
     if (lvl >= maxSpread) return;
     for (var h2 = 0; h2 < 4; h2++) {
       var hx = x + HOR[h2][0], hz = z + HOR[h2][1];
@@ -740,7 +828,7 @@
         this.setBlock(hx, y, hz, id, lvl + 1);
         this.scheduleFluid(hx, y, hz, delay);
       } else if (tid === id) {
-        if (lvlOf(this.getMeta(hx, y, hz)) > lvl + 1) {
+        if (this.effectiveLevel(hx, y, hz, id) > lvl + 1) {
           this.setMetaOnly(hx, y, hz, lvl + 1);
           this.scheduleFluid(hx, y, hz, delay);
         }
@@ -781,6 +869,11 @@
         } else if (id === farm) {
           // trocknet ohne Wasser
           if (!this.waterNear(wx, y, wz, 4) && Math.random() < 0.2) this.setBlock(wx, y, wz, dirtId, 0);
+        } else if (B.isLiquid(id)) {
+          // Sicherheitsnetz: eine "Fallmarke" ohne Wasser darüber ist ungültig.
+          // So löst sich stehengebliebenes Wasser auch dann auf, wenn eine
+          // Aktualisierungskette einmal abgerissen ist.
+          if (c.meta[i] !== 0 && this.getBlock(wx, y + 1, wz) !== id) this.scheduleFluid(wx, y, wz, 1);
         } else if (id && B.byId[id] && B.byId[id].name.indexOf('sapling_') === 0) {
           if (Math.random() < 0.12 && this.getSky(wx, y, wz) >= 9) this.growTree(wx, y, wz, B.byId[id].name.replace('sapling_', ''));
         }

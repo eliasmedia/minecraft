@@ -227,6 +227,15 @@
       if (this.inWater && this.vy < -3) this.vy = -3;
       if (this.vy < -78) this.vy = -78;
 
+      // Leiter: langsames Absinken, Klettern mit Leertaste oder Laufen gegen die Wand
+      this.onLadder = this.checkLadder();
+      if (this.onLadder) {
+        if (this.vy < -2.6) this.vy = -2.6;
+        if (input.key('Space') || (len > 0 && this.collidedH)) this.vy = 3.4;
+        if (this.sneaking) this.vy = 0;
+        this.fallStart = null;
+      }
+
       var beforeY = this.y;
       var sneakGuard = this.sneaking && this.onGround;
       var oldX = this.x, oldZ = this.z;
@@ -323,6 +332,20 @@
     }
 
     if (this.y < -24) this.hurt(999, null, game);
+  };
+
+  Player.prototype.checkLadder = function () {
+    var w = this.world;
+    var x0 = Math.floor(this.x - 0.3), x1 = Math.floor(this.x + 0.3);
+    var z0 = Math.floor(this.z - 0.3), z1 = Math.floor(this.z + 0.3);
+    var y0 = Math.floor(this.y), y1 = Math.floor(this.y + this.height - 0.2);
+    for (var y = y0; y <= y1; y++)
+      for (var z = z0; z <= z1; z++)
+        for (var x = x0; x <= x1; x++) {
+          var b = B.byId[w.getBlock(x, y, z)];
+          if (b && b.climbable) return true;
+        }
+    return false;
   };
 
   Player.prototype.onFloorAt = function (x, y, z) {

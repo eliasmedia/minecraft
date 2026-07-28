@@ -152,10 +152,19 @@ canvas#gl {
 .invgrid { display: grid; grid-template-columns: repeat(9, var(--slot)); gap: 2px; }
 .hotbarrow { margin-top: 8px; }
 .creativegrid {
-  max-height: 46vh; overflow-y: auto;
   grid-template-columns: repeat(9, var(--slot));
+  grid-template-rows: repeat(5, var(--slot));
   align-content: start;
 }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+.pagebtn {
+  font-family: inherit; font-size: 14px; padding: 3px 14px; cursor: pointer;
+  background: #9a9a9a; border: 2px solid; border-color: #ddd #555 #555 #ddd; color: #222;
+}
+.pagebtn:disabled { opacity: .35; cursor: default; }
+.pagelabel { font-size: 13px; color: #3f3f3f; min-width: 110px; text-align: center; }
+.tabs { flex-wrap: nowrap; overflow-x: auto; }
+.tab { white-space: nowrap; }
 
 .armorbox { display: grid; grid-template-columns: var(--slot); gap: 2px; }
 .armorslot { background-color: rgba(120,120,120,.75); }

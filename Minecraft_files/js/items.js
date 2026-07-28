@@ -116,6 +116,10 @@
     });
   });
 
+  // Türen belegen zwei Blöcke, darum eigenes Item statt Auto-Block-Item
+  define('door_oak', { title: 'Holztür', tex: 'door_oak_lower', group: 'bau', fuel: 200, place: 'door_oak' });
+  define('door_iron', { title: 'Eisentür', tex: 'door_iron_lower', group: 'bau', place: 'door_iron' });
+
   define('shears', { title: 'Schere', stack: 1, durability: 238, tool: { type: 'shears', level: 1, speed: 5 }, damage: 1, group: 'werkzeug' });
   define('bow', { title: 'Bogen', stack: 1, durability: 384, damage: 1, group: 'werkzeug' });
   define('bucket', { title: 'Eimer', stack: 1, group: 'werkzeug' });

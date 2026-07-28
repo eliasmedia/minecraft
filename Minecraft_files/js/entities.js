@@ -333,6 +333,13 @@
           var b = B.byId[id];
           if (!b || b.hardness < 0) continue;
           if (b.hardness > 20) continue;
+          // TNT wird nicht zerstört, sondern gezündet -> Kettenreaktion
+          if (b.name === 'tnt') {
+            world.setBlock(bx, by, bz, 0, 0);
+            var chained = new TNTEntity(world, bx + 0.5, by, bz + 0.5, 0.5 + Math.random() * 1.2);
+            world.entities.push(chained);
+            continue;
+          }
           if (Math.random() > (1 - d / power) * 1.4) continue;
           if (Math.random() < 0.32 && b.drop) game.dropBlock(bx, by, bz, id, world.getMeta(bx, by, bz), null);
           world.setBlock(bx, by, bz, 0, 0);
@@ -381,8 +388,8 @@
       parts: [
         part('body', 'mob_cow', -6, 10, -9, 12, 10, 18),
         part('head', { all: 'mob_cow', front: 'mob_cow_face' }, -4, 14, -14, 8, 8, 6, 'head', [0, 18, -9]),
-        part('horn0', 'mob_cow_spot', -6, 20, -12, 2, 2, 2, 'head', [0, 18, -9]),
-        part('horn1', 'mob_cow_spot', 4, 20, -12, 2, 2, 2, 'head', [0, 18, -9]),
+        part('horn0', 'mob_cow_horn', -6, 20, -12, 2, 2, 2, 'head', [0, 18, -9]),
+        part('horn1', 'mob_cow_horn', 4, 20, -12, 2, 2, 2, 'head', [0, 18, -9]),
         part('leg0', 'mob_cow', -6, 0, -8, 4, 10, 4, 'legFR', [-4, 10, -6]),
         part('leg1', 'mob_cow', 2, 0, -8, 4, 10, 4, 'legFL', [4, 10, -6]),
         part('leg2', 'mob_cow', -6, 0, 4, 4, 10, 4, 'legBR', [-4, 10, 6]),
@@ -393,11 +400,11 @@
       height: 1.3, width: 0.9, scale: 1,
       parts: [
         part('body', 'WOOL', -6, 9, -9, 12, 11, 17),
-        part('head', { all: 'mob_sheep_face', front: 'mob_sheep_face' }, -3, 12, -13, 6, 6, 5, 'head', [0, 15, -9]),
-        part('leg0', 'mob_sheep_face', -5, 0, -7, 4, 9, 4, 'legFR', [-3, 9, -5]),
-        part('leg1', 'mob_sheep_face', 1, 0, -7, 4, 9, 4, 'legFL', [3, 9, -5]),
-        part('leg2', 'mob_sheep_face', -5, 0, 4, 4, 9, 4, 'legBR', [-3, 9, 6]),
-        part('leg3', 'mob_sheep_face', 1, 0, 4, 4, 9, 4, 'legBL', [3, 9, 6])
+        part('head', { all: 'mob_sheep_skin', front: 'mob_sheep_face' }, -3, 12, -13, 6, 6, 5, 'head', [0, 15, -9]),
+        part('leg0', 'mob_sheep_skin', -5, 0, -7, 4, 9, 4, 'legFR', [-3, 9, -5]),
+        part('leg1', 'mob_sheep_skin', 1, 0, -7, 4, 9, 4, 'legFL', [3, 9, -5]),
+        part('leg2', 'mob_sheep_skin', -5, 0, 4, 4, 9, 4, 'legBR', [-3, 9, 6]),
+        part('leg3', 'mob_sheep_skin', 1, 0, 4, 4, 9, 4, 'legBL', [3, 9, 6])
       ]
     },
     chicken: {
@@ -407,8 +414,8 @@
         part('head', { all: 'mob_chicken', front: 'mob_chicken_face' }, -2, 9, -6, 4, 5, 3, 'head', [0, 10, -3]),
         part('wingR', 'mob_chicken', -4, 6, -3, 1, 4, 6, 'wingR', [-3, 10, 0]),
         part('wingL', 'mob_chicken', 3, 6, -3, 1, 4, 6, 'wingL', [3, 10, 0]),
-        part('leg0', 'mob_chicken_face', -2, 0, -1, 1, 5, 3, 'legFR', [-1, 5, 0]),
-        part('leg1', 'mob_chicken_face', 1, 0, -1, 1, 5, 3, 'legFL', [1, 5, 0])
+        part('leg0', 'mob_chicken_leg', -2, 0, -1, 1, 5, 3, 'legFR', [-1, 5, 0]),
+        part('leg1', 'mob_chicken_leg', 1, 0, -1, 1, 5, 3, 'legFL', [1, 5, 0])
       ]
     },
     zombie: {
@@ -449,8 +456,8 @@
       parts: [
         part('head', { all: 'player_skin', front: 'player_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
         part('body', 'player_skin', -4, 12, -2, 8, 12, 4),
-        part('armR', 'player_face', -8, 12, -2, 4, 12, 4, 'armZ', [-6, 23, 0]),
-        part('armL', 'player_face', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
+        part('armR', 'mob_player_arm', -8, 12, -2, 4, 12, 4, 'armZ', [-6, 23, 0]),
+        part('armL', 'mob_player_arm', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
         part('legR', 'player_skin', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
         part('legL', 'player_skin', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
       ]

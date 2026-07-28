@@ -216,6 +216,7 @@
   UI.prototype.renderSlot = function (dom, stack) {
     if (!stack || stack.count <= 0) {
       dom.style.backgroundImage = '';
+      dom._id = null;          // sonst bleibt der Slot beim Zurücklegen leer
       dom.innerHTML = '';
       dom.title = '';
       return;
@@ -688,17 +689,35 @@
       t.addEventListener('mousedown', function (e) {
         e.stopPropagation();
         self.creativeTab = g[0];
+        self.creativePage = 0;
         self.buildCreative();
       });
     });
     var search = el('input', 'search', win);
     search.placeholder = 'Suchen…';
     search.value = this.creativeSearch;
-    search.addEventListener('input', function () { self.creativeSearch = this.value; self.fillCreative(); });
+    search.addEventListener('input', function () { self.creativeSearch = this.value; self.creativePage = 0; self.fillCreative(); });
     search.addEventListener('mousedown', function (e) { e.stopPropagation(); });
     this.searchEl = search;
 
     this.creativeGrid = el('div', 'invgrid creativegrid', win);
+
+    // Seitenblättern statt endlosem Scrollen
+    var pager = el('div', 'pager', win);
+    this.pagePrev = el('button', 'pagebtn', pager);
+    this.pagePrev.textContent = '◀';
+    this.pageLabel = el('span', 'pagelabel', pager);
+    this.pageNext = el('button', 'pagebtn', pager);
+    this.pageNext.textContent = '▶';
+    this.pagePrev.addEventListener('mousedown', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      self.creativePage = Math.max(0, (self.creativePage || 0) - 1); self.fillCreative();
+    });
+    this.pageNext.addEventListener('mousedown', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      self.creativePage = (self.creativePage || 0) + 1; self.fillCreative();
+    });
+
     el('div', 'wsep', win);
     var hb = el('div', 'invgrid hotbarrow', win);
     for (var hh = 0; hh < 9; hh++) {
@@ -710,15 +729,29 @@
     this.refreshSlots();
   };
 
+  UI.PAGE_SIZE = 45;   // 9 x 5
+
   UI.prototype.fillCreative = function () {
     var self = this;
     var grid = this.creativeGrid;
     grid.innerHTML = '';
     this.slotList = this.slotList.filter(function (s) { return s.parentNode !== grid; });
     var q = this.creativeSearch.toLowerCase();
-    I.list.forEach(function (it) {
-      if (it.group !== self.creativeTab) return;
-      if (q && it.title.toLowerCase().indexOf(q) < 0 && it.name.indexOf(q) < 0) return;
+
+    var matches = I.list.filter(function (it) {
+      if (it.group !== self.creativeTab) return false;
+      if (q && it.title.toLowerCase().indexOf(q) < 0 && it.name.indexOf(q) < 0) return false;
+      return true;
+    });
+    var pages = Math.max(1, Math.ceil(matches.length / UI.PAGE_SIZE));
+    if (this.creativePage === undefined) this.creativePage = 0;
+    if (this.creativePage >= pages) this.creativePage = pages - 1;
+    if (this.creativePage < 0) this.creativePage = 0;
+    if (this.pageLabel) this.pageLabel.textContent = 'Seite ' + (this.creativePage + 1) + ' / ' + pages;
+    if (this.pagePrev) this.pagePrev.disabled = this.creativePage === 0;
+    if (this.pageNext) this.pageNext.disabled = this.creativePage >= pages - 1;
+
+    matches.slice(this.creativePage * UI.PAGE_SIZE, (this.creativePage + 1) * UI.PAGE_SIZE).forEach(function (it) {
       var s = el('div', 'slot', grid);
       self.renderSlot(s, { id: it.name, count: 1 });
       s.addEventListener('mousedown', function (ev) {

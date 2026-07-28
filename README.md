@@ -41,12 +41,15 @@ Minecraft_files/
 Erzverteilung nach Tiefe, drei Baumarten, Blumen, Kakteen, Zuckerrohr, Kürbisse,
 Seen und Lavaseen.
 
-**Blöcke & Items** — 100+ Blöcke inklusive Stufen, Fackeln, Glas, 16 Wollfarben,
-Werkbank, Ofen, Truhe, Bett, TNT, Ackerboden. 200+ Items: Werkzeuge und Waffen in
-5 Materialstufen, Rüstung in 4 Stufen, Nahrung, Rohstoffe.
+**Blöcke & Items** — über 100 Blöcke inklusive Treppen, Stufen, Zäunen, Türen,
+Leitern, Fackeln, Glas, 16 Wollfarben, Werkbank, Ofen, Truhe, Bett, TNT und
+Ackerboden. Rund 180 Items: Werkzeuge und Waffen in 5 Materialstufen, Rüstung in
+4 Stufen, Nahrung, Rohstoffe.
 
-**Spielschleife** — 88 Crafting-Rezepte (2×2 und 3×3, geformt und ungeformt),
-Ofen mit Brennstoffverwaltung, Truhen als Lager, Ackerbau vom Pflügen bis zur Ernte.
+**Spielschleife** — 109 Crafting-Rezepte (2×2 und 3×3, geformt und ungeformt);
+Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
+als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
+Kettenreaktion.
 
 **Überleben** — Leben, Hunger mit Sättigung und Erschöpfung, Rüstungsschutz, Fall-,
 Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respawn,
@@ -76,6 +79,11 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 * alle Texturen zur Laufzeit per Canvas erzeugt (228 Stück) statt Bilddateien
 * alle Klänge per WebAudio synthetisiert statt Audiodateien
 * Chunk-Meshing zeitbudgetiert im Main-Thread statt in Workern
+
+## Noch offen
+
+Redstone, Nether und End, Loren, Verzauberung, Brauen, Dorfbewohner, Mehrspieler.
+Fackeln lassen sich derzeit nur auf den Boden setzen, nicht an Wände.
 
 ## Voraussetzungen
 

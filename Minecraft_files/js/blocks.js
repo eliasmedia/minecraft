@@ -17,6 +17,11 @@
   B.SHAPE_BED = 6;
   B.SHAPE_FARMLAND = 7;
   B.SHAPE_CROP = 8;
+  B.SHAPE_STAIRS = 9;
+  B.SHAPE_FENCE = 10;
+  B.SHAPE_LADDER = 11;
+  B.SHAPE_DOOR = 12;
+  B.SHAPE_FIRE = 13;
 
   B.byId = [];
   B.byName = {};
@@ -206,7 +211,10 @@
 
   // ---------- Stufen ----------
   [['slab_stone', 'Steinstufe', 'stone'], ['slab_cobblestone', 'Bruchsteinstufe', 'cobblestone'],
-   ['slab_planks_oak', 'Eichenholzstufe', 'planks_oak'], ['slab_sandstone', 'Sandsteinstufe', 'sandstone'],
+   ['slab_planks_oak', 'Eichenholzstufe', 'planks_oak'],
+   ['slab_planks_birch', 'Birkenholzstufe', 'planks_birch'],
+   ['slab_planks_spruce', 'Fichtenholzstufe', 'planks_spruce'],
+   ['slab_sandstone', 'Sandsteinstufe', 'sandstone'],
    ['slab_brick', 'Ziegelstufe', 'brick_block'], ['slab_stone_bricks', 'Steinziegelstufe', 'stone_bricks']
   ].forEach(function (s) {
     var src = B.byName[s[2]];
@@ -214,6 +222,55 @@
       title: s[1], shape: B.SHAPE_SLAB, opaque: false, hardness: src.hardness, tool: src.tool,
       level: src.level, sound: src.sound, tex: src.tex, group: 'bau'
     });
+  });
+
+  // ---------- Treppen ----------
+  [['stairs_oak', 'Eichenholztreppe', 'planks_oak'], ['stairs_birch', 'Birkenholztreppe', 'planks_birch'],
+   ['stairs_spruce', 'Fichtenholztreppe', 'planks_spruce'], ['stairs_cobblestone', 'Bruchsteintreppe', 'cobblestone'],
+   ['stairs_stone_bricks', 'Steinziegeltreppe', 'stone_bricks'], ['stairs_sandstone', 'Sandsteintreppe', 'sandstone'],
+   ['stairs_brick', 'Ziegeltreppe', 'brick_block']
+  ].forEach(function (s) {
+    var src = B.byName[s[2]];
+    define(s[0], {
+      title: s[1], shape: B.SHAPE_STAIRS, opaque: false, hardness: src.hardness, tool: src.tool,
+      level: src.level, sound: src.sound, tex: src.tex, flammable: src.flammable, group: 'bau'
+    });
+  });
+
+  // ---------- Zäune ----------
+  [['fence_oak', 'Eichenzaun', 'planks_oak'], ['fence_birch', 'Birkenzaun', 'planks_birch'],
+   ['fence_spruce', 'Fichtenzaun', 'planks_spruce']
+  ].forEach(function (s) {
+    var src = B.byName[s[2]];
+    define(s[0], {
+      title: s[1], shape: B.SHAPE_FENCE, opaque: false, hardness: 2, tool: 'axe',
+      sound: 'wood', tex: src.tex, flammable: true, group: 'bau'
+    });
+  });
+
+  // ---------- Leiter ----------
+  define('ladder', {
+    title: 'Leiter', shape: B.SHAPE_LADDER, opaque: false, cutout: true, solid: false, collide: false,
+    hardness: 0.4, tool: 'axe', sound: 'wood', climbable: true, opacity: 0, group: 'bau'
+  });
+
+  // ---------- Türen ----------
+  define('door_oak', {
+    title: 'Holztür', shape: B.SHAPE_DOOR, opaque: false, cutout: true, hardness: 3, tool: 'axe',
+    sound: 'wood', tex: { top: 'door_oak_upper', bottom: 'door_oak_lower', side: 'door_oak_lower' },
+    item: false, opacity: 0, group: 'bau'
+  });
+  define('door_iron', {
+    title: 'Eisentür', shape: B.SHAPE_DOOR, opaque: false, cutout: true, hardness: 5, tool: 'pickaxe', level: 1,
+    sound: 'stone', tex: { top: 'door_iron_upper', bottom: 'door_iron_lower', side: 'door_iron_lower' },
+    item: false, opacity: 0, group: 'bau'
+  });
+
+  // ---------- Feuer ----------
+  define('fire', {
+    title: 'Feuer', shape: B.SHAPE_FIRE, solid: false, collide: false, opaque: false, cutout: true,
+    light: 15, hardness: 0, drop: null, replaceable: true, item: false, opacity: 0, damage: 2,
+    tex: 'fire_0'
   });
 
   // ---------- Bett ----------
@@ -233,6 +290,42 @@
   B.light = function (id) { var b = B.byId[id]; return b ? b.light : 0; };
   B.opacity = function (id) { var b = B.byId[id]; return b ? b.opacity : 0; };
 
+  // Treppen: Grundplatte + Stufe. facing (Bits 0-1) = Seite mit dem hohen Teil,
+  // Bit 2 = kopfüber montiert.
+  B.stairBoxes = function (meta) {
+    var f = meta & 3, top = (meta & 4) !== 0;
+    var base = top ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1];
+    var y0 = top ? 0 : 0.5, y1 = top ? 0.5 : 1;
+    var step;
+    if (f === 0) step = [0, y0, 0, 1, y1, 0.5];
+    else if (f === 1) step = [0.5, y0, 0, 1, y1, 1];
+    else if (f === 2) step = [0, y0, 0.5, 1, y1, 1];
+    else step = [0, y0, 0, 0.5, y1, 1];
+    return [base, step];
+  };
+
+  // Tür: 3/16 dicke Platte an einer Blockseite; offen um 90° gedreht.
+  B.doorBox = function (meta) {
+    var f = (meta >> 1) & 3;
+    if (meta & 8) f = (f + 1) & 3;
+    switch (f) {
+      case 0: return [0, 0, 0, 1, 1, 0.1875];
+      case 1: return [0.8125, 0, 0, 1, 1, 1];
+      case 2: return [0, 0, 0.8125, 1, 1, 1];
+      default: return [0, 0, 0, 0.1875, 1, 1];
+    }
+  };
+
+  // Leiter: dünne Platte an der Wand, facing = Seite, an der sie hängt
+  B.ladderBox = function (meta) {
+    switch (meta & 3) {
+      case 0: return [0, 0, 0, 1, 1, 0.125];
+      case 1: return [0.875, 0, 0, 1, 1, 1];
+      case 2: return [0, 0, 0.875, 1, 1, 1];
+      default: return [0, 0, 0, 0.125, 1, 1];
+    }
+  };
+
   // Kollisionsboxen eines Blocks (relativ 0..1)
   B.boxes = function (id, meta) {
     var b = B.byId[id];
@@ -247,6 +340,16 @@
       case B.SHAPE_FARMLAND:
         return [[0, 0, 0, 1, 0.9375, 1]];
       case B.SHAPE_LIQUID:
+        return null;
+      case B.SHAPE_STAIRS:
+        return B.stairBoxes(meta);
+      case B.SHAPE_FENCE:
+        // etwas breiter als der Pfosten, damit man nicht durchschlüpft
+        return [[0.25, 0, 0.25, 0.75, 1.5, 0.75]];
+      case B.SHAPE_DOOR:
+        return [B.doorBox(meta)];
+      case B.SHAPE_LADDER:
+      case B.SHAPE_FIRE:
         return null;
       default:
         return [[0, 0, 0, 1, 1, 1]];
@@ -265,6 +368,11 @@
       case B.SHAPE_BED: return [0, 0, 0, 1, 0.5625, 1];
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_LIQUID: return null;
+      case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];
+      case B.SHAPE_FENCE: return [0.375, 0, 0.375, 0.625, 1.5, 0.625];
+      case B.SHAPE_DOOR: return B.doorBox(meta);
+      case B.SHAPE_LADDER: return B.ladderBox(meta);
+      case B.SHAPE_FIRE: return [0.05, 0, 0.05, 0.95, 1, 0.95];
       default: return [0, 0, 0, 1, 1, 1];
     }
   };

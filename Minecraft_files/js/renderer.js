@@ -574,10 +574,37 @@
     }
   };
 
+  // Pfeil: zwei gekreuzte Ebenen entlang der Flugbahn (wie im Original),
+  // nicht das Item-Bild auf einen Würfel geklebt.
   Renderer.prototype.drawArrow = function (e, bl, sl) {
-    var n = this.boxGeometryRaw([e.x, e.y, e.z], [-0.04, -0.04, -0.35], [0.04, 0.04, 0.35],
-      T.layer('arrow'), bl, sl, e.yaw, e.pitch);
+    var gl = this.gl;
+    var layer = T.layer('arrow_entity');
+    var d = this.dynData, n = 0;
+    var cy = Math.cos(e.yaw), sy = Math.sin(e.yaw);
+    var cp = Math.cos(e.pitch), sp = Math.sin(e.pitch);
+    var L = 0.42, W = 0.10;
+    var planes = [
+      [[0, -W, -L], [0, -W, L], [0, W, L], [0, W, -L]],
+      [[-W, 0, -L], [-W, 0, L], [W, 0, L], [W, 0, -L]]
+    ];
+    for (var pi = 0; pi < planes.length; pi++) {
+      for (var side = 0; side < 2; side++) {
+        var a = d, m = n;
+        for (var i = 0; i < 4; i++) {
+          var k = side === 0 ? i : (3 - i);
+          var p = planes[pi][k];
+          var y1 = p[1] * cp - p[2] * sp, z1 = p[1] * sp + p[2] * cp;
+          var x2 = p[0] * cy + z1 * sy, z2 = -p[0] * sy + z1 * cy;
+          a[m++] = e.x + x2; a[m++] = e.y + y1; a[m++] = e.z + z2;
+          a[m++] = MC.Mesher.UVS[k][0]; a[m++] = MC.Mesher.UVS[k][1]; a[m++] = layer;
+          a[m++] = bl; a[m++] = sl; a[m++] = side === 0 ? 1.0 : 0.85;
+        }
+        n = m;
+      }
+    }
+    gl.disable(gl.CULL_FACE);
     this.drawDyn(n);
+    gl.enable(gl.CULL_FACE);
   };
 
   Renderer.prototype.drawTNT = function (e, bl, sl, game) {
@@ -641,7 +668,9 @@
     var s = (model.scale || 1) / 16;
     var walk = mob.walkTime;
     var swing = mob.moving ? 1 : 0;
-    var yaw = mob.yaw;
+    // Die Modelle blicken in Modellrichtung -Z, die Laufrichtung eines Mobs bei yaw
+    // ist aber (sin yaw, cos yaw). Ohne die halbe Drehung liefen alle Tiere rückwärts.
+    var yaw = mob.yaw + Math.PI;
     var cy = Math.cos(yaw), sy = Math.sin(yaw);
 
     for (var pi = 0; pi < model.parts.length; pi++) {
@@ -822,10 +851,17 @@
     var bob = Math.sin(p.bobPhase) * 0.012;
     var bobY = Math.abs(Math.cos(p.bobPhase)) * 0.012;
 
+    // Bogen spannen: Item wandert zur Bildmitte und kippt – wie beim Original
+    var charge = Math.min(1, game.bowCharge || 0);
+    var shake = charge > 0.85 ? (Math.random() - 0.5) * 0.012 : 0;
+
     var mv = M4.identity(M4.create());
-    M4.translate(mv, mv, 0.44 + bob, -0.42 + bobY - eat, -0.62);
-    M4.rotateY(mv, mv, -0.55 + sw * 0.5);
-    M4.rotateX(mv, mv, -0.18 - sw * 0.9);
+    M4.translate(mv, mv,
+      0.44 - charge * 0.22 + bob + shake,
+      -0.42 + bobY - eat + charge * 0.10 + shake,
+      -0.62 + charge * 0.14);
+    M4.rotateY(mv, mv, -0.55 + sw * 0.5 + charge * 0.45);
+    M4.rotateX(mv, mv, -0.18 - sw * 0.9 - charge * 0.20);
     M4.rotateZ(mv, mv, 0.12);
 
     var mvp = M4.multiply(M4.create(), proj, mv);
@@ -850,7 +886,11 @@
       }
     } else {
       // Item als flache "Karte" oder Arm
-      var layer2 = it ? T.layer(it.tex) : T.layer('player_face');
+      var texName = it ? it.tex : 'mob_player_arm';
+      if (it && it.name === 'bow' && charge > 0) {
+        texName = 'bow_pull_' + (charge > 0.75 ? 2 : (charge > 0.4 ? 1 : 0));
+      }
+      var layer2 = T.layer(texName);
       var w = it ? 0.34 : 0.16, h2 = it ? 0.34 : 0.42, dep = it ? 0.03 : 0.16;
       for (var f2 = 0; f2 < 6; f2++) {
         var F2 = MC.Mesher.FACES[f2];

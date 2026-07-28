@@ -362,7 +362,10 @@
     var b = B.byId[t.id];
     if (b.hardness < 0 && this.mode !== 'creative') return;
     if (this.mode === 'creative') {
+      // ohne Sperre würde jeder Frame einen weiteren Block wegnehmen
+      if (this.player.breakCd > 0) return;
       this.breakBlock(t.x, t.y, t.z);
+      this.player.breakCd = 0.22;
       this.mining = null;
       return;
     }
@@ -407,6 +410,8 @@
   };
 
   var BED_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  // angeklickte Blockseite -> Wandrichtung, an der die Leiter hängt
+  var LADDER_META = { 4: 0, 5: 2, 0: 3, 1: 1 };
 
   Game.prototype.facingFromYaw = function () {
     var y = this.player.yaw;
@@ -444,6 +449,11 @@
         return;
       }
       if (b.shape === B.SHAPE_BED) { this.trySleep(t); return; }
+      if (b.shape === B.SHAPE_DOOR) {
+        if (b.name === 'door_iron') { this.ui.toast('Die Eisentür lässt sich nicht von Hand öffnen.'); return; }
+        this.toggleDoor(t.x, t.y, t.z);
+        return;
+      }
       if (b.name === 'tnt' && it && it.name === 'flint_and_steel') {
         w.setBlock(t.x, t.y, t.z, 0, 0);
         var tnt = new MC.TNTEntity(w, t.x + 0.5, t.y, t.z + 0.5, 3.5);
@@ -487,10 +497,73 @@
         return;
       }
     }
+    // Feuerzeug: Feuer legen
+    if (it.name === 'flint_and_steel') { this.lightFire(); return; }
     // Bett platzieren
     if (it.name === 'bed') { this.placeBed(); return; }
+    // Tür platzieren (zwei Blöcke hoch)
+    if (it.place === 'door_oak' || it.place === 'door_iron') { this.placeDoor(it.place); return; }
     // Block platzieren
     if (it.block) this.placeBlock(it);
+  };
+
+  Game.prototype.toggleDoor = function (x, y, z) {
+    var w = this.world;
+    var id = w.getBlock(x, y, z);
+    var meta = w.getMeta(x, y, z);
+    var lowerY = (meta & 1) ? y - 1 : y;
+    var lm = w.getMeta(x, lowerY, z);
+    var open = (lm & 8) ? 0 : 8;
+    w.setMetaOnly(x, lowerY, z, (lm & 7) | open);
+    if (w.getBlock(x, lowerY + 1, z) === id) {
+      var um = w.getMeta(x, lowerY + 1, z);
+      w.setMetaOnly(x, lowerY + 1, z, (um & 7) | open);
+    }
+    this.audio.play(open ? 'open' : 'thud');
+    this.player.swingTime = 1;
+  };
+
+  Game.prototype.placeDoor = function (blockName) {
+    var w = this.world, p = this.player, t = this.target;
+    if (!t) return;
+    var n = MC.NEI[t.face];
+    var x = t.x + n[0], y = t.y + n[1], z = t.z + n[2];
+    var below = w.getBlock(x, y - 1, z);
+    if (!B.isSolid(below)) return;
+    var cur = w.getBlock(x, y, z), up = w.getBlock(x, y + 1, z);
+    if ((cur !== 0 && !B.isReplaceable(cur)) || (up !== 0 && !B.isReplaceable(up))) return;
+    var facing = this.facingFromYaw();
+    var id = B.id(blockName);
+    w.setBlock(x, y, z, id, (facing << 1));
+    w.setBlock(x, y + 1, z, id, (facing << 1) | 1);
+    this.audio.place(B.byId[id].sound);
+    p.swingTime = 1;
+    if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+  };
+
+  Game.prototype.lightFire = function () {
+    var w = this.world, p = this.player, t = this.target;
+    if (!t) return;
+    var n = MC.NEI[t.face];
+    var x = t.x + n[0], y = t.y + n[1], z = t.z + n[2];
+    var cur = w.getBlock(x, y, z);
+    if (cur !== 0 && !B.isReplaceable(cur)) return;
+    // Feuer braucht einen Untergrund oder etwas Brennbares daneben
+    var ok = B.isSolid(w.getBlock(x, y - 1, z));
+    if (!ok) {
+      for (var d = 0; d < 6; d++) {
+        var nn = MC.NEI[d];
+        var nb = B.byId[w.getBlock(x + nn[0], y + nn[1], z + nn[2])];
+        if (nb && nb.flammable) { ok = true; break; }
+      }
+    }
+    if (!ok) return;
+    w.setBlock(x, y, z, B.id('fire'), 0);
+    w.scheduleUpdate(x, y, z, 12);
+    this.particles.flame(x + 0.5, y + 0.3, z + 0.5, 8);
+    this.audio.play('fizz');
+    p.inventory.damageSelected(1, this);
+    p.swingTime = 1;
   };
 
   Game.prototype.placeBlock = function (it) {
@@ -529,6 +602,23 @@
     if (block.shape === B.SHAPE_SLAB) {
       if (t.face === 3) meta = 1;
       else if (t.face !== 2 && (t.hy - Math.floor(t.hy)) > 0.5) meta = 1;
+    } else if (block.shape === B.SHAPE_STAIRS) {
+      // hoher Teil zeigt in Blickrichtung -> man steigt nach vorne hinauf
+      meta = (this.facingFromYaw() + 2) & 3;
+      if (t.face === 3 || (t.face !== 2 && (t.hy - Math.floor(t.hy)) > 0.5)) meta |= 4;
+    } else if (block.shape === B.SHAPE_LADDER) {
+      var lm = LADDER_META[t.face];
+      if (lm === undefined) {
+        // Decke/Boden angeklickt: passende Wand in der Nähe suchen
+        for (var lf = 0; lf < 4; lf++) {
+          var ls = MC.LADDER_SUPPORT[lf];
+          if (B.isOpaque(w.getBlock(nx + ls[0], ny, nz + ls[1]))) { lm = lf; break; }
+        }
+        if (lm === undefined) return;
+      }
+      var sup = MC.LADDER_SUPPORT[lm];
+      if (!B.isOpaque(w.getBlock(nx + sup[0], ny, nz + sup[1]))) return;
+      meta = lm;
     } else if (block.name.indexOf('log_') === 0) {
       meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
     } else if (typeof block.tex === 'object' && block.tex.front) {
@@ -1034,7 +1124,17 @@
       this.autoSaveTimer += dt;
       if (this.autoSaveTimer > 120) { this.autoSaveTimer = 0; this.saveWorld(); }
       this.audio.tickMusic(dt);
+      this.ambientParticles(dt);
     }
+
+    // Hotbar nur neu zeichnen, wenn sich tatsächlich etwas geändert hat
+    var sig = p.inventory.selected + '|';
+    for (var hi = 0; hi < 9; hi++) {
+      var hs = p.inventory.slots[hi];
+      sig += hs ? (hs.id + ':' + hs.count + ':' + (hs.dur === undefined ? '-' : hs.dur)) : '.';
+      sig += ',';
+    }
+    if (sig !== this._hotbarSig) { this._hotbarSig = sig; this.ui.updateHotbar(); }
 
     this.ensureChunksAround(p.x, p.z, false);
     this.buildMeshes(false);
@@ -1042,6 +1142,30 @@
     this.ui.updateHUD();
     this.ui.updateDebug();
     if (this.ui.open === 'furnace') this.refreshFurnaceUI();
+  };
+
+  // Flammen und Rauch an Fackeln, Feuer und Lava in der Nähe
+  Game.prototype.ambientParticles = function (dt) {
+    this.ambTimer = (this.ambTimer || 0) + dt;
+    if (this.ambTimer < 0.09) return;
+    this.ambTimer = 0;
+    var w = this.world, p = this.player;
+    var torchId = B.id('torch'), fireId = B.id('fire'), lavaId = B.id('lava');
+    for (var i = 0; i < 26; i++) {
+      var x = Math.floor(p.x) + ((Math.random() * 25) | 0) - 12;
+      var y = Math.floor(p.y) + ((Math.random() * 15) | 0) - 7;
+      var z = Math.floor(p.z) + ((Math.random() * 25) | 0) - 12;
+      var id = w.getBlock(x, y, z);
+      if (id === torchId) {
+        if (Math.random() < 0.35) this.particles.flame(x + 0.5, y + 0.62, z + 0.5, 1);
+        if (Math.random() < 0.12) this.particles.smoke(x + 0.5, y + 0.68, z + 0.5, 1);
+      } else if (id === fireId) {
+        this.particles.flame(x + 0.5, y + 0.3, z + 0.5, 2);
+        if (Math.random() < 0.3) this.particles.smoke(x + 0.5, y + 0.8, z + 0.5, 1);
+      } else if (id === lavaId && Math.random() < 0.06) {
+        this.particles.flame(x + 0.5, y + 0.9, z + 0.5, 1);
+      }
+    }
   };
 
   Game.prototype.handleMining = function (dt) {

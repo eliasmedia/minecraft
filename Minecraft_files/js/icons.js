@@ -10,59 +10,103 @@
 
   var cache = {};
   var SIZE = 64;
+  var S = SIZE / 36;          // Maßstab: Würfel belegt 32 Einheiten
+  var OX = SIZE / 2, OY = SIZE / 2;
+
+  // Isometrische Projektion eines Punktes im Einheitswürfel (y = oben)
+  function proj(x, y, z) {
+    return [OX + (x - z) * 16 * S, OY + ((x + z) * 8 - y * 16) * S];
+  }
 
   function texFor(block, face, meta) {
     return T.names[MC.Mesher.faceLayer(block, face, meta)];
   }
 
-  // Isometrischer Würfel in ein Canvas rendern
+  // Eine Fläche als Parallelogramm zeichnen: p0 = Ursprung, pu/pv = Endpunkte der Achsen
+  function face(ctx, tile, p0, pu, pv) {
+    ctx.save();
+    ctx.setTransform((pu[0] - p0[0]) / 16, (pu[1] - p0[1]) / 16,
+                     (pv[0] - p0[0]) / 16, (pv[1] - p0[1]) / 16,
+                     p0[0], p0[1]);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tile, 0, 0, 16, 16, 0, 0, 16, 16);
+    ctx.restore();
+  }
+
+  // Quader [x0,y0,z0,x1,y1,z1] isometrisch zeichnen
+  function isoBox(ctx, bx, block, meta) {
+    var x0 = bx[0], y0 = bx[1], z0 = bx[2], x1 = bx[3], y1 = bx[4], z1 = bx[5];
+    var top = T.tileCanvas(texFor(block, 2, meta), 1.0);
+    var right = T.tileCanvas(texFor(block, 0, meta), 0.68);
+    var left = T.tileCanvas(texFor(block, 4, meta), 0.86);
+    // Oberseite
+    face(ctx, top, proj(x0, y1, z0), proj(x1, y1, z0), proj(x0, y1, z1));
+    // rechte Seite (+X)
+    face(ctx, right, proj(x1, y1, z1), proj(x1, y1, z0), proj(x1, y0, z1));
+    // linke Seite (+Z)
+    face(ctx, left, proj(x0, y1, z1), proj(x1, y1, z1), proj(x0, y0, z1));
+  }
+
+  function flatIcon(ctx, texName) {
+    var tile = T.tileCanvas(texName, 1.0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tile, 0, 0, 16, 16, 2, 2, SIZE - 4, SIZE - 4);
+  }
+
   function blockIcon(block, meta) {
     var c = document.createElement('canvas');
     c.width = SIZE; c.height = SIZE;
     var ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    var s = SIZE / 36;   // 32 breit + Rand
-    var ox = (SIZE - 32 * s) / 2, oy = (SIZE - 32 * s) / 2;
 
-    var shape = block.shape;
-    var hTop = 0;          // Absenkung der Oberseite (für Stufen)
-    if (shape === B.SHAPE_SLAB || shape === B.SHAPE_BED) hTop = 8;
+    switch (block.shape) {
+      case B.SHAPE_CROSS:
+      case B.SHAPE_CROP:
+      case B.SHAPE_TORCH:
+      case B.SHAPE_LADDER:
+      case B.SHAPE_FIRE:
+        flatIcon(ctx, typeof block.tex === 'string' ? block.tex : (block.tex.side || block.tex.top));
+        return c;
 
-    var topTile = T.tileCanvas(texFor(block, 2, meta), 1.0);
-    var leftTile = T.tileCanvas(texFor(block, 1, meta), 0.70);
-    var rightTile = T.tileCanvas(texFor(block, 4, meta), 0.85);
+      case B.SHAPE_SLAB:
+        isoBox(ctx, [0, 0, 0, 1, 0.5, 1], block, 0);
+        return c;
 
-    function face(tile, o, a, b) {
-      ctx.save();
-      ctx.setTransform(a[0] / 16 * s, a[1] / 16 * s, b[0] / 16 * s, b[1] / 16 * s, ox + o[0] * s, oy + o[1] * s);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(tile, 0, 0, 16, 16);
-      ctx.restore();
+      case B.SHAPE_BED:
+        isoBox(ctx, [0, 0, 0, 1, 0.5625, 1], block, 0);
+        return c;
+
+      case B.SHAPE_STAIRS:
+        // Grundplatte, dann die Stufe hinten drauf
+        isoBox(ctx, [0, 0, 0, 1, 0.5, 1], block, 0);
+        isoBox(ctx, [0, 0.5, 0, 1, 1, 0.5], block, 0);
+        return c;
+
+      case B.SHAPE_FENCE:
+        isoBox(ctx, [0.34, 0, 0.34, 0.66, 1, 0.66], block, 0);
+        isoBox(ctx, [0.42, 0.34, 0, 0.58, 0.5, 1], block, 0);
+        isoBox(ctx, [0.42, 0.72, 0, 0.58, 0.88, 1], block, 0);
+        return c;
+
+      case B.SHAPE_DOOR: {
+        // untere und obere Hälfte übereinander, damit man die Tür erkennt
+        var lower = { tex: block.tex, shape: B.SHAPE_CUBE, name: block.name };
+        var upper = { tex: { top: block.tex.top, bottom: block.tex.top, side: block.tex.top }, shape: B.SHAPE_CUBE, name: block.name };
+        isoBox(ctx, [0, 0, 0.36, 1, 0.5, 0.64], lower, 0);
+        isoBox(ctx, [0, 0.5, 0.36, 1, 1, 0.64], upper, 0);
+        return c;
+      }
+
+      default:
+        isoBox(ctx, [0, 0, 0, 1, 1, 1], block, meta);
+        return c;
     }
-
-    if (shape === B.SHAPE_CROSS || shape === B.SHAPE_CROP || shape === B.SHAPE_TORCH) {
-      var flat = T.tileCanvas(typeof block.tex === 'string' ? block.tex : (block.tex.side || block.tex.top), 1.0);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(flat, 2, 2, SIZE - 4, SIZE - 4);
-      return c;
-    }
-
-    // Oberseite (Raute)
-    face(topTile, [0, 8 + hTop], [16, -8], [16, 8]);
-    // Linke Fläche
-    face(leftTile, [0, 8 + hTop], [16, 8], [0, 16 - hTop]);
-    // Rechte Fläche
-    face(rightTile, [16, 16 + hTop], [16, -8], [0, 16 - hTop]);
-    return c;
   }
 
   function itemIcon(name) {
     var c = document.createElement('canvas');
     c.width = SIZE; c.height = SIZE;
-    var ctx = c.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    var tile = T.tileCanvas(name, 1.0);
-    ctx.drawImage(tile, 0, 0, 16, 16, 2, 2, SIZE - 4, SIZE - 4);
+    flatIcon(c.getContext('2d'), name);
     return c;
   }
 
@@ -71,6 +115,7 @@
     var it = I.get(itemId);
     var c;
     if (it && it.block && B.byName[it.block]) c = blockIcon(B.byName[it.block], 0);
+    else if (it && it.place && B.byName[it.place]) c = blockIcon(B.byName[it.place], 0);
     else if (it) c = itemIcon(T.has(it.tex) ? it.tex : 'white');
     else c = itemIcon('white');
     cache[itemId] = c;

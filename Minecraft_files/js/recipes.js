@@ -12,6 +12,19 @@
   R.smelting = {};
   R.fuel = {};
 
+  // Sammelbegriffe: "#planks" passt auf jede Brettersorte usw.
+  R.TAGS = {
+    '#planks': ['planks_oak', 'planks_birch', 'planks_spruce'],
+    '#logs': ['log_oak', 'log_birch', 'log_spruce'],
+    '#wool': MC.Blocks.WOOL_COLORS.map(function (c) { return 'wool_' + c[0]; })
+  };
+
+  R.matchesIngredient = function (want, id) {
+    if (want === id) return true;
+    var tag = R.TAGS[want];
+    return !!(tag && tag.indexOf(id) >= 0);
+  };
+
   function shaped(pattern, key, result, count) {
     var rows = pattern.length, cols = 0;
     for (var i = 0; i < rows; i++) cols = Math.max(cols, pattern[i].length);
@@ -42,17 +55,34 @@
   woods.forEach(function (w) {
     shapeless(['log_' + w], 'planks_' + w, 4);
   });
-  shaped(['P', 'P'], { P: 'planks_oak' }, 'stick', 4);
-  shaped(['PP', 'PP'], { P: 'planks_oak' }, 'crafting_table', 1);
+  shaped(['P', 'P'], { P: '#planks' }, 'stick', 4);
+  shaped(['PP', 'PP'], { P: '#planks' }, 'crafting_table', 1);
   shaped(['CCC', 'C C', 'CCC'], { C: 'cobblestone' }, 'furnace', 1);
-  shaped(['PPP', 'P P', 'PPP'], { P: 'planks_oak' }, 'chest', 1);
+  shaped(['PPP', 'P P', 'PPP'], { P: '#planks' }, 'chest', 1);
   shaped(['C', 'S'], { C: 'coal', S: 'stick' }, 'torch', 4);
   shaped(['C', 'S'], { C: 'charcoal', S: 'stick' }, 'torch', 4);
-  shaped(['PPP', 'BBB', 'PPP'], { P: 'planks_oak', B: 'book' }, 'bookshelf', 1);
+  shaped(['PPP', 'BBB', 'PPP'], { P: '#planks', B: 'book' }, 'bookshelf', 1);
+
+  // Türen, Leitern, Zäune, Treppen
+  shaped(['PP', 'PP', 'PP'], { P: '#planks' }, 'door_oak', 3);
+  shaped(['II', 'II', 'II'], { I: 'iron_ingot' }, 'door_iron', 3);
+  shaped(['S S', 'SSS', 'S S'], { S: 'stick' }, 'ladder', 3);
+  woods.forEach(function (wd) {
+    shaped(['PSP', 'PSP'], { P: 'planks_' + wd, S: 'stick' }, 'fence_' + wd, 3);
+    shaped(['P..', 'PP.', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
+    shaped(['..P', '.PP', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
+    shaped(['PPP'], { P: 'planks_' + wd }, 'slab_planks_' + wd, 6);
+  });
+  [['cobblestone', 'stairs_cobblestone'], ['stone_bricks', 'stairs_stone_bricks'],
+   ['sandstone', 'stairs_sandstone'], ['brick_block', 'stairs_brick']
+  ].forEach(function (s) {
+    shaped(['X..', 'XX.', 'XXX'], { X: s[0] }, s[1], 4);
+    shaped(['..X', '.XX', 'XXX'], { X: s[0] }, s[1], 4);
+  });
 
   // ---------------- Werkzeuge & Waffen ----------------
   var tierMat = {
-    wood: 'planks_oak', stone: 'cobblestone', iron: 'iron_ingot',
+    wood: '#planks', stone: 'cobblestone', iron: 'iron_ingot',
     gold: 'gold_ingot', diamond: 'diamond'
   };
   Object.keys(tierMat).forEach(function (t) {
@@ -79,7 +109,7 @@
   shaped(['F', 'S', 'E'], { F: 'flint', S: 'stick', E: 'feather' }, 'arrow', 4);
   shaped(['I I', ' I '], { I: 'iron_ingot' }, 'bucket', 1);
   shaped(['I', 'F'], { I: 'iron_ingot', F: 'flint' }, 'flint_and_steel', 1);
-  shaped(['P P', ' P '], { P: 'planks_oak' }, 'bowl', 4);
+  shaped(['P P', ' P '], { P: '#planks' }, 'bowl', 4);
 
   // ---------------- Baumaterial ----------------
   shaped(['BB', 'BB'], { B: 'brick' }, 'brick_block', 1);
@@ -88,11 +118,10 @@
   shaped(['GG', 'GG'], { G: 'glowstone_dust' }, 'glowstone', 1);
   shaped(['SS', 'SS'], { S: 'string' }, 'wool_white', 1);
   shaped(['GSG', 'SGS', 'GSG'], { G: 'gunpowder', S: 'sand' }, 'tnt', 1);
-  shaped(['WWW', 'PPP'], { W: 'wool_red', P: 'planks_oak' }, 'bed', 1);
-  shaped(['WWW', 'PPP'], { W: 'wool_white', P: 'planks_oak' }, 'bed', 1);
+  shaped(['WWW', 'PPP'], { W: '#wool', P: '#planks' }, 'bed', 1);
 
-  // Stufen
-  [['stone', 'slab_stone'], ['cobblestone', 'slab_cobblestone'], ['planks_oak', 'slab_planks_oak'],
+  // Steinstufen (Holzstufen entstehen sortenrein weiter oben)
+  [['stone', 'slab_stone'], ['cobblestone', 'slab_cobblestone'],
    ['sandstone', 'slab_sandstone'], ['brick_block', 'slab_brick'], ['stone_bricks', 'slab_stone_bricks']
   ].forEach(function (p) {
     shaped(['XXX'], { X: p[0] }, p[1], 6);
@@ -134,6 +163,8 @@
   fuel('stick', 100); fuel('lava_bucket', 20000);
   woods.forEach(function (w) { fuel('planks_' + w, 300); fuel('log_' + w, 300); });
   fuel('crafting_table', 300); fuel('chest', 300); fuel('bookshelf', 300); fuel('bowl', 200);
+  fuel('ladder', 300); fuel('door_oak', 200);
+  woods.forEach(function (w) { fuel('fence_' + w, 300); fuel('stairs_' + w, 300); fuel('slab_planks_' + w, 150); });
   ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'wood_sword', 'wood_hoe'].forEach(function (t) { fuel(t, 200); });
   fuel('slab_planks_oak', 150);
 
@@ -175,7 +206,10 @@
       for (var g = 0; g < size * size && ok; g++) {
         var st = grid[g];
         if (!st) continue;
-        var idx = pool.indexOf(st.id);
+        var idx = -1;
+        for (var pi = 0; pi < pool.length; pi++) {
+          if (R.matchesIngredient(pool[pi], st.id)) { idx = pi; break; }
+        }
         if (idx < 0) ok = false; else pool.splice(idx, 1);
       }
       if (ok && pool.length === 0) return { id: sr.out.id, count: sr.out.count };
@@ -189,7 +223,7 @@
         var want = r.grid[y][mirror ? (r.w - 1 - x) : x];
         var have = grid[(oy + y) * size + (ox + x)];
         if (want === null || want === undefined) { if (have) return false; }
-        else { if (!have || have.id !== want) return false; }
+        else { if (!have || !R.matchesIngredient(want, have.id)) return false; }
       }
     }
     return true;

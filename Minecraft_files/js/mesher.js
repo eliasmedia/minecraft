@@ -70,6 +70,8 @@
     if (typeof tex === 'string') return T.layer(tex);
     var name;
     if (block.shape === B.SHAPE_CROP) return T.layer('wheat_stage' + Math.min(3, meta >> 1));
+    // Tür: obere/untere Hälfte bestimmt die Textur, nicht die Fläche
+    if (block.shape === B.SHAPE_DOOR) return T.layer((meta & 1) ? tex.top : tex.bottom);
     // Stämme mit Achse
     if (block.name.indexOf('log_') === 0) {
       var axis = meta & 3;
@@ -215,9 +217,58 @@
             }
 
             case B.SHAPE_TORCH: {
+              // 2x10x2-Pixel-Stiel; die UVs greifen genau den Ausschnitt der Textur ab,
+              // damit nicht das Item-Bild auf alle Seiten geklebt wird.
               var lt = T.layer('torch');
               var lightHere = gl(x, y, z);
-              emitBox(buf, x, y, z, [0.4375, 0, 0.4375], [0.5625, 0.625, 0.5625], lt, lightHere, true);
+              var U16 = 1 / 16;
+              emitBoxUV(buf, x, y, z, [0.4375, 0, 0.4375], [0.5625, 0.625, 0.5625], lt, lightHere,
+                [7 * U16, 6 * U16, 9 * U16, 1],          // Seiten: Stiel + Flammenspitze
+                [7 * U16, 6 * U16, 9 * U16, 8 * U16],    // oben: Flamme
+                [7 * U16, 14 * U16, 9 * U16, 1]);        // unten: Stielende
+              break;
+            }
+
+            case B.SHAPE_STAIRS: {
+              var sb = B.stairBoxes(meta);
+              emitBoxCulled(buf, x, y, z, sb[0], block, meta, 0);
+              // Unterseite der Stufe liegt auf der Grundplatte -> weglassen
+              emitBoxCulled(buf, x, y, z, sb[1], block, meta, (meta & 4) ? (1 << 2) : (1 << 3));
+              break;
+            }
+
+            case B.SHAPE_FENCE: {
+              emitBoxCulled(buf, x, y, z, [0.375, 0, 0.375, 0.625, 1, 0.625], block, meta, 0);
+              var HD = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0]];
+              for (var fd = 0; fd < 4; fd++) {
+                var hn = HD[fd];
+                if (!fenceConnects(gb(x + hn[0], y, z + hn[2]))) continue;
+                var bars = [[0.375, 0.5625], [0.75, 0.9375]];
+                for (var bi = 0; bi < 2; bi++) {
+                  var y0 = bars[bi][0], y1 = bars[bi][1];
+                  var bx;
+                  if (fd === 0) bx = [0.4375, y0, 0, 0.5625, y1, 0.375];
+                  else if (fd === 1) bx = [0.625, y0, 0.4375, 1, y1, 0.5625];
+                  else if (fd === 2) bx = [0.4375, y0, 0.625, 0.5625, y1, 1];
+                  else bx = [0, y0, 0.4375, 0.375, y1, 0.5625];
+                  emitBoxCulled(buf, x, y, z, bx, block, meta, 0);
+                }
+              }
+              break;
+            }
+
+            case B.SHAPE_LADDER: {
+              emitLadder(buf, x, y, z, meta, gl(x, y, z));
+              break;
+            }
+
+            case B.SHAPE_DOOR: {
+              emitBoxCulled(buf, x, y, z, B.doorBox(meta), block, meta, 0);
+              break;
+            }
+
+            case B.SHAPE_FIRE: {
+              emitCross(buf, x, y, z, T.layer('fire_' + (meta & 1)), 0xF0 | 15, 1.0);
               break;
             }
 
@@ -315,6 +366,80 @@
           a[n++] = bz0 + z + mn[2] + v[2] * (mx[2] - mn[2]);
           a[n++] = UVS[i][0]; a[n++] = UVS[i][1]; a[n++] = layer;
           a[n++] = bl; a[n++] = sl; a[n++] = F.shade;
+        }
+        buf.n = n;
+      }
+    }
+
+    // Quader mit eigenen UV-Bereichen für Seiten / oben / unten
+    function emitBoxUV(buf, x, y, z, mn, mx, layer, lightRaw, uvSide, uvTop, uvBottom) {
+      var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
+      for (var f = 0; f < 6; f++) {
+        var F = FACES[f];
+        var uv = f === 2 ? uvTop : (f === 3 ? uvBottom : uvSide);
+        buf.need(4 * 9);
+        var a = buf.a, n = buf.n;
+        for (var i = 0; i < 4; i++) {
+          var v = F.v[i];
+          a[n++] = bx0 + x + mn[0] + v[0] * (mx[0] - mn[0]);
+          a[n++] = y + mn[1] + v[1] * (mx[1] - mn[1]);
+          a[n++] = bz0 + z + mn[2] + v[2] * (mx[2] - mn[2]);
+          a[n++] = uv[0] + UVS[i][0] * (uv[2] - uv[0]);
+          a[n++] = uv[1] + UVS[i][1] * (uv[3] - uv[1]);
+          a[n++] = layer;
+          a[n++] = bl; a[n++] = sl; a[n++] = F.shade;
+        }
+        buf.n = n;
+      }
+    }
+
+    // Quader mit AO/Licht; Flächen an undurchsichtigen Nachbarn werden weggelassen,
+    // sofern der Quader diese Blockseite überhaupt berührt. skipMask blendet Flächen fest aus.
+    function emitBoxCulled(buf, x, y, z, box, block, meta, skipMask) {
+      var mn = [box[0], box[1], box[2]], mx = [box[3], box[4], box[5]];
+      for (var f = 0; f < 6; f++) {
+        if (skipMask & (1 << f)) continue;
+        var n = FACES[f].n;
+        var touches = (n[0] === 1 && mx[0] >= 1) || (n[0] === -1 && mn[0] <= 0) ||
+                      (n[1] === 1 && mx[1] >= 1) || (n[1] === -1 && mn[1] <= 0) ||
+                      (n[2] === 1 && mx[2] >= 1) || (n[2] === -1 && mn[2] <= 0);
+        if (touches) {
+          var nb = B.byId[gb(x + n[0], y + n[1], z + n[2])];
+          if (nb && nb.opaque) continue;
+        }
+        emitFace(buf, x, y, z, f, faceLayer(block, f, meta), block, meta, mn, mx, FULL_UV, false);
+      }
+    }
+
+    function fenceConnects(id) {
+      var b = B.byId[id];
+      if (!b || b.id === 0) return false;
+      return b.opaque || b.shape === B.SHAPE_FENCE || b.shape === B.SHAPE_STAIRS || b.shape === B.SHAPE_SLAB;
+    }
+
+    // Leiter: flaches, beidseitig sichtbares Rechteck an der Wand
+    function emitLadder(buf, x, y, z, meta, lightRaw) {
+      var layer = T.layer('ladder');
+      var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
+      var e = 0.0625;
+      var q;
+      switch (meta & 3) {
+        case 0: q = [[0, 0, e], [1, 0, e], [1, 1, e], [0, 1, e]]; break;
+        case 1: q = [[1 - e, 0, 1], [1 - e, 0, 0], [1 - e, 1, 0], [1 - e, 1, 1]]; break;
+        case 2: q = [[1, 0, 1 - e], [0, 0, 1 - e], [0, 1, 1 - e], [1, 1, 1 - e]]; break;
+        default: q = [[e, 0, 0], [e, 0, 1], [e, 1, 1], [e, 1, 0]]; break;
+      }
+      for (var side = 0; side < 2; side++) {
+        buf.need(4 * 9);
+        var a = buf.a, n = buf.n;
+        for (var i = 0; i < 4; i++) {
+          var k = side === 0 ? i : (3 - i);
+          var p = q[k];
+          a[n++] = bx0 + x + p[0]; a[n++] = y + p[1]; a[n++] = bz0 + z + p[2];
+          a[n++] = UVS[side === 0 ? i : (3 - i)][0];
+          a[n++] = UVS[side === 0 ? i : (3 - i)][1];
+          a[n++] = layer;
+          a[n++] = bl; a[n++] = sl; a[n++] = side === 0 ? 0.9 : 0.8;
         }
         buf.n = n;
       }

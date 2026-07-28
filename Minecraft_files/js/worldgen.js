@@ -140,9 +140,9 @@
 
   Gen.prototype.isCaveAt = function (grid, lx, y, lz) {
     if (y < 4 || y > 118) return false;
-    if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < 0.055) return true;
-    if (Math.abs(sampleGrid(grid.b, lx, y, lz)) < 0.045) return true;
-    if (y < 40 && sampleGrid(grid.c, lx, y, lz) > 0.42) return true;
+    if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < 0.045) return true;
+    if (Math.abs(sampleGrid(grid.b, lx, y, lz)) < 0.036) return true;
+    if (y < 40 && sampleGrid(grid.c, lx, y, lz) > 0.45) return true;
     return false;
   };
 
@@ -194,8 +194,11 @@
           } else {
             id = ID.stone;
           }
-          // Höhlen ausstanzen (nicht unter Wasser durchbrechen)
-          if (id !== ID.bedrock && id !== ID.water && id !== ID.air && y > 4) {
+          // Höhlen ausstanzen. Die obersten Schichten bleiben stehen, damit die
+          // Oberfläche nicht durchlöchert wird und keine Bäume in der Luft hängen.
+          // Nur an wenigen Stellen darf eine Höhle bis nach oben durchbrechen.
+          var deepEnough = (y < h - 4) || (y < h && U.hash3(wx, 555, wz) < 0.05);
+          if (id !== ID.bedrock && id !== ID.water && id !== ID.air && y > 4 && deepEnough) {
             if (this.isCaveAt(caveGrid, x, y, z)) {
               id = (y <= 8) ? ID.lava : ID.air;
               if (y >= h - 1 && h <= SEA) id = ID.water;
