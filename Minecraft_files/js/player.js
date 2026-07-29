@@ -378,22 +378,37 @@
       this.drownTimer = 0;
     }
 
-    if (inLava && !creative) {
+    // Zanitrüstung schützt gegen Hitze: jedes Teil ein Viertel, alle vier = immun
+    var hitzeSchutz = Math.min(1, inv.armorSetCount('zanite') * 0.25);
+
+    if (inLava && !creative && hitzeSchutz < 1) {
       this.lavaTimer = (this.lavaTimer || 0) + dt;
-      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4, null, game); }
+      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4 * (1 - hitzeSchutz), null, game); }
     }
-    // Kaktus
-    var touchCactus = false;
+
+    // Blöcke, die beim Berühren wehtun: Kaktus sticht, Feuer und Magma brennen
+    var cactusId = B.id('cactus');
+    var stich = 0, brand = 0;
     var cx0 = Math.floor(this.x - 0.35), cx1 = Math.floor(this.x + 0.35);
     var cz0 = Math.floor(this.z - 0.35), cz1 = Math.floor(this.z + 0.35);
-    for (var cy = Math.floor(this.y); cy <= Math.floor(this.y + this.height); cy++)
-      for (var czz = cz0; czz <= cz1; czz++)
-        for (var cxx = cx0; cxx <= cx1; cxx++)
-          if (world.getBlock(cxx, cy, czz) === B.id('cactus')) touchCactus = true;
-    if (touchCactus && !creative) {
-      this.cactusTimer = (this.cactusTimer || 0) + dt;
-      if (this.cactusTimer > 0.5) { this.cactusTimer = 0; this.hurt(1, null, game); }
+    for (var cy = Math.floor(this.y - 0.05); cy <= Math.floor(this.y + this.height); cy++) {
+      for (var czz = cz0; czz <= cz1; czz++) {
+        for (var cxx = cx0; cxx <= cx1; cxx++) {
+          var tb = B.byId[world.getBlock(cxx, cy, czz)];
+          if (!tb || !tb.damage) continue;
+          if (tb.id === cactusId) stich = Math.max(stich, tb.damage);
+          else brand = Math.max(brand, tb.damage);
+        }
+      }
     }
+    if (!creative && stich > 0) {
+      this.cactusTimer = (this.cactusTimer || 0) + dt;
+      if (this.cactusTimer > 0.5) { this.cactusTimer = 0; this.hurt(stich, null, game); }
+    } else this.cactusTimer = 0;
+    if (!creative && brand > 0 && hitzeSchutz < 1) {
+      this.burnTimer = (this.burnTimer || 0) + dt;
+      if (this.burnTimer > 0.6) { this.burnTimer = 0; this.hurt(brand * (1 - hitzeSchutz), null, game); }
+    } else this.burnTimer = 0;
 
     // ---- Hunger & Regeneration ----
     if (!creative) {

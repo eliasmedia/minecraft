@@ -55,21 +55,38 @@ Baumaterial richtet sich nach dem Biom. Truhen in Häusern und Schmiede sind
 gefüllt — Brot, Werkzeug, Erz, gelegentlich ein Smaragd. Das Dorf steht auf einem
 eingeebneten Plateau, dessen Rand ins Gelände ausläuft.
 
+**Der Weg nach oben** — die drei Welten bauen aufeinander auf: in der Oberwelt
+sucht man Obsidian für das Netherportal, im Nether die Bastionen, weil nur dort
+Glowstone liegt und Glowstone der Rahmen für das Aetherportal ist. Erst der
+Aether gibt die beste Rüstung her.
+
 **Nether** — Portal aus einem Obsidianrahmen (4×5, zehn Blöcke), gezündet mit dem
 Feuerzeug. Dahinter liegt eine geschlossene Höhlenwelt zwischen zwei
-Grundgesteinsdecken: Netherrack, Seelensand (bremst), Magmablöcke, Glowstone an
-den Decken, Netherquarz in Adern und Lavaseen im Untergeschoss. Kein Tageslicht,
+Grundgesteinsdecken: Netherrack, Seelensand (bremst), Magmablöcke (die brennen),
+Netherquarz und Zaniterz in Adern, Lavaseen im Untergeschoss. Kein Tageslicht,
 roter Dunst, kurze Sicht. Bewohnt von Piglins, Magmawürfeln und Ghasts, die
 Feuerbälle werfen — Lava macht ihnen nichts aus. Ein Block im Nether entspricht
 acht in der Oberwelt, ein Portal dort spart also Wege.
+
+**Bastionen** — kleine Festungen aus Netherziegeln, etwa alle 160 Blöcke, an
+ihren vier Glowstone-Leuchtfeuern schon von weitem zu erkennen. Sie sind die
+**einzige** Glowstonequelle im Spiel. Eine Bastion bringt vierzehn Blöcke, das
+sind nach dem Zerlegen und Neuzusammensetzen genau die zehn für einen
+Aetherrahmen; die Truhe im Inneren ist der Puffer.
+
+**Zanitrüstung** — im Nether zu Hause und dort auch das einzige Rüstungsmetall.
+Jedes getragene Teil nimmt ein Viertel des Hitzeschadens weg, alle vier machen
+gegen Lava, Feuer und Magma vollständig immun. Gegen einen Kaktus hilft sie
+nicht.
 
 **Aether** — dieselbe Rahmenform, aber aus Glowstone und mit einem Eimer Wasser
 geflutet statt angezündet. Dahinter schweben Inseln über der Leere: Aethergras
 auf Heiligstein, Flugsand (spiegelglatt), Eisstein, Himmelswurzel- und
 Goldeichenwälder, Blaubeersträucher. Die Inseln sind durchlöchert — wer nicht
-aufpasst, fällt hindurch. Drei eigene Erze — Ambrosium (leuchtet, heilt beim
-Essen), Zanit und Gravitit, das nach oben statt nach unten fällt — ergeben drei
-Werkzeug- und zwei Rüstungsstufen. Wolkenblöcke sind begehbar: blaue
+aufpasst, fällt hindurch. Ambrosium leuchtet und heilt beim Essen; Gravitit
+fällt nach oben statt nach unten und sitzt tief im unteren Drittel der Inseln,
+immer mit Abstand zur Außenschale — von unten ablesen lässt es sich also nicht,
+man muss graben. Wolkenblöcke sind begehbar: blaue
 schleudern nach oben, goldene fangen jeden Sturz ab. Dazu Moas, Phygs und
 Sheepuffs als friedliche Bewohner, Cockatrices und Zephyre als Plage — letztere
 schießen Schneebälle, die einen von der Insel fegen. Wer durch die Leere fällt,

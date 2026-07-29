@@ -317,7 +317,8 @@
   define('quicksoil', { title: 'Flugsand', hardness: 0.5, tool: 'shovel', sound: 'sand', slippery: 0.995, group: 'natur' });
   define('icestone', { title: 'Eisstein', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'natur' });
   define('ambrosium_ore', { title: 'Ambrosiumerz', hardness: 2, tool: 'pickaxe', light: 4, drop: 'ambrosium_shard', dropCount: 2, sound: 'stone', group: 'natur' });
-  define('zanite_ore', { title: 'Zaniterz', hardness: 3, tool: 'pickaxe', level: 2, drop: 'zanite_gemstone', sound: 'stone', group: 'natur' });
+  // Zanit gehört zum Nether – dort ist es die einzige Rüstungsstufe
+  define('zanite_ore', { title: 'Zaniterz', hardness: 3, tool: 'pickaxe', level: 2, drop: 'zanite_gemstone', dropCount: 2, sound: 'stone', group: 'natur' });
   // Gravitit fällt nicht, es steigt auf
   define('gravitite_ore', { title: 'Gravititerz', hardness: 3, tool: 'pickaxe', level: 3, drop: 'gravitite', gravityUp: true, sound: 'stone', group: 'natur' });
 

@@ -714,9 +714,10 @@
     var w = this.world;
     return w.tileEntity(x, y, z, function () {
       var loot = null;
-      if (MC.Village && w.gen.o.structures) {
-        try { loot = MC.Village.chestLoot(w.gen, x, y, z); } catch (e) { loot = null; }
-      }
+      try {
+        if (w.dim === 'nether') loot = MC.Dim.fortressLoot(w.gen, x, y, z);
+        else if (MC.Village && w.gen.o.structures) loot = MC.Village.chestLoot(w.gen, x, y, z);
+      } catch (e) { loot = null; }
       return { type: 'chest', items: loot || new Array(27) };
     });
   };
@@ -1215,6 +1216,7 @@
         'Ofen bauen, Essen braten, Rüstung schmieden, Nacht überleben, bauen.',
         '<hr>',
         '<b>Nether:</b> Obsidianrahmen 4×5 mit dem <b>Feuerzeug</b> zünden.',
+        'Dort Bastionen suchen — nur sie haben <b>Glowstone</b>.',
         '<b>Aether:</b> derselbe Rahmen aus <b>Glowstone</b>, mit einem <b>Eimer Wasser</b> fluten.'
       ].join('<br>');
       box.appendChild(d);

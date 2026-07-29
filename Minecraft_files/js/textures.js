@@ -590,12 +590,13 @@
   });
   tex('quartz_block', function (g) { g.fill([236, 231, 222]); g.noise(0.05); g.speck(14, [214, 208, 198]); });
   tex('nether_bricks', function (g) {
-    g.fill([46, 22, 26]); g.noise(0.08);
+    g.fill([120, 66, 72]); g.noise(0.09);
     for (var y = 0; y < 16; y += 4) {
-      for (var x = 0; x < 16; x++) g.set(x, y, [30, 14, 18]);
+      for (var x = 0; x < 16; x++) g.set(x, y, [74, 36, 42]);
       var off = (y % 8 === 0) ? 0 : 8;
-      for (var k = 0; k < 16; k += 8) g.rect(((k + off) % 16), y + 1, 1, 3, [30, 14, 18]);
+      for (var k = 0; k < 16; k += 8) g.rect(((k + off) % 16), y + 1, 1, 3, [74, 36, 42]);
     }
+    g.speck(16, [150, 92, 96]);
   });
   tex('magma_block', function (g) {
     g.fill([64, 26, 18]); g.noise(0.14);
@@ -673,8 +674,16 @@
     });
   }
   aetherOre('ambrosium_ore', [252, 178, 44]);
-  aetherOre('zanite_ore', [146, 86, 226]);
   aetherOre('gravitite_ore', [72, 226, 186]);
+  // Zanit liegt im Nether, also im Netherrack statt im Heiligstein
+  tex('zanite_ore', function (g) {
+    g.fill([146, 58, 56]); g.noise(0.14);
+    var col = [166, 104, 240];
+    kristall(g, 3, 3, 4, 4, col);
+    kristall(g, 10, 2, 3, 3, col);
+    kristall(g, 9, 9, 4, 4, col);
+    kristall(g, 2, 10, 3, 3, col);
+  });
 
   tex('log_skyroot', function (g) {
     g.fill([120, 108, 96]); g.noise(0.10);
