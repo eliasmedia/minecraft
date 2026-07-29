@@ -4,9 +4,45 @@
 (function () {
   'use strict';
 
-  var CS = MC.CHUNK_SIZE, WH = MC.WORLD_HEIGHT, SEA = MC.SEA_LEVEL;
+  var CS = MC.CHUNK_SIZE, WH = MC.WORLD_HEIGHT;
   var B = MC.Blocks;
   var U = MC.U;
+
+  // ============================================================
+  //  Welteinstellungen
+  // ============================================================
+  MC.WORLD_OPTS = [
+    { key: 'type', title: 'Welttyp', kind: 'choice', def: 'default',
+      options: [['default', 'Standard'], ['amplified', 'Verstärkt'], ['largebiomes', 'Große Biome'], ['flat', 'Flachland']] },
+    { key: 'mountains', title: 'Bergigkeit', kind: 'range', def: 1, min: 0, max: 2, step: 0.1 },
+    { key: 'caves', title: 'Höhlen', kind: 'range', def: 1, min: 0, max: 2, step: 0.1 },
+    { key: 'seaLevel', title: 'Meeresspiegel', kind: 'range', def: 62, min: 32, max: 92, step: 1, unit: '' },
+    { key: 'biomeSize', title: 'Biomgröße', kind: 'range', def: 1, min: 0.4, max: 3, step: 0.1 },
+    { key: 'vegetation', title: 'Bewuchs', kind: 'range', def: 1, min: 0, max: 3, step: 0.1 },
+    { key: 'ores', title: 'Erzhäufigkeit', kind: 'range', def: 1, min: 0, max: 3, step: 0.1 },
+    { key: 'structures', title: 'Dörfer erzeugen', kind: 'bool', def: true }
+  ];
+
+  MC.defaultWorldOpts = function () {
+    var o = {};
+    MC.WORLD_OPTS.forEach(function (s) { o[s.key] = s.def; });
+    return o;
+  };
+
+  // Fremde/fehlende Werte auf gültige Bereiche ziehen – ein alter Spielstand
+  // ohne Einstellungen ergibt so exakt die Standardwelt von früher.
+  MC.normalizeWorldOpts = function (o) {
+    var out = MC.defaultWorldOpts();
+    if (!o) return out;
+    MC.WORLD_OPTS.forEach(function (s) {
+      var v = o[s.key];
+      if (v === undefined || v === null) return;
+      if (s.kind === 'range') { v = +v; if (isFinite(v)) out[s.key] = U.clamp(v, s.min, s.max); }
+      else if (s.kind === 'bool') out[s.key] = !!v;
+      else if (s.options.some(function (p) { return p[0] === v; })) out[s.key] = v;
+    });
+    return out;
+  };
 
   var ID = {};
   function ids() {
@@ -25,9 +61,16 @@
   };
   var BIOME_NAME = ['Ozean', 'Strand', 'Ebene', 'Wald', 'Wüste', 'Berge', 'Taiga', 'Sumpf', 'Verschneite Tundra'];
 
-  function Gen(seed) {
+  function Gen(seed, opts, dim) {
     ids();
     this.seed = seed >>> 0;
+    this.dim = dim || 'overworld';
+    this.o = MC.normalizeWorldOpts(opts);
+    this.sea = Math.round(this.o.seaLevel);
+    this.flat = this.o.type === 'flat';
+    // Verstärkt überhöht das Relief, Große Biome zieht die Klimazonen auseinander
+    this.relief = this.o.type === 'amplified' ? 1.9 : 1;
+    this.biomeScale = this.o.biomeSize * (this.o.type === 'largebiomes' ? 3 : 1);
     var s = this.seed;
     this.nCont = new U.Noise(s + 1);
     this.nDetail = new U.Noise(s + 2);
@@ -47,28 +90,37 @@
   Gen.BIOME_NAME = BIOME_NAME;
 
   Gen.prototype.climate = function (x, z) {
-    var cont = this.nCont.fbm2(x / 900, z / 900, 3);
-    var temp = this.nTemp.fbm2(x / 620 + 100, z / 620 - 40, 3);
-    var humid = this.nHumid.fbm2(x / 520 - 300, z / 520 + 220, 3);
+    var bs = this.biomeScale;
+    var cont = this.nCont.fbm2(x / (900 * bs), z / (900 * bs), 3);
+    var temp = this.nTemp.fbm2(x / (620 * bs) + 100, z / (620 * bs) - 40, 3);
+    var humid = this.nHumid.fbm2(x / (520 * bs) - 300, z / (520 * bs) + 220, 3);
     return { cont: cont, temp: temp, humid: humid };
   };
 
   Gen.prototype.heightAt = function (x, z, cl) {
+    var SEA = this.sea;
+    if (this.flat) return SEA + 1;   // knapp über dem Meeresspiegel, damit nichts absäuft
     cl = cl || this.climate(x, z);
     var base = SEA + cl.cont * 30;
     var detail = this.nDetail.fbm2(x / 130, z / 130, 5) * 11;
     var mask = U.clamp(this.nMountMask.fbm2(x / 340 + 50, z / 340, 2) * 2.2 + 0.15, 0, 1);
-    var mount = Math.abs(this.nMount.fbm2(x / 95, z / 95, 5)) * 62 * mask * mask;
-    var h = base + detail + mount;
+    var mount = Math.abs(this.nMount.fbm2(x / 95, z / 95, 5)) * 62 * mask * mask * this.o.mountains;
+    var h = base + (detail + mount) * this.relief;
     // Wüsten & Ebenen etwas flacher
     if (cl.temp > 0.3 && cl.humid < -0.05) h = SEA + (h - SEA) * 0.6 + 2;
     if (cl.cont < -0.2) h = SEA + (h - SEA) * 0.75;
-    return h;
+    return U.clamp(h, 3, WH - 6);
   };
 
   Gen.prototype.biomeAt = function (x, z, h, cl) {
+    var SEA = this.sea;
     cl = cl || this.climate(x, z);
     if (h === undefined) h = this.heightAt(x, z, cl);
+    if (this.flat) {
+      if (cl.temp < -0.32) return BIOME.SNOW;
+      if (cl.temp > 0.28 && cl.humid < -0.02) return BIOME.DESERT;
+      return cl.humid > 0.12 ? BIOME.FOREST : BIOME.PLAINS;
+    }
     if (h < SEA - 1.5) return BIOME.OCEAN;
     if (h < SEA + 1.5) return BIOME.BEACH;
     if (h > SEA + 32) return cl.temp < -0.15 ? BIOME.SNOW : BIOME.MOUNTAINS;
@@ -138,25 +190,32 @@
     return z0 + (z1 - z0) * ty;
   }
 
+  // Der Regler skaliert die Schwellen: 0 = keine Höhlen, 2 = doppelt so weite Gänge
   Gen.prototype.isCaveAt = function (grid, lx, y, lz) {
-    if (y < 4 || y > 118) return false;
-    if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < 0.045) return true;
-    if (Math.abs(sampleGrid(grid.b, lx, y, lz)) < 0.036) return true;
-    if (y < 40 && sampleGrid(grid.c, lx, y, lz) > 0.45) return true;
+    var c = this.o.caves;
+    if (c <= 0 || y < 4 || y > 118) return false;
+    if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < 0.045 * c) return true;
+    if (Math.abs(sampleGrid(grid.b, lx, y, lz)) < 0.036 * c) return true;
+    if (y < 40 && sampleGrid(grid.c, lx, y, lz) > 0.45 / c) return true;
     return false;
   };
 
   // Einzelabfrage (für Werkzeuge außerhalb der Chunk-Generierung)
   Gen.prototype.isCave = function (x, y, z) {
-    if (y < 4 || y > 118) return false;
-    if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < 0.055) return true;
-    if (Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < 0.045) return true;
-    if (y < 40 && this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) > 0.42) return true;
+    var c = this.o.caves;
+    if (c <= 0 || y < 4 || y > 118) return false;
+    if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < 0.055 * c) return true;
+    if (Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < 0.045 * c) return true;
+    if (y < 40 && this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) > 0.42 / c) return true;
     return false;
   };
 
   // ---------- Chunk generieren ----------
   Gen.prototype.generate = function (cx, cz, blocks, meta) {
+    // Nether und Aether haben eigene Generatoren – hier nur die Oberwelt
+    if (this.dim === 'nether') return MC.Dim.generateNether(this, cx, cz, blocks, meta);
+    if (this.dim === 'aether') return MC.Dim.generateAether(this, cx, cz, blocks, meta);
+    var SEA = this.sea;
     var wx0 = cx * CS, wz0 = cz * CS;
     var x, y, z, i;
     var caveGrid = this.buildCaveGrid(wx0, wz0);
@@ -241,11 +300,14 @@
 
   Gen.prototype.genOres = function (cx, cz, blocks) {
     var rnd = U.rng((this.seed ^ (cx * 341873128) ^ (cz * 132897987)) >>> 0);
+    var mult = this.o.ores;
+    if (mult <= 0) return;
     for (var o = 0; o < ORES.length; o++) {
       var spec = ORES[o];
       var oid = B.id(spec.id);
-      for (var t = 0; t < spec.tries; t++) {
-        if (spec.tries < 3 && rnd() > 0.5) continue;
+      var tries = Math.max(1, Math.round(spec.tries * mult));
+      for (var t = 0; t < tries; t++) {
+        if (spec.tries < 3 && rnd() > 0.5 * mult) continue;
         var x = (rnd() * CS) | 0, z = (rnd() * CS) | 0;
         var y = spec.min + ((rnd() * (spec.max - spec.min)) | 0);
         var n = 2 + ((rnd() * spec.size) | 0);
@@ -263,8 +325,15 @@
 
   // ---------- Dekoration (Bäume, Pflanzen) ----------
   Gen.prototype.decorate = function (cx, cz, blocks, meta) {
+    var SEA = this.sea;
+    var veg = this.o.vegetation;
     var wx0 = cx * CS, wz0 = cz * CS;
     var self = this;
+    // Dörfer bekommen ihre Fläche freigeräumt – dort wächst nichts von selbst
+    var village = MC.Village && this.o.structures ? MC.Village.near(this, wx0 + 8, wz0 + 8) : null;
+    function builtOn(wx, wz) {
+      return village ? MC.Village.occupies(village, wx, wz) : false;
+    }
 
     function setBlock(lx, ly, lz, id, overwrite) {
       if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= WH) return;
@@ -294,7 +363,8 @@
           case BIOME.SWAMP: density = 0.03; break;
           case BIOME.MOUNTAINS: density = 0.012; type = (U.hash3(wx, 33, wz) < 0.5) ? 'spruce' : 'oak'; break;
         }
-        if (density === 0 || r > density) continue;
+        if (density === 0 || r > density * veg) continue;
+        if (builtOn(wx, wz)) continue;
         this.tree(dx, h + 1, dz, type, setBlock, wx, wz);
       }
     }
@@ -310,7 +380,8 @@
         var ground = blocks[gi];
         var ai = x | (z << 4) | ((hh + 1) << 8);
         if (blocks[ai] !== 0) continue;
-        var rr = U.hash3(wxx, 1234, wzz);
+        if (builtOn(wxx, wzz)) continue;
+        var rr = U.hash3(wxx, 1234, wzz) / Math.max(0.001, veg);
         var bm = inf.biome;
 
         if (bm === BIOME.DESERT) {
@@ -335,7 +406,9 @@
         if (rr < 0.006 && nearWater(blocks, x, hh, z)) {
           var sh2 = 1 + ((U.hash3(wxx, 9, wzz) * 3) | 0);
           for (var s2 = 0; s2 < sh2; s2++) setBlock(x, hh + 1 + s2, z, B.id('sugar_cane'), true);
-        } else if (rr < 0.006) {
+        } else if (U.hash3(wxx, 4242, wzz) < 0.0006 * veg) {
+          // eigener Hash, sonst hängt die Kürbisdichte an der Zuckerrohrschwelle.
+          // 0,06 % je Grasblock ≈ ein Kürbis alle sechs bis sieben Chunks.
           setBlock(x, hh + 1, z, B.id('pumpkin'), true);
         } else if (rr < 0.024) {
           var fr = U.hash3(wxx, 77, wzz);
@@ -347,6 +420,9 @@
         }
       }
     }
+
+    // Zuletzt das Dorf – es überschreibt Gelände und Bewuchs
+    if (village) MC.Village.generate(this, cx, cz, blocks, meta);
   };
 
   function nearWater(blocks, x, y, z) {
@@ -402,17 +478,18 @@
 
   // Spawnpunkt suchen
   Gen.prototype.findSpawn = function () {
+    var SEA = this.sea;
     for (var r = 0; r < 4000; r += 8) {
       for (var a = 0; a < 12; a++) {
         var ang = (a / 12) * Math.PI * 2;
         var x = Math.round(Math.cos(ang) * r), z = Math.round(Math.sin(ang) * r);
         var info = this.columnInfo(x, z);
-        if (info.biome !== BIOME.OCEAN && info.h > MC.SEA_LEVEL + 1 && info.h < MC.SEA_LEVEL + 30) {
+        if (info.biome !== BIOME.OCEAN && info.h > SEA + 1 && info.h < SEA + 30) {
           return { x: x + 0.5, y: Math.floor(info.h) + 2.2, z: z + 0.5 };
         }
       }
     }
-    return { x: 0.5, y: 80, z: 0.5 };
+    return { x: 0.5, y: SEA + 18, z: 0.5 };
   };
 
 })();

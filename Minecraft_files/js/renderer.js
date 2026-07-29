@@ -29,13 +29,14 @@
   var VS_MAIN = [
     '#version 300 es',
     'in vec3 aPos; in vec2 aUV; in float aLayer; in float aBl; in float aSl; in float aShade;',
-    'uniform mat4 uMVP; uniform vec3 uCam; uniform float uDaylight;',
+    'uniform mat4 uMVP; uniform vec3 uCam; uniform float uDaylight; uniform float uAmbient;',
     'uniform float uFogNear; uniform float uFogFar;',
     'out vec3 vUVW; out float vLight; out float vFog; out float vShade;',
     'void main(){',
     '  gl_Position = uMVP * vec4(aPos,1.0);',
     '  vUVW = vec3(aUV, aLayer);',
-    '  float f = max(aBl, aSl*uDaylight);',
+    // uAmbient hebt den Nether an – dort gibt es kein Himmelslicht
+    '  float f = max(uAmbient, max(aBl, aSl*uDaylight));',
     '  vLight = 0.085 + 0.915 * pow(f, 0.82);',
     '  vShade = aShade;',
     '  float d = distance(aPos, uCam);',
@@ -289,6 +290,9 @@
 
   // ---------- Farben für Himmel/Nebel ----------
   Renderer.prototype.skyColors = function (world) {
+    // Der Nether hat keinen Himmel, nur roten Dunst. Im Aether ist immer Tag.
+    if (world.dim === 'nether') return { zenith: [0.22, 0.06, 0.05], horizon: [0.36, 0.11, 0.07] };
+    if (world.dim === 'aether') return { zenith: [0.42, 0.68, 0.98], horizon: [0.78, 0.90, 1.0] };
     var t = world.time;
     var dayZ = [0.30, 0.55, 0.95], dayH = [0.62, 0.78, 1.0];
     var nightZ = [0.015, 0.02, 0.06], nightH = [0.05, 0.06, 0.14];
@@ -303,6 +307,14 @@
     else if (t >= 0.15 && t < 0.19) { f = (t - 0.15) / 0.04; zen = U.mixColor(nightZ, duskZ, f); hor = U.mixColor(nightH, duskH, f); }
     else { f = (t - 0.19) / 0.04; zen = U.mixColor(duskZ, dayZ, f); hor = U.mixColor(duskH, dayH, f); }
     return { zenith: zen, horizon: hor };
+  };
+
+  // Grundhelligkeit einer Dimension. Der Nether hat kein Himmelslicht – ohne
+  // diesen Sockel wäre dort alles pechschwarz.
+  Renderer.prototype.ambient = function (world) {
+    if (world.dim === 'nether') return 0.44;
+    if (world.dim === 'aether') return 0.34;   // Inselunterseiten bleiben sonst schwarz
+    return 0;
   };
 
   Renderer.prototype.sunDir = function (world) {
@@ -331,7 +343,7 @@
 
     var sc = this.skyColors(world);
     var daylight = world.daylight();
-    var night = U.clamp(1 - (daylight - 0.13) / 0.5, 0, 1);
+    var night = world.dim === 'overworld' ? U.clamp(1 - (daylight - 0.13) / 0.5, 0, 1) : 0;
     var underwater = p.headInWater ? 1 : 0;
     var fogColor = underwater ? [0.10, 0.28, 0.52] : sc.horizon;
     if (p.headInLava) fogColor = [0.6, 0.16, 0.02];
@@ -339,13 +351,14 @@
     var fogNear, fogFar;
     if (underwater) { fogNear = 0.5; fogFar = 16; }
     else if (p.headInLava) { fogNear = 0.1; fogFar = 2.2; }
+    else if (world.dim === 'nether') { fogNear = this.renderDistance * CS * 0.22; fogFar = this.renderDistance * CS * 0.85; }
     else { fogNear = this.renderDistance * CS * 0.55; fogFar = this.renderDistance * CS * 0.97; }
 
     gl.clearColor(fogColor[0], fogColor[1], fogColor[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // ---- Himmel ----
-    if (!underwater && !p.headInLava) {
+    // ---- Himmel ---- (im Nether bleibt es beim roten Dunst)
+    if (!underwater && !p.headInLava && world.dim !== 'nether') {
       gl.useProgram(this.progSky.prog);
       gl.depthMask(false);
       gl.disable(gl.CULL_FACE);
@@ -376,6 +389,7 @@
     gl.uniformMatrix4fv(mp.u.uMVP, false, this.vp);
     gl.uniform3f(mp.u.uCam, p.x, eyeY, p.z);
     gl.uniform1f(mp.u.uDaylight, daylight);
+    gl.uniform1f(mp.u.uAmbient, this.ambient(world));
     gl.uniform1f(mp.u.uFogNear, fogNear);
     gl.uniform1f(mp.u.uFogFar, fogFar);
     gl.uniform3fv(mp.u.uFogColor, new Float32Array(fogColor));
@@ -447,7 +461,9 @@
   // ---------- Wolken ----------
   Renderer.prototype.renderClouds = function (game, daylight, fogColor, fogNear, fogFar) {
     var gl = this.gl, p = game.player, mp = this.progMain;
-    var y = 118;
+    // Im Nether ist eine Decke aus Grundgestein, im Aether liegen die Wolken tief
+    if (game.world.dim === 'nether') return;
+    var y = game.world.dim === 'aether' ? 10 : 118;   // im Aether als ferner Wolkenboden
     var size = 512;
     var t = game.time * 0.6;
     var cx = Math.floor(p.x / 64) * 64, cz = Math.floor(p.z / 64) * 64;
@@ -531,6 +547,10 @@
       else if (e.type === 'xp') this.drawSprite(e.x, e.y + 0.15, e.z, 0.28, T.layer('p_yellow'), bl, sl, game);
       else if (e.type === 'arrow') this.drawArrow(e, bl, sl);
       else if (e.type === 'tnt') this.drawTNT(e, bl, sl, game);
+      else if (e.type === 'projectile') {
+        this.drawSprite(e.x, e.y, e.z, 0.7,
+          T.layer(e.fire ? 'fire_0' : 'aercloud'), e.fire ? 1 : bl, e.fire ? 1 : sl, game);
+      }
       else if (e.type === 'mob') this.drawMob(e, bl, sl, game);
     }
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
@@ -679,7 +699,10 @@
       var pivot = part.pivot || [0, 0, 0];
       var texAll, texFront;
       if (typeof part.tex === 'string') {
-        texAll = part.tex === 'WOOL' ? ('wool_' + (mob.woolColor || 'white')) : part.tex;
+        if (part.tex === 'WOOL') texAll = 'wool_' + (mob.woolColor || 'white');
+        else if (part.tex === 'ROBE') texAll = mob.robe || 'mob_villager_bauer';
+        else if (part.tex === 'MOA') texAll = 'mob_moa_' + (mob.moaColor || 'white');
+        else texAll = part.tex;
         texFront = texAll;
       } else {
         texAll = part.tex.all; texFront = part.tex.front || part.tex.all;
@@ -733,8 +756,15 @@
       case 'legFR': case 'legBL': r.x = Math.sin(walk) * amp; break;
       case 'legFL': case 'legBR': r.x = -Math.sin(walk) * amp; break;
       case 'armZ':
-        r.x = (mob.mobType === 'zombie' || (mob.mobType === 'skeleton')) ? -1.45 + Math.sin(walk) * 0.12 : Math.sin(walk) * amp * 0.7;
+        // Positives r.x kippt die Modellvorderseite (-Z) nach oben – Zombie und
+        // Skelett strecken die Arme damit nach vorne statt nach hinten.
+        r.x = (mob.mobType === 'zombie' || mob.mobType === 'skeleton' || mob.mobType === 'villager_zombie')
+          ? 1.45 + Math.sin(walk) * 0.12 : Math.sin(walk) * amp * 0.7;
         break;
+      // Dorfbewohner halten die Arme vor dem Bauch verschränkt
+      case 'armCross': r.x = 1.52; break;
+      // Ghast und Zephyr lassen ihre Tentakel im Schweben pendeln
+      case 'tentacle': r.x = Math.sin(mob.age * 1.6) * 0.22; r.z = Math.cos(mob.age * 1.3) * 0.16; break;
       case 'wingR': r.z = -Math.abs(Math.sin(walk * 1.4)) * 0.9; break;
       case 'wingL': r.z = Math.abs(Math.sin(walk * 1.4)) * 0.9; break;
     }

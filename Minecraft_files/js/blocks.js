@@ -22,6 +22,8 @@
   B.SHAPE_LADDER = 11;
   B.SHAPE_DOOR = 12;
   B.SHAPE_FIRE = 13;
+  B.SHAPE_GATE = 14;   // Zauntor
+  B.SHAPE_PORTAL = 15; // Portalfläche (dünne Ebene, Achse in Meta-Bit 0)
 
   B.byId = [];
   B.byName = {};
@@ -60,6 +62,11 @@
       climbable: !!o.climbable,
       damage: o.damage || 0,
       slippery: o.slippery || 0,
+      slow: o.slow || 0,           // bremst beim Darüberlaufen (Seelensand)
+      bounce: o.bounce || 0,       // schleudert beim Landen nach oben (blaue Wolke)
+      soft: !!o.soft,              // dämpft den Fallschaden (goldene Wolke)
+      gravityUp: !!o.gravityUp,    // steigt auf statt zu fallen (Gravitit)
+      portal: o.portal || null,    // Zieldimension einer Portalfläche
       group: o.group || 'natur'
     };
     if (b.opacity === undefined) b.opacity = b.opaque ? 15 : (b.liquid ? 2 : (b.shape === B.SHAPE_CROSS ? 0 : 1));
@@ -248,6 +255,18 @@
     });
   });
 
+  // ---------- Zauntore ----------
+  // Meta: Bits 0-1 = Richtung, in die die geschlossene Flanke zeigt, Bit 2 = offen
+  [['gate_oak', 'Eichenzauntor', 'planks_oak'], ['gate_birch', 'Birkenzauntor', 'planks_birch'],
+   ['gate_spruce', 'Fichtenzauntor', 'planks_spruce']
+  ].forEach(function (s) {
+    var src = B.byName[s[2]];
+    define(s[0], {
+      title: s[1], shape: B.SHAPE_GATE, opaque: false, hardness: 2, tool: 'axe',
+      sound: 'wood', tex: src.tex, flammable: true, opacity: 0, group: 'bau'
+    });
+  });
+
   // ---------- Leiter ----------
   define('ladder', {
     title: 'Leiter', shape: B.SHAPE_LADDER, opaque: false, cutout: true, solid: false, collide: false,
@@ -273,6 +292,96 @@
     tex: 'fire_0'
   });
 
+  // ============================================================
+  //  NETHER
+  // ============================================================
+  define('netherrack', { title: 'Netherrack', hardness: 0.4, tool: 'pickaxe', sound: 'stone', flammable: true, group: 'natur' });
+  define('soul_sand', { title: 'Seelensand', hardness: 0.5, tool: 'shovel', sound: 'sand', slow: 0.42, group: 'natur' });
+  define('quartz_ore', { title: 'Netherquarzerz', hardness: 3, tool: 'pickaxe', level: 1, drop: 'quartz', sound: 'stone', group: 'natur' });
+  define('nether_bricks', { title: 'Netherziegel', hardness: 2, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('magma_block', { title: 'Magmablock', hardness: 0.5, tool: 'pickaxe', light: 3, damage: 1, sound: 'stone', group: 'natur' });
+  define('quartz_block', { title: 'Quarzblock', hardness: 0.8, tool: 'pickaxe', sound: 'stone', group: 'bau' });
+
+  // ============================================================
+  //  AETHER
+  // ============================================================
+  define('aether_grass', {
+    title: 'Aethergras', tex: { top: 'aether_grass_top', bottom: 'aether_dirt', side: 'aether_grass_side' },
+    hardness: 0.6, tool: 'shovel', drop: 'aether_dirt', sound: 'grass', group: 'natur'
+  });
+  define('aether_dirt', { title: 'Aethererde', hardness: 0.5, tool: 'shovel', sound: 'grass', group: 'natur' });
+  define('holystone', { title: 'Heiligstein', hardness: 1.2, tool: 'pickaxe', sound: 'stone', group: 'bau' });
+  define('mossy_holystone', { title: 'Moosiger Heiligstein', hardness: 1.2, tool: 'pickaxe', sound: 'stone', group: 'bau' });
+  define('holystone_bricks', { title: 'Heiligsteinziegel', hardness: 1.5, tool: 'pickaxe', sound: 'stone', group: 'bau' });
+  // Quicksoil ist spiegelglatt – man rutscht darüber hinweg
+  define('quicksoil', { title: 'Flugsand', hardness: 0.5, tool: 'shovel', sound: 'sand', slippery: 0.995, group: 'natur' });
+  define('icestone', { title: 'Eisstein', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'natur' });
+  define('ambrosium_ore', { title: 'Ambrosiumerz', hardness: 2, tool: 'pickaxe', light: 4, drop: 'ambrosium_shard', dropCount: 2, sound: 'stone', group: 'natur' });
+  define('zanite_ore', { title: 'Zaniterz', hardness: 3, tool: 'pickaxe', level: 2, drop: 'zanite_gemstone', sound: 'stone', group: 'natur' });
+  // Gravitit fällt nicht, es steigt auf
+  define('gravitite_ore', { title: 'Gravititerz', hardness: 3, tool: 'pickaxe', level: 3, drop: 'gravitite', gravityUp: true, sound: 'stone', group: 'natur' });
+
+  define('log_skyroot', { title: 'Himmelswurzelstamm', tex: { top: 'log_skyroot_top', bottom: 'log_skyroot_top', side: 'log_skyroot' }, hardness: 2, tool: 'axe', sound: 'wood', flammable: true });
+  define('planks_skyroot', { title: 'Himmelswurzelbretter', hardness: 2, tool: 'axe', sound: 'wood', flammable: true, group: 'bau' });
+  define('leaves_skyroot', { title: 'Himmelswurzellaub', hardness: 0.2, tool: 'shears', opaque: false, cutout: true, sound: 'grass', drop: 'special_leaves_skyroot', flammable: true });
+  define('log_golden_oak', { title: 'Goldeichenstamm', tex: { top: 'log_golden_oak_top', bottom: 'log_golden_oak_top', side: 'log_golden_oak' }, hardness: 2, tool: 'axe', sound: 'wood', flammable: true });
+  define('leaves_golden_oak', { title: 'Goldeichenlaub', hardness: 0.2, tool: 'shears', opaque: false, cutout: true, sound: 'grass', drop: 'special_leaves_golden_oak', flammable: true });
+
+  // Aerclouds: begehbare Wolken. Blau schleudert nach oben, Gold dämpft den Fall.
+  define('aercloud', { title: 'Wolkenblock', hardness: 0.2, opaque: false, alphaPass: true, sound: 'cloth', group: 'bau' });
+  define('aercloud_blue', { title: 'Blauer Wolkenblock', hardness: 0.2, opaque: false, alphaPass: true, sound: 'cloth', bounce: 16, group: 'bau' });
+  define('aercloud_golden', { title: 'Goldener Wolkenblock', hardness: 0.2, opaque: false, alphaPass: true, sound: 'cloth', soft: true, group: 'bau' });
+
+  define('aether_flower', {
+    title: 'Aetherblume', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
+    hardness: 0, sound: 'grass', group: 'natur'
+  });
+  define('blueberry_bush', {
+    title: 'Blaubeerstrauch', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
+    hardness: 0, sound: 'grass', drop: 'blueberries', dropCount: 2, group: 'natur'
+  });
+
+  // Stufen, Treppen, Zäune und Tore für die neuen Baustoffe. Die Listen weiter
+  // oben liefen, bevor es diese Blöcke gab – darum hier nachgezogen.
+  [['slab_planks_skyroot', 'Himmelswurzelstufe', 'planks_skyroot'],
+   ['slab_holystone', 'Heiligsteinstufe', 'holystone'],
+   ['slab_nether_bricks', 'Netherziegelstufe', 'nether_bricks']
+  ].forEach(function (s) {
+    var src = B.byName[s[2]];
+    define(s[0], {
+      title: s[1], shape: B.SHAPE_SLAB, opaque: false, hardness: src.hardness, tool: src.tool,
+      level: src.level, sound: src.sound, tex: src.tex, flammable: src.flammable, group: 'bau'
+    });
+  });
+  [['stairs_skyroot', 'Himmelswurzeltreppe', 'planks_skyroot'],
+   ['stairs_holystone', 'Heiligsteintreppe', 'holystone'],
+   ['stairs_nether_bricks', 'Netherziegeltreppe', 'nether_bricks']
+  ].forEach(function (s) {
+    var src = B.byName[s[2]];
+    define(s[0], {
+      title: s[1], shape: B.SHAPE_STAIRS, opaque: false, hardness: src.hardness, tool: src.tool,
+      level: src.level, sound: src.sound, tex: src.tex, flammable: src.flammable, group: 'bau'
+    });
+  });
+  define('fence_skyroot', {
+    title: 'Himmelswurzelzaun', shape: B.SHAPE_FENCE, opaque: false, hardness: 2, tool: 'axe',
+    sound: 'wood', tex: B.byName['planks_skyroot'].tex, flammable: true, group: 'bau'
+  });
+  define('gate_skyroot', {
+    title: 'Himmelswurzelzauntor', shape: B.SHAPE_GATE, opaque: false, hardness: 2, tool: 'axe',
+    sound: 'wood', tex: B.byName['planks_skyroot'].tex, flammable: true, opacity: 0, group: 'bau'
+  });
+
+  // ---------- Portale ----------
+  define('portal_nether', {
+    title: 'Netherportal', shape: B.SHAPE_PORTAL, solid: false, collide: false, opaque: false,
+    alphaPass: true, light: 11, hardness: -1, drop: null, item: false, opacity: 0, portal: 'nether'
+  });
+  define('portal_aether', {
+    title: 'Aetherportal', shape: B.SHAPE_PORTAL, solid: false, collide: false, opaque: false,
+    alphaPass: true, light: 11, hardness: -1, drop: null, item: false, opacity: 0, portal: 'aether'
+  });
+
   // ---------- Bett ----------
   define('bed', {
     title: 'Bett', shape: B.SHAPE_BED, opaque: false, hardness: 0.2, sound: 'cloth',
@@ -289,6 +398,28 @@
   B.isReplaceable = function (id) { var b = B.byId[id]; return b ? b.replaceable : false; };
   B.light = function (id) { var b = B.byId[id]; return b ? b.light : 0; };
   B.opacity = function (id) { var b = B.byId[id]; return b ? b.opacity : 0; };
+
+  // Waagerechte Nachbarrichtungen, Reihenfolge = Meta 0..3 bei Leiter und Fackel
+  B.SIDE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+  // Fackel-Meta: 0 = auf dem Boden, 1..4 = an der Wand in Richtung SIDE_DIRS[meta-1].
+  // Liefert die Richtung zur tragenden Wand oder null für eine Standfackel.
+  B.torchAttach = function (meta) {
+    var m = meta & 7;
+    return m > 0 ? B.SIDE_DIRS[(m - 1) & 3] : null;
+  };
+
+  // Auswahl-/Trefferbox einer Fackel, abhängig von der Montagerichtung
+  B.torchBox = function (meta) {
+    var a = B.torchAttach(meta);
+    if (!a) return [0.4, 0, 0.4, 0.6, 0.625, 0.6];
+    // Fuß liegt an der Wand, Spitze neigt sich zur Blockmitte
+    var fx = 0.5 + a[0] * 0.44, fz = 0.5 + a[1] * 0.44;
+    var tx = 0.5 + a[0] * 0.12, tz = 0.5 + a[1] * 0.12;
+    var cl = function (v) { return v < 0 ? 0 : (v > 1 ? 1 : v); };
+    return [cl(Math.min(fx, tx) - 0.1), 0.2, cl(Math.min(fz, tz) - 0.1),
+            cl(Math.max(fx, tx) + 0.1), 0.95, cl(Math.max(fz, tz) + 0.1)];
+  };
 
   // Treppen: Grundplatte + Stufe. facing (Bits 0-1) = Seite mit dem hohen Teil,
   // Bit 2 = kopfüber montiert.
@@ -326,6 +457,14 @@
     }
   };
 
+  // Zauntor: geschlossen eine Schranke quer zur Blickrichtung, so hoch wie ein
+  // Zaun. Offen bleibt nur die Auswahl stehen, die Kollision fällt weg.
+  B.gateBox = function (meta) {
+    var alongX = (meta & 1) === 0;   // Richtung 0/2 -> Schranke spannt über X
+    return alongX ? [0, 0, 0.4375, 1, 1.5, 0.5625] : [0.4375, 0, 0, 0.5625, 1.5, 1];
+  };
+  B.gateOpen = function (meta) { return (meta & 4) !== 0; };
+
   // Kollisionsboxen eines Blocks (relativ 0..1)
   B.boxes = function (id, meta) {
     var b = B.byId[id];
@@ -348,8 +487,11 @@
         return [[0.25, 0, 0.25, 0.75, 1.5, 0.75]];
       case B.SHAPE_DOOR:
         return [B.doorBox(meta)];
+      case B.SHAPE_GATE:
+        return B.gateOpen(meta) ? null : [B.gateBox(meta)];
       case B.SHAPE_LADDER:
       case B.SHAPE_FIRE:
+      case B.SHAPE_PORTAL:
         return null;
       default:
         return [[0, 0, 0, 1, 1, 1]];
@@ -362,7 +504,7 @@
     if (!b || b.id === 0) return null;
     switch (b.shape) {
       case B.SHAPE_SLAB: return (meta & 1) ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1];
-      case B.SHAPE_TORCH: return [0.4, 0, 0.4, 0.6, 0.6, 0.6];
+      case B.SHAPE_TORCH: return B.torchBox(meta);
       case B.SHAPE_CROSS: return [0.15, 0, 0.15, 0.85, 0.85, 0.85];
       case B.SHAPE_CROP: return [0.05, 0, 0.05, 0.95, 0.7, 0.95];
       case B.SHAPE_BED: return [0, 0, 0, 1, 0.5625, 1];
@@ -371,23 +513,33 @@
       case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_FENCE: return [0.375, 0, 0.375, 0.625, 1.5, 0.625];
       case B.SHAPE_DOOR: return B.doorBox(meta);
+      case B.SHAPE_GATE: return B.gateBox(meta);
       case B.SHAPE_LADDER: return B.ladderBox(meta);
       case B.SHAPE_FIRE: return [0.05, 0, 0.05, 0.95, 1, 0.95];
+      case B.SHAPE_PORTAL: return (meta & 1) ? [0.375, 0, 0, 0.625, 1, 1] : [0, 0, 0.375, 1, 1, 0.625];
       default: return [0, 0, 0, 1, 1, 1];
     }
   };
 
-  // Pflanzen brauchen Untergrund
+  // Pflanzen brauchen Untergrund. Fackeln nicht – die hängen auch an Wänden und
+  // prüfen ihren Halt über torchSupported().
   B.needsSupport = function (id) {
     var b = B.byId[id];
     if (!b) return false;
-    return b.shape === B.SHAPE_CROSS || b.shape === B.SHAPE_CROP || b.shape === B.SHAPE_TORCH;
+    return b.shape === B.SHAPE_CROSS || b.shape === B.SHAPE_CROP;
+  };
+
+  // Hat eine Fackel an dieser Stelle Halt? getBlock(x,y,z) -> id
+  B.torchSupported = function (getBlock, x, y, z, meta) {
+    var a = B.torchAttach(meta);
+    if (a) return B.isOpaque(getBlock(x + a[0], y, z + a[1]));
+    return B.validGround(B.id('torch'), getBlock(x, y - 1, z));
   };
 
   B.validGround = function (id, groundId) {
     var b = B.byId[id], g = B.byId[groundId];
     if (!g) return false;
-    if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB;
+    if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB || g.shape === B.SHAPE_FENCE;
     if (b.name === 'wheat') return groundId === B.id('farmland');
     if (b.name === 'sugar_cane') return groundId === B.id('sand') || groundId === B.id('dirt') || groundId === B.id('grass') || groundId === B.id('sugar_cane');
     if (b.name === 'cactus') return groundId === B.id('sand') || groundId === B.id('cactus');

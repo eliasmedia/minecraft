@@ -26,12 +26,24 @@
       if (e.code === 'F3' || e.code === 'Tab') e.preventDefault();
       if (self.keys[e.code]) return;
       self.keys[e.code] = true;
+      // Doppeltipp auf W schaltet den Sprint ein – hält bis W losgelassen wird
+      if (e.code === 'KeyW') {
+        var now = performance.now();
+        if (now - (self.lastForward || 0) < 320) self.sprintToggle = true;
+        self.lastForward = now;
+      }
       game.onKeyDown(e);
     });
-    window.addEventListener('keyup', function (e) { self.keys[e.code] = false; });
-    window.addEventListener('blur', function () { self.keys = {}; self.mouse = [false, false, false]; });
+    window.addEventListener('keyup', function (e) {
+      self.keys[e.code] = false;
+      if (e.code === 'KeyW') self.sprintToggle = false;
+    });
+    window.addEventListener('blur', function () {
+      self.keys = {}; self.mouse = [false, false, false]; self.sprintToggle = false;
+    });
 
     canvas.addEventListener('mousedown', function (e) {
+      if (e.button === 1) e.preventDefault();   // sonst startet der Autoscroll
       if (!self.locked) {
         game.showClickHint(false);
         game._lastUnlock = 0;
@@ -109,14 +121,16 @@
   };
 
   // ---------- Welt starten ----------
-  Game.prototype.newWorld = function (seedStr, mode) {
+  Game.prototype.newWorld = function (seedStr, mode, settings) {
     var self = this;
     var seed = seedStr ? (/^\d+$/.test(seedStr) ? (parseInt(seedStr, 10) >>> 0) : U.hashString(seedStr)) : (Math.random() * 4294967295) >>> 0;
     this.mode = mode || 'survival';
-    this.world = new MC.World(seed);
-    this.world.entities = [];
+    this.seed = seed;
+    this.worldSettings = MC.normalizeWorldOpts(settings);
+    this.worlds = {};
+    this.dim = 'overworld';
+    this.world = this.dimWorld('overworld');
     this.particles = new MC.Particles(this.world);
-    this.attachWorldHooks();
 
     var sp = this.world.gen.findSpawn();
     this.player = new MC.Player(this.world, sp.x, sp.y, sp.z);
@@ -143,11 +157,122 @@
     p.spawnPoint = { x: p.x, y: p.y, z: p.z };
   };
 
-  Game.prototype.attachWorldHooks = function () {
+  Game.prototype.attachWorldHooks = function (w) {
     var self = this;
-    this.world.onChunkUnload = function (c) { self.renderer.dropChunk(c); };
-    this.world.onBlockBreak = function (x, y, z, id, meta, tool) { self.dropBlock(x, y, z, id, meta, tool); };
-    this.world.onFizz = function (x, y, z) { self.audio.play('fizz'); self.particles.smoke(x, y + 1, z, 8); };
+    w = w || this.world;
+    w.onChunkUnload = function (c) { if (c.world === self.world) self.renderer.dropChunk(c); };
+    w.onBlockBreak = function (x, y, z, id, meta, tool) { self.dropBlock(x, y, z, id, meta, tool); };
+    w.onFizz = function (x, y, z) { self.audio.play('fizz'); self.particles.smoke(x, y + 1, z, 8); };
+  };
+
+  // ---------- Dimensionen ----------
+  // Jede Dimension ist eine eigene Welt mit demselben Seed. Sie bleiben im
+  // Speicher liegen, damit man beim Zurückkehren dieselbe Landschaft vorfindet.
+  Game.prototype.dimWorld = function (dim) {
+    if (this.worlds[dim]) return this.worlds[dim];
+    var w = new MC.World(this.seed, { settings: this.worldSettings, dim: dim });
+    w.entities = [];
+    if (this.savedDims && this.savedDims[dim]) {
+      w.savedChunks = this.savedDims[dim].chunks || {};
+      w.tileEntities = this.savedDims[dim].tileEntities || {};
+      if (this.savedDims[dim].time !== undefined) w.time = this.savedDims[dim].time;
+    }
+    this.attachWorldHooks(w);
+    this.worlds[dim] = w;
+    return w;
+  };
+
+  // Wechselt die Dimension und setzt den Spieler an die Zielstelle
+  Game.prototype.travelTo = function (dim, pos) {
+    if (dim === this.dim) return;
+    var p = this.player;
+    // alte Welt behalten, nur Meshes freigeben
+    var keys = Object.keys(this.renderer.chunkMeshes);
+    for (var i = 0; i < keys.length; i++) {
+      var kp = keys[i].split(',');
+      this.renderer.dropChunk({ cx: +kp[0], cz: +kp[1] });
+    }
+    this.dim = dim;
+    this.world = this.dimWorld(dim);
+    // Die Chunks der Zielwelt waren beim Verlassen fertig gemesht und damit
+    // nicht mehr "dirty". Ohne dieses Zurücksetzen baut buildMeshes gar nichts
+    // neu auf und man steht in einer leeren Welt, bis man einen Block setzt.
+    for (var c = 0; c < this.world.chunkList.length; c++) this.world.chunkList[c].dirty = true;
+    this.particles = new MC.Particles(this.world);
+    p.world = this.world;
+    p.x = pos.x; p.y = pos.y; p.z = pos.z;
+    p.vx = p.vy = p.vz = 0;
+    p.fallStart = null;
+    p.portalCd = 2.2;
+    this.ensureChunksAround(p.x, p.z, 2);
+    this.ui.toast('Du betrittst: ' + MC.Dim.TITLE[dim]);
+    this.audio.play('levelup');
+  };
+
+  // Ein Portal betreten: Gegenstück in der Zielwelt suchen oder eins bauen
+  Game.prototype.usePortal = function (kind) {
+    var p = this.player;
+    var from = this.dim;
+    var to = (from === kind) ? 'overworld' : kind;
+    var spec = MC.Dim.Portal.KINDS[kind];
+    var target = this.dimWorld(to);
+
+    // Koordinaten umrechnen: der Nether ist achtmal dichter
+    var sFrom = MC.Dim.SCALE[from] || 1, sTo = MC.Dim.SCALE[to] || 1;
+    var tx = Math.round(p.x * sFrom / sTo);
+    var tz = Math.round(p.z * sFrom / sTo);
+    var ty = Math.round(p.y);
+
+    // Zielgebiet erzeugen, sonst findet die Suche nichts
+    this.generateAround(target, tx, tz, 2);
+
+    var portalId = B.id(spec.portal);
+    var found = MC.Dim.Portal.findNear(target, tx, ty, tz, portalId, 24);
+    var pos;
+    if (found) {
+      pos = { x: found[0] + 0.5, y: found[1] + 0.05, z: found[2] + 0.5 };
+      var g = MC.Dim.findGround(target, found[0], found[2], found[1] + 2);
+      if (g >= 0) pos.y = g + 0.05;
+    } else {
+      pos = MC.Dim.Portal.build(target, tx, ty, tz, kind);
+    }
+    this.travelTo(to, pos);
+  };
+
+  // Sturz durch die Leere des Aether: man fällt in der Oberwelt vom Himmel
+  Game.prototype.fallFromAether = function () {
+    var p = this.player;
+    var over = this.dimWorld('overworld');
+    var tx = Math.round(p.x), tz = Math.round(p.z);
+    this.generateAround(over, tx, tz, 1);
+    var g = MC.Dim.findGround(over, tx, tz);
+    var y = Math.min(MC.WORLD_HEIGHT - 3, (g < 0 ? over.gen.sea + 20 : g) + 40);
+    this.travelTo('overworld', { x: tx + 0.5, y: y, z: tz + 0.5 });
+    this.player.vy = -6;
+    this.ui.toast('Du stürzt aus dem Aether!');
+  };
+
+  // Chunks einer beliebigen Welt erzeugen und belichten (für Portalsuche)
+  Game.prototype.generateAround = function (w, x, z, r) {
+    var cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+    var i;
+    for (var dx = -r; dx <= r; dx++) {
+      for (var dz = -r; dz <= r; dz++) {
+        var c = w.getChunk(cx + dx, cz + dz) || w.createChunk(cx + dx, cz + dz);
+        if (c.state === 0) w.generateChunk(c);
+      }
+    }
+    for (i = 0; i < w.chunkList.length; i++) {
+      var ch = w.chunkList[i];
+      if (ch.state !== 1) continue;
+      if (Math.abs(ch.cx - cx) > r || Math.abs(ch.cz - cz) > r) continue;
+      var ok = true;
+      for (var d = 0; d < 4; d++) {
+        var n = w.getChunk(ch.cx + (d === 0 ? 1 : d === 1 ? -1 : 0), ch.cz + (d === 2 ? 1 : d === 3 ? -1 : 0));
+        if (!n || n.state === 0) { ok = false; break; }
+      }
+      if (ok) w.lightChunk(ch);
+    }
   };
 
   // ---------- Chunk-Streaming ----------
@@ -320,9 +445,63 @@
       p.swingTime = 1;
       if (this.targetEntity) this.attackEntity(this.targetEntity);
       else if (this.target) this.startMining();
+    } else if (button === 1) {
+      this.pickBlock();
     } else if (button === 2) {
       this.useItem();
     }
+  };
+
+  // Mausrad-Klick: den anvisierten Block in die Hand nehmen.
+  // Kreativ holt ihn aus dem Nichts, im Überleben wird nur umgeschaltet,
+  // wenn man ihn ohnehin schon dabei hat.
+  Game.prototype.pickBlock = function () {
+    this.updateTarget();
+    if (!this.target) return;
+    var name = this.itemForBlock(this.target.id);
+    if (!name) return;
+    var inv = this.player.inventory;
+
+    // Schon in der Hotbar? Dann einfach auswählen.
+    for (var h = 0; h < 9; h++) {
+      if (inv.slots[h] && inv.slots[h].id === name) {
+        inv.selected = h;
+        this.ui.updateHotbar();
+        return;
+      }
+    }
+    if (this.mode !== 'creative') {
+      // Im Überleben aus dem Inventar in die Hotbar holen
+      for (var i = 9; i < inv.size; i++) {
+        if (inv.slots[i] && inv.slots[i].id === name) {
+          var tmp = inv.slots[inv.selected];
+          inv.slots[inv.selected] = inv.slots[i];
+          inv.slots[i] = tmp;
+          this.ui.updateHotbar();
+          return;
+        }
+      }
+      return;
+    }
+    // Kreativ: freien Hotbar-Platz nehmen, sonst den aktuellen überschreiben
+    var slot = inv.selected;
+    for (var k = 0; k < 9; k++) if (!inv.slots[k]) { slot = k; break; }
+    inv.slots[slot] = I.newStack(name, 1);
+    inv.selected = slot;
+    this.ui.updateHotbar();
+  };
+
+  // Blockid -> passender Item-Name (Ofen an -> Ofen, Ackerboden -> Erde …)
+  Game.prototype.itemForBlock = function (id) {
+    var b = B.byId[id];
+    if (!b || b.id === 0) return null;
+    if (I.get(b.name)) return b.name;
+    for (var i = 0; i < I.list.length; i++) {
+      var it = I.list[i];
+      if (it.place === b.name || it.block === b.name) return it.name;
+    }
+    if (b.drop && I.get(b.drop)) return b.drop;
+    return null;
   };
 
   Game.prototype.onMouseUp = function (button) {
@@ -384,7 +563,9 @@
     this.audio.breakBlock(b.sound);
     this.dropBlock(x, y, z, id, meta, toolName);
 
-    // Truheninhalt ausschütten
+    // Truheninhalt ausschütten – bei einer nie geöffneten Dorftruhe wird der
+    // Inhalt jetzt erst ausgewürfelt, sonst ginge die Beute verloren
+    if (b.name === 'chest') this.chestTile(x, y, z);
     var te = this.world.tileEntities[x + ',' + y + ',' + z];
     if (te && te.items) {
       for (var i = 0; i < te.items.length; i++) if (te.items[i]) this.spawnItem(x + 0.5, y + 0.5, z + 0.5, te.items[i]);
@@ -426,7 +607,11 @@
     var st = p.inventory.selectedStack();
     var it = st ? I.get(st.id) : null;
 
-    // Entity-Interaktion (Schaf scheren)
+    // Entity-Interaktion
+    if (this.targetEntity && this.targetEntity.mobType === 'villager') {
+      this.ui.openScreen('trade', this.targetEntity);
+      return;
+    }
     if (this.targetEntity && it && it.name === 'shears' && this.targetEntity.mobType === 'sheep') {
       this.attackEntity(this.targetEntity);
       return;
@@ -444,14 +629,20 @@
         return;
       }
       if (b.name === 'chest') {
-        var tc = w.tileEntity(t.x, t.y, t.z, function () { return { type: 'chest', items: new Array(27) }; });
-        this.ui.openScreen('chest', tc);
+        this.ui.openScreen('chest', this.chestTile(t.x, t.y, t.z));
         return;
       }
       if (b.shape === B.SHAPE_BED) { this.trySleep(t); return; }
       if (b.shape === B.SHAPE_DOOR) {
         if (b.name === 'door_iron') { this.ui.toast('Die Eisentür lässt sich nicht von Hand öffnen.'); return; }
         this.toggleDoor(t.x, t.y, t.z);
+        return;
+      }
+      if (b.shape === B.SHAPE_GATE) {
+        var gm = w.getMeta(t.x, t.y, t.z);
+        w.setMetaOnly(t.x, t.y, t.z, gm ^ 4);
+        this.audio.play((gm & 4) ? 'thud' : 'open');
+        p.swingTime = 1;
         return;
       }
       if (b.name === 'tnt' && it && it.name === 'flint_and_steel') {
@@ -473,7 +664,14 @@
       if (this.mode === 'creative' || p.inventory.count('arrow') > 0) this.bowCharge = 0.001;
       return;
     }
-    // Eimer
+    // Eimer – Wasser auf einen Glowstone-Rahmen öffnet den Aether
+    if (it.name === 'water_bucket' && this.tryIgnitePortal('aether')) {
+      if (this.mode !== 'creative') {
+        p.inventory.consumeSelected(1);
+        p.inventory.add(I.newStack('bucket', 1));
+      }
+      return;
+    }
     if (it.name === 'bucket' || it.name === 'water_bucket' || it.name === 'lava_bucket') { this.useBucket(it); return; }
     // Hacke
     if (it.tool && it.tool.type === 'hoe' && this.target) {
@@ -497,8 +695,12 @@
         return;
       }
     }
-    // Feuerzeug: Feuer legen
-    if (it.name === 'flint_and_steel') { this.lightFire(); return; }
+    // Feuerzeug: erst Portal versuchen, sonst Feuer legen
+    if (it.name === 'flint_and_steel') {
+      if (this.tryIgnitePortal('nether')) return;
+      this.lightFire();
+      return;
+    }
     // Bett platzieren
     if (it.name === 'bed') { this.placeBed(); return; }
     // Tür platzieren (zwei Blöcke hoch)
@@ -507,18 +709,22 @@
     if (it.block) this.placeBlock(it);
   };
 
+  // Truhe holen und, wenn sie zu einem Dorf gehört, beim ersten Zugriff füllen
+  Game.prototype.chestTile = function (x, y, z) {
+    var w = this.world;
+    return w.tileEntity(x, y, z, function () {
+      var loot = null;
+      if (MC.Village && w.gen.o.structures) {
+        try { loot = MC.Village.chestLoot(w.gen, x, y, z); } catch (e) { loot = null; }
+      }
+      return { type: 'chest', items: loot || new Array(27) };
+    });
+  };
+
   Game.prototype.toggleDoor = function (x, y, z) {
     var w = this.world;
-    var id = w.getBlock(x, y, z);
-    var meta = w.getMeta(x, y, z);
-    var lowerY = (meta & 1) ? y - 1 : y;
-    var lm = w.getMeta(x, lowerY, z);
-    var open = (lm & 8) ? 0 : 8;
-    w.setMetaOnly(x, lowerY, z, (lm & 7) | open);
-    if (w.getBlock(x, lowerY + 1, z) === id) {
-      var um = w.getMeta(x, lowerY + 1, z);
-      w.setMetaOnly(x, lowerY + 1, z, (um & 7) | open);
-    }
+    var open = !w.isDoorOpen(x, y, z);
+    w.setDoorOpen(x, y, z, open);
     this.audio.play(open ? 'open' : 'thud');
     this.player.swingTime = 1;
   };
@@ -539,6 +745,24 @@
     this.audio.place(B.byId[id].sound);
     p.swingTime = 1;
     if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+  };
+
+  // Zündet ein Portal, wenn der angeklickte Block der passende Rahmen ist.
+  // Gibt true zurück, wenn wirklich ein Portal entstanden ist.
+  Game.prototype.tryIgnitePortal = function (kind) {
+    var w = this.world, t = this.target, p = this.player;
+    if (!t) return false;
+    var spec = MC.Dim.Portal.KINDS[kind];
+    if (w.getBlock(t.x, t.y, t.z) !== B.id(spec.frame)) return false;
+    var n = MC.NEI[t.face];
+    var n2 = MC.Dim.Portal.ignite(w, t.x + n[0], t.y + n[1], t.z + n[2], kind);
+    if (!n2) return false;
+    this.audio.play('levelup');
+    this.particles.flame(t.x + 0.5, t.y + 1.2, t.z + 0.5, 12);
+    p.swingTime = 1;
+    if (kind === 'nether' && this.mode !== 'creative') p.inventory.damageSelected(1, this);
+    this.ui.toast(MC.Dim.TITLE[kind] + 'portal geöffnet');
+    return true;
   };
 
   Game.prototype.lightFire = function () {
@@ -599,7 +823,15 @@
     if (B.needsSupport(block.id) && !B.validGround(block.id, w.getBlock(nx, ny - 1, nz))) return;
 
     var meta = 0;
-    if (block.shape === B.SHAPE_SLAB) {
+    if (block.shape === B.SHAPE_TORCH) {
+      // Seitliche Fläche angeklickt -> Wandfackel, sonst Standfackel
+      var wm = LADDER_META[t.face];
+      if (wm !== undefined && B.isOpaque(w.getBlock(nx + B.SIDE_DIRS[wm][0], ny, nz + B.SIDE_DIRS[wm][1]))) {
+        meta = wm + 1;
+      } else if (B.validGround(block.id, w.getBlock(nx, ny - 1, nz))) {
+        meta = 0;
+      } else return;
+    } else if (block.shape === B.SHAPE_SLAB) {
       if (t.face === 3) meta = 1;
       else if (t.face !== 2 && (t.hy - Math.floor(t.hy)) > 0.5) meta = 1;
     } else if (block.shape === B.SHAPE_STAIRS) {
@@ -619,6 +851,9 @@
       var sup = MC.LADDER_SUPPORT[lm];
       if (!B.isOpaque(w.getBlock(nx + sup[0], ny, nz + sup[1]))) return;
       meta = lm;
+    } else if (block.shape === B.SHAPE_GATE) {
+      // Schranke quer zur Blickrichtung, damit das Tor in die Zaunlinie passt
+      meta = this.facingFromYaw();
     } else if (block.name.indexOf('log_') === 0) {
       meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
     } else if (typeof block.tex === 'object' && block.tex.front) {
@@ -834,17 +1069,23 @@
     return this.renderer.renderDistance;
   };
 
-  Game.prototype.dropSelected = function (all) {
+  // Wirft einen fertigen Stack vor den Spieler (Q, Klick neben das Inventar)
+  Game.prototype.throwStack = function (stack) {
+    if (!stack || stack.count <= 0) return;
     var p = this.player;
-    var s = p.inventory.selectedStack();
-    if (!s) return;
     var d = p.lookDir();
-    var n = all ? s.count : 1;
-    var stack = { id: s.id, count: n, dur: s.dur };
     var e = new MC.ItemEntity(this.world, p.x + d.x * 0.6, p.eyeY() - 0.3, p.z + d.z * 0.6, stack);
     e.vx = d.x * 6; e.vy = d.y * 6 + 1.5; e.vz = d.z * 6;
     e.pickupDelay = 1.2;
     this.world.entities.push(e);
+  };
+
+  Game.prototype.dropSelected = function (all) {
+    var p = this.player;
+    var s = p.inventory.selectedStack();
+    if (!s) return;
+    var n = all ? s.count : 1;
+    this.throwStack({ id: s.id, count: n, dur: s.dur });
     s.count -= n;
     if (s.count <= 0) p.inventory.slots[p.inventory.selected] = null;
     this.ui.updateHotbar();
@@ -915,21 +1156,29 @@
     }
 
     if (which === 'main') {
+      if (!this.newWorldSettings) this.newWorldSettings = MC.defaultWorldOpts();
       h('<span class="logo">MINECRAFT</span><span class="sub">HTML Edition</span>', 'mhead');
       var row = document.createElement('div'); row.className = 'mrow'; box.appendChild(row);
       var seed = document.createElement('input');
       seed.className = 'minput'; seed.placeholder = 'Seed (optional)';
+      seed.value = this.newWorldSeed || '';
+      seed.addEventListener('input', function () { self.newWorldSeed = seed.value; });
       row.appendChild(seed);
       var modeSel = document.createElement('select');
       modeSel.className = 'minput';
       modeSel.innerHTML = '<option value="survival">Überleben</option><option value="creative">Kreativ</option>';
+      modeSel.value = this.newWorldMode || 'survival';
+      modeSel.addEventListener('change', function () { self.newWorldMode = modeSel.value; });
       row.appendChild(modeSel);
-      btn('Neue Welt erschaffen', function () { self.newWorld(seed.value.trim(), modeSel.value); });
+      btn('Neue Welt erschaffen', function () { self.newWorld(seed.value.trim(), modeSel.value, self.newWorldSettings); });
+      btn('Welt anpassen …', function () { self.showMenu('worldopts'); });
       if (this.hasSave()) btn('Welt laden', function () { self.loadWorld(); });
       btn('Steuerung & Ziele', function () { self.showMenu('help'); });
       var f = document.createElement('div'); f.className = 'mfoot';
       f.innerHTML = 'Läuft komplett offline aus dem Ordner. Benötigt WebGL2.';
       box.appendChild(f);
+    } else if (which === 'worldopts') {
+      this.buildWorldOpts(h, btn);
     } else if (which === 'pause') {
       h('Pause', 'mtitle');
       btn('Weiterspielen', function () { self.pause(false); });
@@ -954,38 +1203,127 @@
       var d = document.createElement('div');
       d.className = 'mhelp';
       d.innerHTML = [
-        '<b>W A S D</b> Bewegen &nbsp; <b>Leertaste</b> Springen &nbsp; <b>Shift</b> Schleichen &nbsp; <b>Strg</b> Sprinten',
-        '<b>Maus</b> Umsehen &nbsp; <b>Links</b> Abbauen/Angreifen &nbsp; <b>Rechts</b> Platzieren/Benutzen',
-        '<b>1–9 / Mausrad</b> Hotbar &nbsp; <b>E</b> Inventar &nbsp; <b>Q</b> Item wegwerfen',
+        '<b>W A S D</b> Bewegen &nbsp; <b>Leertaste</b> Springen &nbsp; <b>Shift</b> Schleichen',
+        '<b>Strg</b> oder <b>Doppel-W</b> Sprinten &nbsp; <b>Maus</b> Umsehen',
+        '<b>Links</b> Abbauen/Angreifen &nbsp; <b>Rechts</b> Platzieren/Benutzen/Handeln',
+        '<b>Mausrad-Klick</b> Block aufnehmen &nbsp; <b>1–9 / Mausrad</b> Hotbar &nbsp; <b>E</b> Inventar',
+        '<b>Q</b> oder <b>Klick neben das Inventar</b> Item wegwerfen',
         '<b>F3</b> Debug &nbsp; <b>F</b> Sichtweite &nbsp; <b>P</b> Spielmodus &nbsp; <b>M</b> Musik &nbsp; <b>R</b> Speichern',
         '<b>Doppel-Leertaste</b> Fliegen (Kreativ) &nbsp; <b>Esc</b> Pause',
         '<hr>',
         '<b>Ziel:</b> Holz schlagen → Bretter → Werkbank → Werkzeuge → Stein → Erze →',
-        'Ofen bauen, Essen braten, Rüstung schmieden, Nacht überleben, bauen.'
+        'Ofen bauen, Essen braten, Rüstung schmieden, Nacht überleben, bauen.',
+        '<hr>',
+        '<b>Nether:</b> Obsidianrahmen 4×5 mit dem <b>Feuerzeug</b> zünden.',
+        '<b>Aether:</b> derselbe Rahmen aus <b>Glowstone</b>, mit einem <b>Eimer Wasser</b> fluten.'
       ].join('<br>');
       box.appendChild(d);
       btn('Zurück', function () { self.showMenu(self.started ? 'pause' : 'main'); });
     }
   };
 
+  // ---------- Welt anpassen ----------
+  var OPT_LABELS = {
+    mountains: ['flach', 'normal', 'sehr bergig'],
+    caves: ['keine', 'normal', 'durchlöchert'],
+    biomeSize: ['klein', 'normal', 'riesig'],
+    vegetation: ['karg', 'normal', 'überwuchert'],
+    ores: ['selten', 'normal', 'reichlich']
+  };
+
+  function optText(spec, v) {
+    if (spec.key === 'seaLevel') return 'Y ' + Math.round(v);
+    var lab = OPT_LABELS[spec.key];
+    var pct = Math.round(v * 100) + ' %';
+    if (!lab) return pct;
+    var word = Math.abs(v - 1) < 0.05 ? lab[1] : (v < 1 ? lab[0] : lab[2]);
+    return pct + ' — ' + word;
+  }
+
+  Game.prototype.buildWorldOpts = function (h, btn) {
+    var self = this;
+    var box = this.menuBox;
+    var opts = this.newWorldSettings;
+    h('Welt anpassen', 'mtitle');
+
+    MC.WORLD_OPTS.forEach(function (spec) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'optrow';
+      box.appendChild(rowEl);
+      var lbl = document.createElement('label');
+      lbl.className = 'optlabel';
+      lbl.textContent = spec.title;
+      rowEl.appendChild(lbl);
+
+      if (spec.kind === 'choice') {
+        var sel = document.createElement('select');
+        sel.className = 'minput optctl';
+        spec.options.forEach(function (p) {
+          var o = document.createElement('option');
+          o.value = p[0]; o.textContent = p[1];
+          sel.appendChild(o);
+        });
+        sel.value = opts[spec.key];
+        sel.addEventListener('change', function () { opts[spec.key] = sel.value; });
+        rowEl.appendChild(sel);
+      } else if (spec.kind === 'bool') {
+        var b = document.createElement('button');
+        b.className = 'mbtn optctl';
+        b.textContent = opts[spec.key] ? 'An' : 'Aus';
+        b.addEventListener('click', function () {
+          opts[spec.key] = !opts[spec.key];
+          b.textContent = opts[spec.key] ? 'An' : 'Aus';
+        });
+        rowEl.appendChild(b);
+      } else {
+        var sl = document.createElement('input');
+        sl.type = 'range'; sl.className = 'optslider';
+        sl.min = spec.min; sl.max = spec.max; sl.step = spec.step;
+        sl.value = opts[spec.key];
+        var val = document.createElement('span');
+        val.className = 'optvalue';
+        val.textContent = optText(spec, opts[spec.key]);
+        sl.addEventListener('input', function () {
+          opts[spec.key] = +sl.value;
+          val.textContent = optText(spec, opts[spec.key]);
+        });
+        rowEl.appendChild(sl);
+        rowEl.appendChild(val);
+      }
+    });
+
+    var hint = document.createElement('div');
+    hint.className = 'mfoot';
+    hint.innerHTML = 'Gilt nur für neue Welten. Die Einstellungen werden im Spielstand mitgespeichert.';
+    box.appendChild(hint);
+
+    btn('Zurücksetzen', function () { self.newWorldSettings = MC.defaultWorldOpts(); self.showMenu('worldopts'); });
+    btn('Übernehmen', function () { self.showMenu('main'); });
+  };
+
   Game.prototype.hideMenu = function () { this.menuEl.style.display = 'none'; };
 
   // ---------- Speichern ----------
   Game.prototype.collectSave = function () {
-    var w = this.world;
-    if (!w.savedChunks) w.savedChunks = {};
-    for (var i = 0; i < w.chunkList.length; i++) {
-      var c = w.chunkList[i];
-      if (c.modified) w.savedChunks[c.cx + ',' + c.cz] = c.modified;
+    var dims = {};
+    for (var d in this.worlds) {
+      var w = this.worlds[d];
+      if (!w.savedChunks) w.savedChunks = {};
+      for (var i = 0; i < w.chunkList.length; i++) {
+        var c = w.chunkList[i];
+        if (c.modified) w.savedChunks[c.cx + ',' + c.cz] = c.modified;
+      }
+      dims[d] = { chunks: w.savedChunks, tileEntities: w.tileEntities, time: w.time };
     }
     return {
-      version: 1,
-      seed: w.seed,
-      time: w.time,
+      version: 3,
+      seed: this.seed,
+      settings: this.worldSettings,
+      time: this.world.time,
       mode: this.mode,
+      dim: this.dim,
       player: this.player.serialize(),
-      chunks: w.savedChunks,
-      tileEntities: w.tileEntities
+      dims: dims
     };
   };
 
@@ -1013,12 +1351,17 @@
   Game.prototype.applySave = function (data) {
     var self = this;
     this.mode = data.mode || 'survival';
-    this.world = new MC.World(data.seed, { time: data.time });
-    this.world.entities = [];
-    this.world.savedChunks = data.chunks || {};
-    this.world.tileEntities = data.tileEntities || {};
+    this.seed = data.seed >>> 0;
+    this.worldSettings = MC.normalizeWorldOpts(data.settings);
+    // Spielstände vor Version 3 kannten nur die Oberwelt
+    this.savedDims = data.dims || {
+      overworld: { chunks: data.chunks || {}, tileEntities: data.tileEntities || {}, time: data.time }
+    };
+    this.worlds = {};
+    this.dim = (data.dim && MC.Dim.TITLE[data.dim]) ? data.dim : 'overworld';
+    this.world = this.dimWorld(this.dim);
+    if (data.time !== undefined && this.dim === 'overworld') this.world.time = data.time;
     this.particles = new MC.Particles(this.world);
-    this.attachWorldHooks();
 
     this.player = new MC.Player(this.world, 0, 80, 0);
     this.player.load(data.player);
@@ -1099,7 +1442,6 @@
 
     if (!this.paused && !this.ui.isOpen()) {
       this.tickCount++;
-      input.sprintToggle = false;
       p.update(dt, input, this);
       this.updateTarget();
       this.handleMining(dt);
@@ -1117,6 +1459,7 @@
       this.world.update(dt, p.x, p.y, p.z);
       if ((this.tickCount % 4) === 0) this.tickFurnaces();
 
+      this.checkPortal(dt);
       this.camBob = Math.sin(p.bobPhase * 2) * 0.022 * (p.sprinting ? 1.4 : 1);
       if (this.damageFlash > 0) this.damageFlash -= dt * 2;
       if (this.camShake > 0) this.camShake -= dt * 2;
@@ -1144,6 +1487,22 @@
     if (this.ui.open === 'furnace') this.refreshFurnaceUI();
   };
 
+  // Steht der Spieler im Portal? Nach kurzem Verweilen geht es hinüber.
+  Game.prototype.checkPortal = function (dt) {
+    var p = this.player, w = this.world;
+    if (p.portalCd > 0) { p.portalCd -= dt; }
+    var b = B.byId[w.getBlock(Math.floor(p.x), Math.floor(p.y + 0.6), Math.floor(p.z))];
+    var inPortal = b && b.shape === B.SHAPE_PORTAL;
+    if (!inPortal) { p.portalTime = 0; return; }
+    if (p.portalCd > 0) return;
+    p.portalTime = (p.portalTime || 0) + dt;
+    if ((this.tickCount % 3) === 0) this.particles.crit(p.x, p.y + 1, p.z);
+    if (p.portalTime > 0.7) {
+      p.portalTime = 0;
+      this.usePortal(b.portal);
+    }
+  };
+
   // Flammen und Rauch an Fackeln, Feuer und Lava in der Nähe
   Game.prototype.ambientParticles = function (dt) {
     this.ambTimer = (this.ambTimer || 0) + dt;
@@ -1157,8 +1516,11 @@
       var z = Math.floor(p.z) + ((Math.random() * 25) | 0) - 12;
       var id = w.getBlock(x, y, z);
       if (id === torchId) {
-        if (Math.random() < 0.35) this.particles.flame(x + 0.5, y + 0.62, z + 0.5, 1);
-        if (Math.random() < 0.12) this.particles.smoke(x + 0.5, y + 0.68, z + 0.5, 1);
+        var att = B.torchAttach(w.getMeta(x, y, z));
+        var tfx = x + 0.5, tfy = y + 0.62, tfz = z + 0.5;
+        if (att) { tfx += att[0] * 0.17; tfz += att[1] * 0.17; tfy = y + 0.82; }
+        if (Math.random() < 0.35) this.particles.flame(tfx, tfy, tfz, 1);
+        if (Math.random() < 0.12) this.particles.smoke(tfx, tfy + 0.06, tfz, 1);
       } else if (id === fireId) {
         this.particles.flame(x + 0.5, y + 0.3, z + 0.5, 2);
         if (Math.random() < 0.3) this.particles.smoke(x + 0.5, y + 0.8, z + 0.5, 1);

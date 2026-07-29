@@ -67,7 +67,13 @@
     ['book', 'Buch', 'material', 0],
     ['glowstone_dust', 'Glowstonestaub', 'material', 0],
     ['arrow', 'Pfeil', 'werkzeug', 0],
-    ['bowl', 'Schüssel', 'material', 200]
+    ['bowl', 'Schüssel', 'material', 200],
+    // Nether
+    ['quartz', 'Netherquarz', 'material', 0],
+    ['nether_brick', 'Netherziegelstein', 'material', 0],
+    // Aether
+    ['zanite_gemstone', 'Zanit', 'material', 0],
+    ['gravitite', 'Gravitit', 'material', 0]
   ];
   mats.forEach(function (m) { define(m[0], { title: m[1], group: m[2], fuel: m[3] }); });
 
@@ -83,7 +89,10 @@
     ['chicken_cooked', 'Gebratenes Hühnchen', 6, 7.2],
     ['mutton_raw', 'Rohes Hammelfleisch', 2, 1.2],
     ['mutton_cooked', 'Gebratenes Hammelfleisch', 6, 9.6],
-    ['golden_apple', 'Goldener Apfel', 4, 9.6]
+    ['golden_apple', 'Goldener Apfel', 4, 9.6],
+    ['blueberries', 'Blaubeeren', 2, 0.8],
+    // Ambrosium ist im Aether das, was der goldene Apfel in der Oberwelt ist
+    ['ambrosium_shard', 'Ambrosiumscherbe', 2, 1.2]
   ];
   foods.forEach(function (f) {
     define(f[0], { title: f[1], food: { hunger: f[2], sat: f[3] }, group: 'nahrung' });
@@ -91,13 +100,21 @@
 
   // ---------- Werkzeuge ----------
   I.TIERS = {
-    wood:    { level: 1, speed: 2,  dmg: 0, dur: 59,   mat: 'planks_oak' },
-    stone:   { level: 2, speed: 4,  dmg: 1, dur: 131,  mat: 'cobblestone' },
-    iron:    { level: 3, speed: 6,  dmg: 2, dur: 250,  mat: 'iron_ingot' },
-    gold:    { level: 1, speed: 12, dmg: 0, dur: 32,   mat: 'gold_ingot' },
-    diamond: { level: 4, speed: 8,  dmg: 3, dur: 1561, mat: 'diamond' }
+    wood:      { level: 1, speed: 2,  dmg: 0, dur: 59,   mat: 'planks_oak' },
+    stone:     { level: 2, speed: 4,  dmg: 1, dur: 131,  mat: 'cobblestone' },
+    iron:      { level: 3, speed: 6,  dmg: 2, dur: 250,  mat: 'iron_ingot' },
+    gold:      { level: 1, speed: 12, dmg: 0, dur: 32,   mat: 'gold_ingot' },
+    diamond:   { level: 4, speed: 8,  dmg: 3, dur: 1561, mat: 'diamond' },
+    // Aether: Heiligstein ist schnell, aber mürbe; Zanit liegt bei Eisen;
+    // Gravitit schlägt Diamant, taugt aber nur mit Aether-Material
+    holystone: { level: 2, speed: 5,  dmg: 1, dur: 90,   mat: 'holystone' },
+    zanite:    { level: 3, speed: 7,  dmg: 2, dur: 420,  mat: 'zanite_gemstone' },
+    gravitite: { level: 4, speed: 10, dmg: 4, dur: 1400, mat: 'gravitite' }
   };
-  var tierTitle = { wood: 'Holz', stone: 'Stein', iron: 'Eisen', gold: 'Gold', diamond: 'Diamant' };
+  var tierTitle = {
+    wood: 'Holz', stone: 'Stein', iron: 'Eisen', gold: 'Gold', diamond: 'Diamant',
+    holystone: 'Heiligstein', zanite: 'Zanit', gravitite: 'Gravitit'
+  };
   var toolTitle = { pickaxe: 'spitzhacke', axe: 'axt', shovel: 'schaufel', sword: 'schwert', hoe: 'hacke' };
   var toolBaseDmg = { pickaxe: 2, axe: 3, shovel: 1, sword: 4, hoe: 1 };
 
@@ -116,7 +133,9 @@
     });
   });
 
-  // Türen belegen zwei Blöcke, darum eigenes Item statt Auto-Block-Item
+  // Bett und Türen belegen zwei Blöcke, darum eigene Items statt Auto-Block-Items.
+  // Ohne das Bett-Item lief das Bettrezept ins Leere.
+  define('bed', { title: 'Bett', stack: 1, group: 'werkzeug', place: 'bed' });
   define('door_oak', { title: 'Holztür', tex: 'door_oak_lower', group: 'bau', fuel: 200, place: 'door_oak' });
   define('door_iron', { title: 'Eisentür', tex: 'door_iron_lower', group: 'bau', place: 'door_iron' });
 
@@ -132,7 +151,9 @@
     leather: { def: [1, 3, 2, 1], dur: [55, 80, 75, 65], mat: 'leather', title: 'Leder' },
     gold: { def: [2, 5, 3, 1], dur: [77, 112, 105, 91], mat: 'gold_ingot', title: 'Gold' },
     iron: { def: [2, 6, 5, 2], dur: [165, 240, 225, 195], mat: 'iron_ingot', title: 'Eisen' },
-    diamond: { def: [3, 8, 6, 3], dur: [363, 528, 495, 429], mat: 'diamond', title: 'Diamant' }
+    diamond: { def: [3, 8, 6, 3], dur: [363, 528, 495, 429], mat: 'diamond', title: 'Diamant' },
+    zanite: { def: [2, 6, 5, 2], dur: [242, 352, 330, 286], mat: 'zanite_gemstone', title: 'Zanit' },
+    gravitite: { def: [3, 8, 6, 3], dur: [418, 608, 570, 494], mat: 'gravitite', title: 'Gravitit' }
   };
   var armorPieces = ['helmet', 'chestplate', 'leggings', 'boots'];
   var armorTitle = ['helm', 'brustpanzer', 'hose', 'stiefel'];

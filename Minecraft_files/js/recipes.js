@@ -14,8 +14,8 @@
 
   // Sammelbegriffe: "#planks" passt auf jede Brettersorte usw.
   R.TAGS = {
-    '#planks': ['planks_oak', 'planks_birch', 'planks_spruce'],
-    '#logs': ['log_oak', 'log_birch', 'log_spruce'],
+    '#planks': ['planks_oak', 'planks_birch', 'planks_spruce', 'planks_skyroot'],
+    '#logs': ['log_oak', 'log_birch', 'log_spruce', 'log_skyroot', 'log_golden_oak'],
     '#wool': MC.Blocks.WOOL_COLORS.map(function (c) { return 'wool_' + c[0]; })
   };
 
@@ -69,6 +69,7 @@
   shaped(['S S', 'SSS', 'S S'], { S: 'stick' }, 'ladder', 3);
   woods.forEach(function (wd) {
     shaped(['PSP', 'PSP'], { P: 'planks_' + wd, S: 'stick' }, 'fence_' + wd, 3);
+    shaped(['SPS', 'SPS'], { P: 'planks_' + wd, S: 'stick' }, 'gate_' + wd, 1);
     shaped(['P..', 'PP.', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
     shaped(['..P', '.PP', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
     shaped(['PPP'], { P: 'planks_' + wd }, 'slab_planks_' + wd, 6);
@@ -83,7 +84,8 @@
   // ---------------- Werkzeuge & Waffen ----------------
   var tierMat = {
     wood: '#planks', stone: 'cobblestone', iron: 'iron_ingot',
-    gold: 'gold_ingot', diamond: 'diamond'
+    gold: 'gold_ingot', diamond: 'diamond',
+    holystone: 'holystone', zanite: 'zanite_gemstone', gravitite: 'gravitite'
   };
   Object.keys(tierMat).forEach(function (t) {
     var M = tierMat[t];
@@ -142,6 +144,27 @@
   shaped(['PPP', ' L '], { P: 'paper', L: 'leather' }, 'book', 1);
   shaped(['GGG', 'GAG', 'GGG'], { G: 'gold_ingot', A: 'apple' }, 'golden_apple', 1);
 
+  // ---------------- Nether & Aether ----------------
+  shapeless(['log_skyroot'], 'planks_skyroot', 4);
+  shapeless(['log_golden_oak'], 'planks_skyroot', 4);
+  shaped(['PSP', 'PSP'], { P: 'planks_skyroot', S: 'stick' }, 'fence_skyroot', 3);
+  shaped(['SPS', 'SPS'], { P: 'planks_skyroot', S: 'stick' }, 'gate_skyroot', 1);
+  shaped(['P..', 'PP.', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
+  shaped(['..P', '.PP', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
+  shaped(['PPP'], { P: 'planks_skyroot' }, 'slab_planks_skyroot', 6);
+  shaped(['XXX'], { X: 'holystone' }, 'slab_holystone', 6);
+  shaped(['X..', 'XX.', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
+  shaped(['..X', '.XX', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
+  shaped(['XXX'], { X: 'nether_bricks' }, 'slab_nether_bricks', 6);
+  shaped(['X..', 'XX.', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
+  shaped(['..X', '.XX', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
+  shaped(['BB', 'BB'], { B: 'nether_brick' }, 'nether_bricks', 1);
+  shaped(['QQ', 'QQ'], { Q: 'quartz' }, 'quartz_block', 1);
+  shaped(['HH', 'HH'], { H: 'holystone' }, 'holystone_bricks', 4);
+  // Ambrosiumfackel: leuchtet wie eine normale
+  shaped(['A', 'S'], { A: 'ambrosium_shard', S: 'stick' }, 'torch', 4);
+  shaped(['MM', 'MM'], { M: 'magma_block' }, 'magma_block', 1);
+
   // ---------------- Schmelzen ----------------
   smelt('cobblestone', 'stone');
   smelt('sand', 'glass');
@@ -157,6 +180,13 @@
   smelt('diamond_ore', 'diamond');
   smelt('coal_ore', 'coal');
   smelt('emerald_ore', 'emerald');
+  smelt('netherrack', 'nether_brick');
+  smelt('quartz_ore', 'quartz');
+  smelt('zanite_ore', 'zanite_gemstone');
+  smelt('gravitite_ore', 'gravitite');
+  smelt('ambrosium_ore', 'ambrosium_shard');
+  smelt('log_skyroot', 'charcoal');
+  smelt('log_golden_oak', 'charcoal');
 
   // ---------------- Brennstoffe ----------------
   fuel('coal', 1600); fuel('charcoal', 1600); fuel('coal_block', 16000);
@@ -167,6 +197,9 @@
   woods.forEach(function (w) { fuel('fence_' + w, 300); fuel('stairs_' + w, 300); fuel('slab_planks_' + w, 150); });
   ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'wood_sword', 'wood_hoe'].forEach(function (t) { fuel(t, 200); });
   fuel('slab_planks_oak', 150);
+  fuel('planks_skyroot', 300); fuel('log_skyroot', 300); fuel('log_golden_oak', 300);
+  fuel('fence_skyroot', 300); fuel('gate_skyroot', 300); fuel('stairs_skyroot', 300);
+  fuel('slab_planks_skyroot', 150); fuel('ambrosium_shard', 800); fuel('netherrack', 200);
 
   R.SMELT_TIME = 200; // Ticks
 

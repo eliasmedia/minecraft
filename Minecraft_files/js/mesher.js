@@ -217,15 +217,7 @@
             }
 
             case B.SHAPE_TORCH: {
-              // 2x10x2-Pixel-Stiel; die UVs greifen genau den Ausschnitt der Textur ab,
-              // damit nicht das Item-Bild auf alle Seiten geklebt wird.
-              var lt = T.layer('torch');
-              var lightHere = gl(x, y, z);
-              var U16 = 1 / 16;
-              emitBoxUV(buf, x, y, z, [0.4375, 0, 0.4375], [0.5625, 0.625, 0.5625], lt, lightHere,
-                [7 * U16, 6 * U16, 9 * U16, 1],          // Seiten: Stiel + Flammenspitze
-                [7 * U16, 6 * U16, 9 * U16, 8 * U16],    // oben: Flamme
-                [7 * U16, 14 * U16, 9 * U16, 1]);        // unten: Stielende
+              emitTorch(buf, x, y, z, meta, gl(x, y, z));
               break;
             }
 
@@ -254,6 +246,16 @@
                   emitBoxCulled(buf, x, y, z, bx, block, meta, 0);
                 }
               }
+              break;
+            }
+
+            case B.SHAPE_GATE: {
+              emitGate(buf, x, y, z, block, meta);
+              break;
+            }
+
+            case B.SHAPE_PORTAL: {
+              emitPortal(buf, x, y, z, block, meta);
               break;
             }
 
@@ -393,6 +395,51 @@
       }
     }
 
+    // Fackel: 2x10x2-Pixel-Stiel. Die UVs greifen genau den Ausschnitt der Textur ab,
+    // damit nicht das Item-Bild auf alle Seiten geklebt wird. Wandfackeln (meta 1..4)
+    // sitzen am Wandrand und lehnen sich um ~25° zur Blockmitte.
+    function emitTorch(buf, x, y, z, meta, lightRaw) {
+      var layer = T.layer('torch');
+      var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
+      var U16 = 1 / 16;
+      var uvSide = [7 * U16, 6 * U16, 9 * U16, 1];
+      var uvTop = [7 * U16, 6 * U16, 9 * U16, 8 * U16];
+      var uvBottom = [7 * U16, 14 * U16, 9 * U16, 1];
+
+      var att = B.torchAttach(meta);
+      var hw = 0.0625, ht = 0.625;                 // halbe Breite, Höhe
+      var ox = 0.5, oy = 0, oz = 0.5;              // Fußmitte im Block
+      var lx = 1, lz = 0, ct = 1, st = 0;          // Neigerichtung + Winkel (st=0 -> Identität)
+      if (att) {
+        ox = 0.5 + att[0] * 0.44; oz = 0.5 + att[1] * 0.44; oy = 0.22;
+        lx = -att[0]; lz = -att[1];                // weg von der Wand
+        ct = Math.cos(0.44); st = Math.sin(0.44);
+      }
+      // Lokalen Punkt kippen: Drehung um die Achse quer zur Neigerichtung
+      function px(a, b, c) { var u = a * lx + c * lz, w = -a * lz + c * lx; return ox + lx * (u * ct + b * st) - lz * w; }
+      function py(a, b, c) { var u = a * lx + c * lz; return oy + (-u * st + b * ct); }
+      function pz(a, b, c) { var u = a * lx + c * lz, w = -a * lz + c * lx; return oz + lz * (u * ct + b * st) + lx * w; }
+
+      for (var f = 0; f < 6; f++) {
+        var F = FACES[f];
+        var uv = f === 2 ? uvTop : (f === 3 ? uvBottom : uvSide);
+        buf.need(4 * 9);
+        var a = buf.a, n = buf.n;
+        for (var i = 0; i < 4; i++) {
+          var v = F.v[i];
+          var vx0 = -hw + v[0] * hw * 2, vy0 = v[1] * ht, vz0 = -hw + v[2] * hw * 2;
+          a[n++] = bx0 + x + px(vx0, vy0, vz0);
+          a[n++] = y + py(vx0, vy0, vz0);
+          a[n++] = bz0 + z + pz(vx0, vy0, vz0);
+          a[n++] = uv[0] + UVS[i][0] * (uv[2] - uv[0]);
+          a[n++] = uv[1] + UVS[i][1] * (uv[3] - uv[1]);
+          a[n++] = layer;
+          a[n++] = bl; a[n++] = sl; a[n++] = F.shade;
+        }
+        buf.n = n;
+      }
+    }
+
     // Quader mit AO/Licht; Flächen an undurchsichtigen Nachbarn werden weggelassen,
     // sofern der Quader diese Blockseite überhaupt berührt. skipMask blendet Flächen fest aus.
     function emitBoxCulled(buf, x, y, z, box, block, meta, skipMask) {
@@ -414,7 +461,70 @@
     function fenceConnects(id) {
       var b = B.byId[id];
       if (!b || b.id === 0) return false;
-      return b.opaque || b.shape === B.SHAPE_FENCE || b.shape === B.SHAPE_STAIRS || b.shape === B.SHAPE_SLAB;
+      return b.opaque || b.shape === B.SHAPE_FENCE || b.shape === B.SHAPE_GATE ||
+             b.shape === B.SHAPE_STAIRS || b.shape === B.SHAPE_SLAB;
+    }
+
+    // Zauntor: zwei Pfosten mit zwei Riegeln dazwischen. Offen schwenken die
+    // Flügel um 90° zur Seite, die Pfosten bleiben stehen.
+    function emitGate(buf, x, y, z, block, meta) {
+      var alongX = (meta & 1) === 0;
+      var open = B.gateOpen(meta);
+      var y0 = 0.3125;                                   // Pfostenunterkante
+      var bars = [[0.375, 0.5625], [0.75, 0.9375]];      // Riegelhöhen
+      var i, bi;
+      // Pfosten an beiden Enden
+      var posts = alongX
+        ? [[0, y0, 0.4375, 0.125, 1, 0.5625], [0.875, y0, 0.4375, 1, 1, 0.5625]]
+        : [[0.4375, y0, 0, 0.5625, 1, 0.125], [0.4375, y0, 0.875, 0.5625, 1, 1]];
+      for (i = 0; i < 2; i++) emitBoxCulled(buf, x, y, z, posts[i], block, meta, 0);
+
+      for (bi = 0; bi < 2; bi++) {
+        var b0 = bars[bi][0], b1 = bars[bi][1];
+        if (!open) {
+          emitBoxCulled(buf, x, y, z,
+            alongX ? [0.125, b0, 0.4375, 0.875, b1, 0.5625] : [0.4375, b0, 0.125, 0.5625, b1, 0.875],
+            block, meta, 0);
+          continue;
+        }
+        // geöffnet: je Pfosten ein Flügel quer zur Schranke
+        var side = (meta & 2) ? 1 : -1;   // Richtung 2/3 schwenkt zur anderen Seite
+        for (i = 0; i < 2; i++) {
+          var near = i === 0 ? 0.0625 : 0.875;
+          var far = i === 0 ? 0.125 : 0.9375;
+          if (alongX) {
+            var z0 = side < 0 ? 0.0625 : 0.5625, z1 = side < 0 ? 0.4375 : 0.9375;
+            emitBoxCulled(buf, x, y, z, [near, b0, z0, far, b1, z1], block, meta, 0);
+          } else {
+            var xx0 = side < 0 ? 0.0625 : 0.5625, xx1 = side < 0 ? 0.4375 : 0.9375;
+            emitBoxCulled(buf, x, y, z, [xx0, b0, near, xx1, b1, far], block, meta, 0);
+          }
+        }
+      }
+    }
+
+    // Portal: dünne, beidseitig sichtbare Scheibe in der Rahmenebene.
+    // Meta-Bit 0 gibt die Achse an: 0 = Rahmen spannt über X, 1 = über Z.
+    function emitPortal(buf, x, y, z, block, meta) {
+      var layer = T.layer(typeof block.tex === 'string' ? block.tex : block.tex.side);
+      var alongZ = (meta & 1) !== 0;
+      var q = alongZ
+        ? [[0.5, 0, 0], [0.5, 0, 1], [0.5, 1, 1], [0.5, 1, 0]]
+        : [[0, 0, 0.5], [1, 0, 0.5], [1, 1, 0.5], [0, 1, 0.5]];
+      for (var side = 0; side < 2; side++) {
+        buf.need(4 * 9);
+        var a = buf.a, n = buf.n;
+        for (var i = 0; i < 4; i++) {
+          var k = side === 0 ? i : (3 - i);
+          var p = q[k];
+          a[n++] = bx0 + x + p[0]; a[n++] = y + p[1]; a[n++] = bz0 + z + p[2];
+          a[n++] = UVS[side === 0 ? i : (3 - i)][0];
+          a[n++] = UVS[side === 0 ? i : (3 - i)][1];
+          a[n++] = layer;
+          a[n++] = 1; a[n++] = 0; a[n++] = 1;   // leuchtet selbst
+        }
+        buf.n = n;
+      }
     }
 
     // Leiter: flaches, beidseitig sichtbares Rechteck an der Wand

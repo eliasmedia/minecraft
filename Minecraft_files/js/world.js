@@ -85,7 +85,9 @@
   function World(seed, opts) {
     opts = opts || {};
     this.seed = seed >>> 0;
-    this.gen = new MC.WorldGen(this.seed);
+    this.dim = opts.dim || 'overworld';
+    this.settings = MC.normalizeWorldOpts(opts.settings);
+    this.gen = new MC.WorldGen(this.seed, this.settings, this.dim);
     this.chunks = {};
     this.chunkList = [];
     this.time = opts.time !== undefined ? opts.time : 0.28;   // 0..1 Tagesanteil
@@ -290,6 +292,34 @@
     this.markDirty(x, y, z);
   };
 
+  // Tür öffnen/schließen (beide Hälften). Gibt true zurück, wenn sich etwas
+  // geändert hat – Spieler und Dorfbewohner benutzen denselben Weg.
+  World.prototype.setDoorOpen = function (x, y, z, open) {
+    var id = this.getBlock(x, y, z);
+    var b = B.byId[id];
+    if (!b || b.shape !== B.SHAPE_DOOR) return false;
+    var m = this.getMeta(x, y, z);
+    var lowerY = (m & 1) ? y - 1 : y;
+    var lm = this.getMeta(x, lowerY, z);
+    if (!!(lm & 8) === !!open) return false;
+    var bit = open ? 8 : 0;
+    this.setMetaOnly(x, lowerY, z, (lm & 7) | bit);
+    if (this.getBlock(x, lowerY + 1, z) === id) {
+      var um = this.getMeta(x, lowerY + 1, z);
+      this.setMetaOnly(x, lowerY + 1, z, (um & 7) | bit);
+    }
+    return true;
+  };
+
+  World.prototype.isDoorOpen = function (x, y, z) {
+    var id = this.getBlock(x, y, z);
+    var b = B.byId[id];
+    if (!b || b.shape !== B.SHAPE_DOOR) return false;
+    var m = this.getMeta(x, y, z);
+    var lowerY = (m & 1) ? y - 1 : y;
+    return (this.getMeta(x, lowerY, z) & 8) !== 0;
+  };
+
   World.prototype.markDirty = function (x, y, z) {
     var cx = x >> 4, cz = z >> 4;
     for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) {
@@ -301,7 +331,7 @@
   var NEI = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
   MC.NEI = NEI;
   // Wand, an der eine Leiter mit meta 0..3 hängt (relativ, horizontal)
-  var LADDER_SUPPORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  var LADDER_SUPPORT = B.SIDE_DIRS;
   MC.LADDER_SUPPORT = LADDER_SUPPORT;
 
   // ---------- Sonnenlicht-Spalte ----------
@@ -598,6 +628,28 @@
         return;
       }
     }
+    // Gravitit fällt nicht, es steigt
+    if (b.gravityUp) {
+      var above = this.getBlock(x, y + 1, z);
+      if (y + 1 < WH && (above === 0 || B.isReplaceable(above))) {
+        var mu = this.getMeta(x, y, z);
+        this.setBlock(x, y, z, 0, 0);
+        this.setBlock(x, y + 1, z, id, mu);
+        return;
+      }
+    }
+    // Portalfläche zerfällt ohne Rahmen
+    if (b.shape === B.SHAPE_PORTAL) {
+      var frame = B.id(MC.Dim.Portal.KINDS[b.portal].frame);
+      var axis = this.getMeta(x, y, z) & 1;
+      var sides = axis ? [[0, 0, 1], [0, 0, -1]] : [[1, 0, 0], [-1, 0, 0]];
+      sides.push([0, 1, 0], [0, -1, 0]);
+      for (var s = 0; s < 4; s++) {
+        var sn = sides[s];
+        var nid = this.getBlock(x + sn[0], y + sn[1], z + sn[2]);
+        if (nid !== id && nid !== frame) { MC.Dim.Portal.breakLinked(this, x, y, z); return; }
+      }
+    }
     // Pflanzenhalt
     if (B.needsSupport(id)) {
       var g = this.getBlock(x, y - 1, z);
@@ -634,6 +686,14 @@
       this.setMetaOnly(x, y, z, age + 1);
       this.scheduleUpdate(x, y, z, 14 + ((Math.random() * 14) | 0));
       return;
+    }
+    // Fackel: Boden oder Wand, je nach Meta
+    if (b.shape === B.SHAPE_TORCH) {
+      var self = this;
+      if (!B.torchSupported(function (bx, by, bz) { return self.getBlock(bx, by, bz); }, x, y, z, this.getMeta(x, y, z))) {
+        this.breakBlockNatural(x, y, z);
+        return;
+      }
     }
     // Leiter braucht eine Wand dahinter
     if (b.shape === B.SHAPE_LADDER) {
@@ -912,23 +972,33 @@
     var face = -1;
     var t = 0;
 
+    var self = this;
+    function testCell(bx, by, bz) {
+      var id = self.getBlock(bx, by, bz);
+      if (id === 0) return null;
+      var bb = B.byId[id];
+      if (!includeLiquid && bb.liquid) return null;
+      if (bb.shape === B.SHAPE_NONE) return null;
+      var box = B.selBox(id, self.getMeta(bx, by, bz));
+      // Flüssigkeiten haben keine Auswahlbox – für den Eimer brauchen wir trotzdem eine
+      if (!box && includeLiquid && bb.liquid) box = [0, 0, 0, 1, 1, 1];
+      if (!box) return null;
+      var hi = rayBox(ox, oy, oz, dx, dy, dz,
+        bx + box[0], by + box[1], bz + box[2], bx + box[3], by + box[4], bz + box[5]);
+      if (!hi || hi.t > maxDist) return null;
+      return { x: bx, y: by, z: bz, id: id, face: hi.face, dist: hi.t,
+               hx: ox + dx * hi.t, hy: oy + dy * hi.t, hz: oz + dz * hi.t };
+    }
+
     for (var it = 0; it < 512 && t <= maxDist; it++) {
-      var id = this.getBlock(x, y, z);
-      if (id !== 0) {
-        var bb = B.byId[id];
-        var takeIt = includeLiquid ? true : !bb.liquid;
-        if (takeIt && bb.shape !== B.SHAPE_NONE) {
-          var box = B.selBox(id, this.getMeta(x, y, z));
-          // Flüssigkeiten haben keine Auswahlbox – für den Eimer brauchen wir trotzdem eine
-          if (!box && includeLiquid && bb.liquid) box = [0, 0, 0, 1, 1, 1];
-          if (box) {
-            var hitInfo = rayBox(ox, oy, oz, dx, dy, dz, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
-            if (hitInfo && hitInfo.t <= maxDist) {
-              return { x: x, y: y, z: z, id: id, face: hitInfo.face, dist: hitInfo.t,
-                       hx: ox + dx * hitInfo.t, hy: oy + dy * hitInfo.t, hz: oz + dz * hitInfo.t };
-            }
-          }
-        }
+      var hit = testCell(x, y, z);
+      if (hit) return hit;
+      // Zäune und Zauntore sind 1,5 Blöcke hoch und ragen in die Zelle darüber.
+      // Ohne diesen Blick nach unten trifft man ihre obere Hälfte nie.
+      var lower = B.byId[this.getBlock(x, y - 1, z)];
+      if (lower && (lower.shape === B.SHAPE_FENCE || lower.shape === B.SHAPE_GATE)) {
+        hit = testCell(x, y - 1, z);
+        if (hit) return hit;
       }
       if (tMaxX < tMaxY) {
         if (tMaxX < tMaxZ) { x += stepX; t = tMaxX; tMaxX += tDeltaX; face = stepX > 0 ? 1 : 0; }
@@ -977,7 +1047,10 @@
     var ix0 = Math.floor(x0), ix1 = Math.floor(x1);
     var iy0 = Math.floor(y0), iy1 = Math.floor(y1);
     var iz0 = Math.floor(z0), iz1 = Math.floor(z1);
-    for (var y = iy0; y <= iy1; y++) {
+    // Eine Ebene tiefer mitnehmen: Zäune ragen 1,5 Blöcke hoch über ihren eigenen
+    // Block hinaus. Ohne diese Zeile hat der Sprung über einen Zaun einfach nichts
+    // getroffen, weil der Zaunblock gar nicht erst eingesammelt wurde.
+    for (var y = iy0 - 1; y <= iy1; y++) {
       if (y < 0 || y >= WH) continue;
       for (var z = iz0; z <= iz1; z++) {
         for (var x = ix0; x <= ix1; x++) {
@@ -1013,8 +1086,11 @@
     this.processLight(6);
   };
 
-  // Sonnenhelligkeit 0..1 (Nachts ~0.12)
+  // Sonnenhelligkeit 0..1 (Nachts ~0.12).
+  // Im Nether gibt es keine Sonne, im Aether geht sie nie unter.
   World.prototype.daylight = function () {
+    if (this.dim === 'nether') return 0.34;
+    if (this.dim === 'aether') return 1;
     var t = this.time;
     var a = Math.cos((t - 0.5) * Math.PI * 2) * 0.5 + 0.5; // 1 = Mittag
     var d = U.clamp((a - 0.15) / 0.5, 0, 1);
@@ -1022,6 +1098,7 @@
   };
 
   World.prototype.isNight = function () {
+    if (this.dim !== 'overworld') return false;
     return this.time > 0.79 || this.time < 0.21;
   };
 

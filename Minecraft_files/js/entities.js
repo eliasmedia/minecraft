@@ -17,8 +17,11 @@
   P.move = function (world, e, dx, dy, dz) {
     var w = e.width / 2, h = e.height;
     var ox = e.x, oy = e.y, oz = e.z;
-    e.onGround = false;
-    e.collidedH = false;
+    // Nur die Flags zurücksetzen, die dieser Zug auch neu bestimmt. Sonst löscht
+    // ein reiner Y-Zug das collidedH des vorangegangenen Horizontalzugs – davon
+    // leben Leiterklettern und der Hindernissprung der Mobs.
+    if (dy !== 0) e.onGround = false;
+    if (dx !== 0 || dz !== 0) e.collidedH = false;
 
     // Y
     if (dy !== 0) {
@@ -451,6 +454,108 @@
         part('leg3', 'mob_creeper', 0, 0, 2, 4, 6, 4, 'legBL', [2, 6, 4])
       ]
     },
+    // ---- Nether ----
+    piglin: {
+      height: 1.9, width: 0.6, scale: 0.95,
+      parts: [
+        part('head', { all: 'mob_piglin', front: 'mob_piglin_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
+        part('body', 'mob_piglin_shirt', -4, 12, -2, 8, 12, 4),
+        part('armR', 'mob_piglin', -8, 12, -2, 4, 12, 4, 'armZ', [-6, 23, 0]),
+        part('armL', 'mob_piglin', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
+        part('legR', 'mob_piglin_shirt', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
+        part('legL', 'mob_piglin_shirt', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
+      ]
+    },
+    ghast: {
+      height: 3.6, width: 3.6, scale: 3.4,
+      parts: [
+        part('body', { all: 'mob_ghast', front: 'mob_ghast_face' }, -8, 6, -8, 16, 16, 16),
+        part('t0', 'mob_ghast', -6, 1, -6, 2, 6, 2, 'tentacle', [-5, 6, -5]),
+        part('t1', 'mob_ghast', 4, 1, -6, 2, 6, 2, 'tentacle', [5, 6, -5]),
+        part('t2', 'mob_ghast', -6, 1, 4, 2, 6, 2, 'tentacle', [-5, 6, 5]),
+        part('t3', 'mob_ghast', 4, 1, 4, 2, 6, 2, 'tentacle', [5, 6, 5]),
+        part('t4', 'mob_ghast', -1, 1, -1, 2, 7, 2, 'tentacle', [0, 6, 0])
+      ]
+    },
+    magma_cube: {
+      height: 1.0, width: 1.0, scale: 1,
+      parts: [
+        part('core', 'mob_magma_core', -5, 1, -5, 10, 10, 10),
+        part('shellT', { all: 'mob_magma', front: 'mob_magma_face' }, -6, 8, -6, 12, 5, 12),
+        part('shellB', 'mob_magma', -6, 0, -6, 12, 5, 12)
+      ]
+    },
+    // ---- Aether ----
+    moa: {
+      height: 1.9, width: 0.8, scale: 1,
+      parts: [
+        part('body', 'MOA', -4, 8, -5, 8, 9, 12),
+        part('neck', 'MOA', -2, 14, -6, 4, 9, 4, 'head', [0, 15, -4]),
+        part('head', { all: 'MOA', front: 'mob_moa_face' }, -3, 22, -8, 6, 5, 6, 'head', [0, 15, -4]),
+        part('wingR', 'MOA', -6, 10, -3, 2, 7, 8, 'wingR', [-4, 16, 0]),
+        part('wingL', 'MOA', 4, 10, -3, 2, 7, 8, 'wingL', [4, 16, 0]),
+        part('legR', 'mob_chicken_leg', -3, 0, -2, 2, 9, 2, 'legFR', [-2, 9, 0]),
+        part('legL', 'mob_chicken_leg', 1, 0, -2, 2, 9, 2, 'legFL', [2, 9, 0])
+      ]
+    },
+    phyg: {
+      height: 0.9, width: 0.9, scale: 1,
+      parts: [
+        part('body', 'mob_phyg', -5, 6, -8, 10, 8, 16),
+        part('head', { all: 'mob_phyg', front: 'mob_phyg_face' }, -4, 6, -12, 8, 8, 4, 'head', [0, 10, -8]),
+        part('wingR', 'mob_phyg_wing', -9, 11, -4, 4, 1, 9, 'wingR', [-5, 12, 0]),
+        part('wingL', 'mob_phyg_wing', 5, 11, -4, 4, 1, 9, 'wingL', [5, 12, 0]),
+        part('leg0', 'mob_phyg', -5, 0, -7, 4, 6, 4, 'legFR', [-3, 6, -5]),
+        part('leg1', 'mob_phyg', 1, 0, -7, 4, 6, 4, 'legFL', [3, 6, -5]),
+        part('leg2', 'mob_phyg', -5, 0, 3, 4, 6, 4, 'legBR', [-3, 6, 5]),
+        part('leg3', 'mob_phyg', 1, 0, 3, 4, 6, 4, 'legBL', [3, 6, 5])
+      ]
+    },
+    sheepuff: {
+      height: 1.0, width: 0.9, scale: 1,
+      parts: [
+        part('body', 'mob_sheepuff', -5, 7, -9, 11, 10, 18),
+        part('head', { all: 'mob_sheepuff', front: 'mob_sheepuff_face' }, -3, 8, -13, 6, 6, 6, 'head', [0, 11, -9]),
+        part('leg0', 'mob_sheepuff', -5, 0, -7, 4, 8, 4, 'legFR', [-3, 8, -5]),
+        part('leg1', 'mob_sheepuff', 1, 0, -7, 4, 8, 4, 'legFL', [3, 8, -5]),
+        part('leg2', 'mob_sheepuff', -5, 0, 4, 4, 8, 4, 'legBR', [-3, 8, 6]),
+        part('leg3', 'mob_sheepuff', 1, 0, 4, 4, 8, 4, 'legBL', [3, 8, 6])
+      ]
+    },
+    zephyr: {
+      height: 2.2, width: 2.2, scale: 2.1,
+      parts: [
+        part('body', { all: 'mob_zephyr', front: 'mob_zephyr_face' }, -8, 4, -8, 16, 14, 16),
+        part('t0', 'mob_zephyr', -5, 0, -5, 2, 5, 2, 'tentacle', [-4, 4, -4]),
+        part('t1', 'mob_zephyr', 3, 0, -5, 2, 5, 2, 'tentacle', [4, 4, -4]),
+        part('t2', 'mob_zephyr', -5, 0, 3, 2, 5, 2, 'tentacle', [-4, 4, 4]),
+        part('t3', 'mob_zephyr', 3, 0, 3, 2, 5, 2, 'tentacle', [4, 4, 4])
+      ]
+    },
+    cockatrice: {
+      height: 1.6, width: 0.7, scale: 1,
+      parts: [
+        part('body', 'mob_cockatrice', -3, 7, -4, 7, 8, 10),
+        part('neck', 'mob_cockatrice', -2, 13, -5, 4, 7, 4, 'head', [0, 14, -3]),
+        part('head', { all: 'mob_cockatrice', front: 'mob_cockatrice_face' }, -3, 19, -7, 6, 5, 6, 'head', [0, 14, -3]),
+        part('wingR', 'mob_cockatrice', -5, 9, -2, 2, 6, 7, 'wingR', [-3, 14, 0]),
+        part('wingL', 'mob_cockatrice', 3, 9, -2, 2, 6, 7, 'wingL', [3, 14, 0]),
+        part('legR', 'mob_chicken_leg', -2, 0, -1, 2, 7, 2, 'legFR', [-1, 7, 0]),
+        part('legL', 'mob_chicken_leg', 0, 0, -1, 2, 7, 2, 'legFL', [1, 7, 0])
+      ]
+    },
+    villager: {
+      height: 1.9, width: 0.6, scale: 0.95,
+      parts: [
+        part('head', { all: 'mob_villager', front: 'mob_villager_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
+        part('nase', 'mob_villager_nose', -1, 26, -6, 2, 4, 2, 'head', [0, 24, 0]),
+        part('body', 'ROBE', -4, 12, -3, 8, 12, 6),
+        part('armR', 'ROBE', -8, 15, -3, 4, 9, 4, 'armCross', [-4, 22, -1]),
+        part('armL', 'ROBE', 4, 15, -3, 4, 9, 4, 'armCross', [4, 22, -1]),
+        part('legR', 'ROBE', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
+        part('legL', 'ROBE', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
+      ]
+    },
     player: {
       height: 1.8, width: 0.6, scale: 0.92,
       parts: [
@@ -475,7 +580,18 @@
     chicken: { hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
     zombie: { hp: 20, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'porkchop_raw', min: 0, max: 0 }], xp: 5, sound: 'zombie', burns: true },
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
-    creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' }
+    creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },
+    villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
+    // ---- Nether ----
+    piglin: { hp: 20, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
+    ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'ghast', fireproof: true },
+    magma_cube: { hp: 12, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }], xp: 4, sound: 'thud', fireproof: true },
+    // ---- Aether ----
+    moa: { hp: 14, hostile: false, speed: 2.2, drops: [{ id: 'feather', min: 1, max: 3 }], xp: 3, sound: 'chicken' },
+    phyg: { hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
+    sheepuff: { hp: 8, hostile: false, speed: 1.9, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
+    zephyr: { hp: 8, hostile: true, speed: 1.5, damage: 0, ranged: true, flying: true, drops: [{ id: 'aercloud', min: 0, max: 2 }], xp: 4, sound: 'ghast' },
+    cockatrice: { hp: 14, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'feather', min: 0, max: 2 }], xp: 5, sound: 'chicken' }
   };
   MC.MOB_TYPES = MOB_TYPES;
 
@@ -512,10 +628,29 @@
       var r = Math.random();
       this.woolColor = r < 0.78 ? 'white' : cols[(Math.random() * cols.length) | 0][0];
     }
+    if (type === 'moa') {
+      var mc = ['blue', 'white', 'black'];
+      this.moaColor = mc[(Math.random() * mc.length) | 0];
+    }
   }
   Mob.prototype = Object.create(Entity.prototype);
   Mob.prototype.constructor = Mob;
   MC.Mob = Mob;
+
+  // Beruf, Roben-Textur und Angebote setzen (Dorf-Id + Platznummer -> immer gleich)
+  Mob.prototype.makeVillager = function (villageId, slot, home, house) {
+    var d = MC.Village.villagerData(villageId, slot);
+    this.villageId = villageId;
+    this.slot = slot;
+    this.home = home;
+    this.house = house || null;
+    this.doorCd = 0;
+    this.profession = d.profession;
+    this.professionTitle = d.title;
+    this.robe = d.robe;
+    this.offers = d.offers;
+    return this;
+  };
 
   Mob.prototype.update = function (dt, game) {
     this.age += dt;
@@ -535,17 +670,35 @@
       game.particles.smoke(this.x, this.y + this.height * 0.7, this.z, 1);
     }
 
-    // Lava / Kaktus-Schaden
-    if (P.inLiquid(world, this, 'lava')) {
+    // Lava / Kaktus-Schaden – Netherbewohner stört das nicht
+    if (!this.spec.fireproof && P.inLiquid(world, this, 'lava')) {
       if ((game.tickCount % 12) === 0) this.hurt(4, null, game);
     }
+
+    // Fliegende Mobs schweben, statt zu laufen
+    if (this.spec.flying) { this.flyTick(dt, game, foeOf(this, game)); return; }
 
     // ---- KI ----
     this.moving = false;
     var wantYaw = this.yaw;
 
-    if (this.hostile && dist < 22 && p && !p.dead && game.mode !== 'creative') {
-      this.target = p;
+    // Beute wählen: der Spieler, sonst der nächste Dorfbewohner in Reichweite
+    var foe = null, foeDist = 9999;
+    if (this.hostile) {
+      if (p && !p.dead && dist < 22 && game.mode !== 'creative') { foe = p; foeDist = dist; }
+      var vFoe = this.nearestVillager(16);
+      if (vFoe && vFoe.d < foeDist) { foe = vFoe.e; foeDist = vFoe.d; }
+    }
+
+    // Dorfbewohner steuern sich selbst; liefert false, wenn sie einfach
+    // herumstehen dürfen – dann greift weiter unten das normale Umherwandern.
+    var villagerBusy = (this.mobType === 'villager') && this.villagerTick(dt, game);
+
+    if (villagerBusy) {
+      /* schon bewegt */
+    } else if (foe) {
+      p = foe; dist = foeDist;
+      this.target = foe;
       wantYaw = Math.atan2(p.x - this.x, p.z - this.z);
       this.headYaw = wantYaw;
       this.headPitch = Math.atan2(this.y + 1.4 - (p.y + 1.5), Math.max(0.1, dist)) * 0.6;
@@ -590,6 +743,14 @@
         if (Math.random() < 0.55) { this.targetYaw = Math.random() * Math.PI * 2; this.wanderState = 1; }
         else this.wanderState = 0;
       }
+      // Dorfbewohner bleiben in Sichtweite ihres Dorfes
+      if (this.home) {
+        var hdx = this.home.x - this.x, hdz = this.home.z - this.z;
+        if (hdx * hdx + hdz * hdz > 20 * 20) {
+          this.targetYaw = Math.atan2(hdx, hdz);
+          this.wanderState = 1;
+        }
+      }
       if (this.wanderState) this.moveToward(dt, this.targetYaw, 0.55);
       this.headYaw = this.yaw;
       this.headPitch = 0;
@@ -623,9 +784,246 @@
     if (this.moving) this.walkTime += dt * 9;
     if (this.y < -10) this.dead = true;
 
-    // Despawn
+    // Despawn. Bewohner halten länger durch – ihre Angebote hängen ohnehin an
+    // Dorf und Platznummer, sie kommen also unverändert zurück.
     if (this.hostile && dist > 62) this.dead = true;
-    if (!this.hostile && dist > 110) this.dead = true;
+    if (!this.hostile && dist > (this.mobType === 'villager' ? 170 : 110)) this.dead = true;
+  };
+
+  // Wen greift dieser Mob gerade an? Spieler, sonst nächster Dorfbewohner.
+  function foeOf(mob, game) {
+    if (!mob.hostile) return null;
+    var p = game.player;
+    var best = null, bestD = 9999;
+    if (p && !p.dead && game.mode !== 'creative') {
+      var d = mob.distTo(p);
+      if (d < 40) { best = p; bestD = d; }
+    }
+    var v = mob.nearestVillager(20);
+    if (v && v.d < bestD) best = v.e;
+    return best;
+  }
+
+  // ---- Ghast und Zephyr ----
+  // Sie schweben auf einer Wunschhöhe, halten Abstand und schießen von dort.
+  Mob.prototype.flyTick = function (dt, game, foe) {
+    var world = this.world;
+    this.moving = true;
+
+    // Wunschhöhe: über dem Boden bleiben
+    var gx = Math.floor(this.x), gz = Math.floor(this.z);
+    var ground = world.heightAtWorld(gx, gz);
+    var wantY = Math.max(ground + 8, this.y);
+    if (this.hoverCd === undefined || this.hoverCd <= 0) {
+      this.hoverCd = 3 + Math.random() * 4;
+      this.hoverY = ground + 7 + Math.random() * 9;
+      this.driftYaw = Math.random() * Math.PI * 2;
+    }
+    this.hoverCd -= dt;
+    wantY = this.hoverY;
+
+    var tx = Math.sin(this.driftYaw), tz = Math.cos(this.driftYaw);
+    if (foe) {
+      var d = this.distTo(foe);
+      this.yaw = Math.atan2(foe.x - this.x, foe.z - this.z);
+      this.headYaw = this.yaw;
+      // Abstand halten: zu nah -> weg, zu weit -> ran
+      var sign = d < 9 ? -1 : (d > 17 ? 1 : 0);
+      tx = Math.sin(this.yaw) * sign;
+      tz = Math.cos(this.yaw) * sign;
+      wantY = foe.y + 6;
+      if (this.attackCd <= 0 && d < 24 && this.canSee(foe)) {
+        this.attackCd = this.mobType === 'ghast' ? 3.2 : 2.6;
+        this.shootBall(game, foe);
+      }
+    } else {
+      this.yaw = this.driftYaw;
+      this.headYaw = this.yaw;
+    }
+
+    var s = this.speed;
+    this.vx += tx * s * dt * 4;
+    this.vz += tz * s * dt * 4;
+    this.vy += (wantY - this.y) * dt * 1.6;
+    var hv = Math.sqrt(this.vx * this.vx + this.vz * this.vz);
+    if (hv > s) { this.vx = this.vx / hv * s; this.vz = this.vz / hv * s; }
+    if (this.vy > 3) this.vy = 3;
+    if (this.vy < -3) this.vy = -3;
+    P.move(world, this, this.vx * dt, this.vy * dt, this.vz * dt);
+    var k = Math.pow(0.6, dt * 20);
+    this.vx *= k; this.vz *= k; this.vy *= Math.pow(0.85, dt * 20);
+    this.walkTime += dt * 3;
+
+    var p = game.player;
+    if (p && this.distTo(p) > 90) this.dead = true;
+  };
+
+  // Ghast wirft Feuerbälle, Zephyr Schneebälle: der eine zündet, der andere stößt
+  Mob.prototype.shootBall = function (game, target) {
+    var dx = target.x - this.x;
+    var dy = (target.y + 0.9) - (this.y + this.height * 0.5);
+    var dz = target.z - this.z;
+    var d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    var fire = this.mobType === 'ghast';
+    var speed = fire ? 14 : 17;
+    var b = new Projectile(this.world,
+      this.x + dx / d * 1.4, this.y + this.height * 0.5 + dy / d * 1.4, this.z + dz / d * 1.4,
+      dx / d * speed, dy / d * speed, dz / d * speed, this, fire);
+    this.world.entities.push(b);
+    game.audio.play3d(fire ? 'fizz' : 'bow', this.x, this.y, this.z, game.player);
+  };
+
+  // ---- Geschoss von Ghast/Zephyr ----
+  function Projectile(world, x, y, z, vx, vy, vz, owner, fire) {
+    Entity.call(this, world, x, y, z);
+    this.width = 0.5; this.height = 0.5;
+    this.vx = vx; this.vy = vy; this.vz = vz;
+    this.owner = owner;
+    this.fire = !!fire;
+    this.type = 'projectile';
+    this.gravity = 0;
+    this.life = 5;
+  }
+  Projectile.prototype = Object.create(Entity.prototype);
+  Projectile.prototype.constructor = Projectile;
+  MC.Projectile = Projectile;
+
+  Projectile.prototype.update = function (dt, game) {
+    this.age += dt;
+    this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
+    var w = this.world;
+    var nx = this.x + this.vx * dt, ny = this.y + this.vy * dt, nz = this.z + this.vz * dt;
+
+    // Treffer am Spieler?
+    var p = game.player;
+    if (p && !p.dead) {
+      var dx = p.x - nx, dy = (p.y + 0.9) - ny, dz = p.z - nz;
+      if (dx * dx + dy * dy + dz * dz < 1.1 * 1.1) { this.impact(game, nx, ny, nz); return; }
+    }
+    // Treffer an einem Block?
+    if (B.isSolid(w.getBlock(Math.floor(nx), Math.floor(ny), Math.floor(nz)))) {
+      this.impact(game, nx, ny, nz);
+      return;
+    }
+    this.x = nx; this.y = ny; this.z = nz;
+    if (this.fire) game.particles.flame(this.x, this.y, this.z, 1);
+    else game.particles.smoke(this.x, this.y, this.z, 1);
+  };
+
+  Projectile.prototype.impact = function (game, x, y, z) {
+    this.dead = true;
+    var p = game.player;
+    if (this.fire) {
+      MC.explode(game, x, y, z, 2.4);
+    } else {
+      // Schneeball: kein Schaden, aber kräftiger Stoß – so fegt der Zephyr
+      // dich von der Insel
+      game.particles.splash(x, y, z, 8);
+      game.audio.play3d('thud', x, y, z, p);
+      if (p && !p.dead) {
+        var dx = p.x - x, dz = p.z - z;
+        var d = Math.sqrt(dx * dx + dz * dz) || 1;
+        if (d < 3.5) { p.vx += dx / d * 16; p.vz += dz / d * 16; p.vy = Math.max(p.vy, 6); }
+      }
+    }
+  };
+
+  // Nächster Dorfbewohner im Umkreis r (für die Zielwahl feindlicher Mobs)
+  Mob.prototype.nearestVillager = function (r) {
+    var ents = this.world.entities, best = null, bestD = r;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e === this || e.dead || e.mobType !== 'villager') continue;
+      var d = this.distTo(e);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    return best ? { e: best, d: bestD } : null;
+  };
+
+  // Durchgangspunkt in einer Türöffnung: von der Seite weg, auf der das
+  // Türblatt steht, sonst passt man mit 0,6 Breite nicht durch.
+  function doorPass(w, h) {
+    var m = w.getMeta(h.doorX, h.y, h.doorZ);
+    var f = (m >> 1) & 3;
+    if (m & 8) f = (f + 1) & 3;
+    var pd = B.SIDE_DIRS[f];
+    return [h.doorX + 0.5 - pd[0] * 0.17, h.doorZ + 0.5 - pd[1] * 0.17];
+  }
+
+  // ---- Dorfbewohner ----
+  // Nachts oder wenn ein Monster in der Nähe ist, geht der Bewohner ins Haus.
+  // Türen werden beim Durchgehen geöffnet und hinter sich wieder zugemacht.
+  Mob.prototype.villagerTick = function (dt, game) {
+    var h = this.house, w = this.world;
+    if (!h) return false;
+    if (this.doorCd > 0) this.doorCd -= dt;
+
+    var bedroht = !!this.nearestHostile(12);
+    var rein = w.isNight() || bedroht;
+    // Wirklich zwischen den Wänden, nicht bloß "nah dran"
+    var drin = this.x > h.x0 && this.x < h.x1 && this.z > h.z0 && this.z < h.z1;
+
+    var offen = w.isDoorOpen(h.doorX, h.y, h.doorZ);
+    var ddx = (h.doorX + 0.5) - this.x, ddz = (h.doorZ + 0.5) - this.z;
+    var doorDist = Math.sqrt(ddx * ddx + ddz * ddz);
+
+    if (rein && !drin) {
+      if (doorDist < 3.5 && !offen && this.doorCd <= 0) {
+        if (w.setDoorOpen(h.doorX, h.y, h.doorZ, true)) {
+          this.doorCd = 1.2;
+          game.audio.play3d('open', h.doorX, h.y, h.doorZ, game.player);
+          offen = true;
+        }
+      }
+      // Erst auf die freie Hälfte der Türöffnung zielen, dann in die Raummitte.
+      // Das offene Türblatt frisst eine Blockseite – mittig würde man hängen bleiben.
+      var pass = doorPass(w, h);
+      var pdx = pass[0] - this.x, pdz = pass[1] - this.z;
+      var passDist = Math.sqrt(pdx * pdx + pdz * pdz);
+      var ziel = passDist > 0.8 ? pass : [h.inX, h.inZ];
+      this.moveToward(dt, Math.atan2(ziel[0] - this.x, ziel[1] - this.z), bedroht ? 1.5 : 1);
+      this.headYaw = this.yaw;
+      return true;
+    }
+
+    if (rein && drin) {
+      // drinnen: Tür zu und stehenbleiben
+      if (offen && this.doorCd <= 0) {
+        if (w.setDoorOpen(h.doorX, h.y, h.doorZ, false)) {
+          this.doorCd = 2.5;
+          game.audio.play3d('thud', h.doorX, h.y, h.doorZ, game.player);
+        }
+      }
+      this.headYaw = this.yaw;
+      return true;
+    }
+
+    // Tag und keine Gefahr: raus, falls wir noch drin stehen
+    if (drin) {
+      if (!offen && this.doorCd <= 0 && w.setDoorOpen(h.doorX, h.y, h.doorZ, true)) {
+        this.doorCd = 1.2;
+        game.audio.play3d('open', h.doorX, h.y, h.doorZ, game.player);
+        offen = true;
+      }
+      var raus = offen ? doorPass(w, h) : [h.outX, h.outZ];
+      var rdx = raus[0] - this.x, rdz = raus[1] - this.z;
+      if (rdx * rdx + rdz * rdz < 0.7 * 0.7) raus = [h.outX, h.outZ];
+      this.moveToward(dt, Math.atan2(raus[0] - this.x, raus[1] - this.z), 1);
+      this.headYaw = this.yaw;
+      return true;
+    }
+    return false;   // draußen bei Tag -> normales Umherwandern
+  };
+
+  Mob.prototype.nearestHostile = function (r) {
+    var ents = this.world.entities;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e.dead || !e.isMob || !e.hostile) continue;
+      if (this.distTo(e) < r) return e;
+    }
+    return null;
   };
 
   Mob.prototype.canSee = function (t) {
@@ -638,6 +1036,18 @@
 
   Mob.prototype.moveToward = function (dt, yaw, mult) {
     this.yaw = approachAngle(this.yaw, yaw, dt * 7);
+    // Magmawürfel laufen nicht, sie hüpfen
+    if (this.spec.hop) {
+      if (this.onGround && this.jumpCd <= 0) {
+        this.jumpCd = 0.7 + Math.random() * 0.4;
+        this.vy = 7.5;
+        var hs = this.speed * (mult || 1);
+        this.vx = Math.sin(this.yaw) * hs;
+        this.vz = Math.cos(this.yaw) * hs;
+      }
+      this.moving = true;
+      return;
+    }
     var s = this.speed * (mult || 1);
     this.vx += Math.sin(this.yaw) * s * dt * 14;
     this.vz += Math.cos(this.yaw) * s * dt * 14;
@@ -736,6 +1146,13 @@
     var maxHostile = game.difficulty === 'peaceful' ? 0 : (night ? 22 : 10);
     var maxPassive = 16;
 
+    if (world.dim !== 'overworld') {
+      Spawner.otherDim(game, world, p, hostiles, passives, maxHostile, maxPassive);
+      return;
+    }
+
+    Spawner.villagers(game);
+
     for (var t = 0; t < 8; t++) {
       var ang = Math.random() * Math.PI * 2;
       var r = 16 + Math.random() * 34;
@@ -771,6 +1188,104 @@
         world.entities.push(mm);
         hostiles++;
       }
+    }
+  };
+
+  // Nether und Aether haben eigene Bewohner. Im Nether ist es überall dunkel,
+  // also spawnen Monster unabhängig von der Tageszeit; im Aether ist es umgekehrt.
+  var DIM_MOBS = {
+    nether: { hostile: ['piglin', 'piglin', 'zombie', 'magma_cube', 'ghast'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
+    aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'], ground: ['aether_grass', 'quicksoil', 'holystone'] }
+  };
+
+  Spawner.otherDim = function (game, world, p, hostiles, passives, maxHostile, maxPassive) {
+    var table = DIM_MOBS[world.dim];
+    if (!table) return;
+    var groundIds = table.ground.map(function (n) { return B.id(n); });
+
+    for (var t = 0; t < 8; t++) {
+      var ang = Math.random() * Math.PI * 2;
+      var r = 18 + Math.random() * 34;
+      var x = Math.floor(p.x + Math.cos(ang) * r);
+      var z = Math.floor(p.z + Math.sin(ang) * r);
+      var col = world.chunkAt(x, z);
+      if (!col || col.state < 2) continue;
+
+      // freie Stelle über festem, passendem Boden suchen
+      var y = -1;
+      var from = Math.min(MC.WORLD_HEIGHT - 4, Math.floor(p.y) + 22);
+      for (var sy = from; sy > 4; sy--) {
+        var g = world.getBlock(x, sy, z);
+        if (groundIds.indexOf(g) < 0) continue;
+        if (world.getBlock(x, sy + 1, z) !== 0 || world.getBlock(x, sy + 2, z) !== 0) continue;
+        y = sy + 1; break;
+      }
+      if (y < 0) continue;
+
+      var wantHostile = table.passive.length === 0 || Math.random() < 0.6;
+      var kinds = wantHostile ? table.hostile : table.passive;
+      if (!kinds.length) continue;
+      if (wantHostile && hostiles >= maxHostile) continue;
+      if (!wantHostile && passives >= maxPassive) continue;
+
+      var kind = kinds[(Math.random() * kinds.length) | 0];
+      var spec = MOB_TYPES[kind];
+      // Fliegende Mobs erscheinen weiter oben in der Luft
+      var sy2 = spec.flying ? y + 6 + Math.random() * 8 : y + 0.1;
+      var m = new Mob(world, kind, x + 0.5, sy2, z + 0.5);
+      if (m.distTo(p) < 14) continue;
+      world.entities.push(m);
+      if (wantHostile) hostiles++; else passives++;
+
+      if (!wantHostile) {
+        var extra = (Math.random() * 3) | 0;
+        for (var e = 0; e < extra; e++) {
+          world.entities.push(new Mob(world, kind, x + 0.5 + (Math.random() - 0.5) * 3, y + 0.1, z + 0.5 + (Math.random() - 0.5) * 3));
+          passives++;
+        }
+      }
+    }
+  };
+
+  // Dorfbewohner: pro Dorf so viele wie Wohnhäuser, höchstens acht.
+  // Jeder besetzt eine feste Platznummer, damit sein Beruf gleich bleibt.
+  Spawner.villagers = function (game) {
+    var world = game.world, p = game.player;
+    if (!MC.Village || !world.gen.o.structures) return;
+    var v = MC.Village.nearest(world.gen, p.x, p.z, 80);
+    if (!v) return;
+
+    var want = 0;
+    for (var b = 0; b < v.builds.length; b++) {
+      var t = v.builds[b].type;
+      if (t === 'haus_klein' || t === 'haus_gross' || t === 'schmiede' || t === 'bibliothek') want++;
+    }
+    want = Math.min(8, want);
+    if (want === 0) return;
+
+    var taken = {}, have = 0;
+    for (var i = 0; i < world.entities.length; i++) {
+      var e = world.entities[i];
+      if (e.mobType === 'villager' && !e.dead && e.villageId === v.id) { taken[e.slot] = true; have++; }
+    }
+    if (have >= want) return;
+
+    for (var s = 0; s < want; s++) {
+      if (taken[s]) continue;
+      var spot = MC.Village.spawnSpot(v, s);
+      var bx = Math.floor(spot.x), bz = Math.floor(spot.z);
+      if (!world.isLoaded(bx, v.y, bz)) return;
+      // freien Boden über dem Dorfniveau suchen
+      var y = -1;
+      for (var yy = v.y + 4; yy > v.y - 4; yy--) {
+        if (B.isSolid(world.getBlock(bx, yy, bz)) &&
+            world.getBlock(bx, yy + 1, bz) === 0 && world.getBlock(bx, yy + 2, bz) === 0) { y = yy + 1; break; }
+      }
+      if (y < 0) continue;
+      var m = new Mob(world, 'villager', bx + 0.5, y + 0.05, bz + 0.5);
+      m.makeVillager(v.id, s, { x: v.x, z: v.z }, MC.Village.homeFor(v, s));
+      world.entities.push(m);
+      return;   // pro Durchlauf höchstens einer
     }
   };
 

@@ -6,6 +6,7 @@ desktop.ini
 # Editoren
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # Exportierte Spielstände

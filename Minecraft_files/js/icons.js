@@ -88,6 +88,14 @@
         isoBox(ctx, [0.42, 0.72, 0, 0.58, 0.88, 1], block, 0);
         return c;
 
+      case B.SHAPE_GATE:
+        // zwei Pfosten mit zwei Riegeln dazwischen
+        isoBox(ctx, [0.42, 0.16, 0, 0.58, 1, 0.16], block, 0);
+        isoBox(ctx, [0.42, 0.16, 0.84, 0.58, 1, 1], block, 0);
+        isoBox(ctx, [0.44, 0.3, 0.16, 0.56, 0.46, 0.84], block, 0);
+        isoBox(ctx, [0.44, 0.66, 0.16, 0.56, 0.82, 0.84], block, 0);
+        return c;
+
       case B.SHAPE_DOOR: {
         // untere und obere Hälfte übereinander, damit man die Tür erkennt
         var lower = { tex: block.tex, shape: B.SHAPE_CUBE, name: block.name };

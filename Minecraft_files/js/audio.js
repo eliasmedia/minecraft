@@ -176,6 +176,10 @@
       case 'zombie': this.tone(t, 0.55, 0.24 * g, 'sawtooth', 150, 95, 9); this.noise(t, 0.5, 0.12 * g, 'lowpass', 500, 1, 250); break;
       case 'skeleton': for (var k = 0; k < 4; k++) this.noise(t + k * 0.07, 0.05, 0.16 * g, 'bandpass', 2200 + k * 300, 6, 1800); break;
       case 'creeper': this.noise(t, 0.7, 0.26 * g, 'highpass', 2800, 1, 4200); break;
+      case 'villager': this.tone(t, 0.16, 0.2 * g, 'square', 300, 240, 18); this.tone(t + 0.17, 0.13, 0.16 * g, 'square', 250, 320, 14); break;
+      case 'ghast': this.tone(t, 0.9, 0.22 * g, 'sine', 620, 240, 5); this.noise(t, 0.7, 0.1 * g, 'lowpass', 900, 1, 300); break;
+      case 'trade': this.tone(t, 0.1, 0.18 * g, 'sine', 700, 950); this.tone(t + 0.09, 0.16, 0.16 * g, 'sine', 950, 1250); break;
+      case 'nope': this.tone(t, 0.14, 0.18 * g, 'square', 240, 160, 10); break;
       default: break;
     }
   };

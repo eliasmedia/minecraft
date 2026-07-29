@@ -562,6 +562,181 @@
   tex('white', function (g) { g.fill([255, 255, 255]); });
 
   // ============================================================
+  //  NETHER
+  // ============================================================
+  tex('netherrack', function (g) {
+    g.fill([146, 58, 56]); g.noise(0.16);
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1, [108, 38, 36]);
+    g.speck(20, [178, 78, 72]);
+  });
+  tex('soul_sand', function (g) {
+    g.fill([84, 64, 52]); g.noise(0.12);
+    // angedeutete Gesichter
+    for (var i = 0; i < 3; i++) {
+      var cx = 3 + ((g.r() * 10) | 0), cy = 3 + ((g.r() * 10) | 0);
+      g.blob(cx, cy, 2, [62, 46, 36]);
+      g.set(cx - 1, cy - 1, [44, 32, 26]); g.set(cx + 1, cy - 1, [44, 32, 26]);
+      g.set(cx, cy + 1, [44, 32, 26]);
+    }
+  });
+  tex('quartz_ore', function (g) {
+    g.fill([146, 58, 56]); g.noise(0.14);
+    [[3, 3, 4, 4], [10, 2, 3, 3], [9, 9, 4, 4], [2, 10, 3, 3]].forEach(function (k) {
+      g.rect(k[0] - 1, k[1] - 1, k[2] + 2, k[3] + 2, [88, 28, 28]);
+      g.rect(k[0], k[1], k[2], k[3], [238, 233, 226]);
+      g.rect(k[0], k[1], k[2] - 1, 1, [255, 255, 255]);
+      g.rect(k[0] + 1, k[1] + k[3] - 1, k[2] - 1, 1, [186, 180, 172]);
+    });
+  });
+  tex('quartz_block', function (g) { g.fill([236, 231, 222]); g.noise(0.05); g.speck(14, [214, 208, 198]); });
+  tex('nether_bricks', function (g) {
+    g.fill([46, 22, 26]); g.noise(0.08);
+    for (var y = 0; y < 16; y += 4) {
+      for (var x = 0; x < 16; x++) g.set(x, y, [30, 14, 18]);
+      var off = (y % 8 === 0) ? 0 : 8;
+      for (var k = 0; k < 16; k += 8) g.rect(((k + off) % 16), y + 1, 1, 3, [30, 14, 18]);
+    }
+  });
+  tex('magma_block', function (g) {
+    g.fill([64, 26, 18]); g.noise(0.14);
+    for (var i = 0; i < 22; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.4, mix([255, 150, 40], [220, 70, 20], g.r()));
+  });
+  tex('portal_nether', function (g) {
+    g.fill([48, 12, 78]); g.noise(0.22);
+    for (var i = 0; i < 40; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, mix([150, 70, 230], [225, 190, 255], g.r()));
+  });
+
+  // ============================================================
+  //  AETHER
+  // ============================================================
+  var AE_GRASS = [138, 216, 190], AE_DIRT = [150, 128, 106];
+  tex('aether_grass_top', function (g) {
+    g.fill(AE_GRASS); g.noise(0.10);
+    g.speck(24, mix(AE_GRASS, [255, 255, 255], 0.35));
+    g.speck(14, dark(AE_GRASS, 0.86));
+  });
+  tex('aether_dirt', function (g) { g.fill(AE_DIRT); g.noise(0.12); g.speck(18, dark(AE_DIRT, 0.85)); });
+  tex('aether_grass_side', function (g) {
+    g.fill(AE_DIRT); g.noise(0.12);
+    for (var x = 0; x < 16; x++) {
+      var h = 3 + ((g.r() * 3) | 0);
+      for (var y = 0; y < h; y++) g.set(x, y, AE_GRASS);
+    }
+    g.noise(0.06);
+  });
+  tex('holystone', function (g) {
+    g.fill([206, 202, 190]); g.noise(0.09);
+    g.speck(22, [182, 178, 166]); g.speck(10, [226, 224, 214]);
+  });
+  tex('mossy_holystone', function (g) {
+    g.fill([196, 200, 178]); g.noise(0.10);
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.3, [138, 176, 118]);
+  });
+  tex('holystone_bricks', function (g) {
+    g.fill([202, 198, 186]); g.noise(0.06);
+    for (var y = 0; y < 16; y += 8) {
+      for (var x = 0; x < 16; x++) { g.set(x, y, [168, 164, 152]); g.set(x, y + 7, [168, 164, 152]); }
+      var off = y === 0 ? 0 : 8;
+      g.rect(off, y, 1, 8, [168, 164, 152]);
+      g.rect((off + 8) % 16, y, 1, 8, [168, 164, 152]);
+    }
+  });
+  tex('quicksoil', function (g) {
+    g.fill([238, 226, 158]); g.noise(0.05);
+    for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) if (((x + y) & 3) === 0) g.set(x, y, [250, 242, 196]);
+  });
+  tex('icestone', function (g) {
+    g.fill([180, 214, 236]); g.noise(0.07);
+    for (var i = 0; i < 8; i++) g.blob(2 + ((g.r() * 12) | 0), 2 + ((g.r() * 12) | 0), 1.7, [226, 244, 255]);
+  });
+  // Erzadern im hellen Heiligstein gehen leicht unter. Darum große Kristalle
+  // mit dunklem Rand, hellem Glanzpunkt und einem Hof aus Splittern.
+  // Kompakter Kristall mit dunklem Rand und Glanzecke – so wie bei den
+  // Oberweltserzen, nur kräftiger, weil Heiligstein sehr hell ist.
+  function kristall(g, x, y, w, h, col) {
+    g.rect(x - 1, y - 1, w + 2, h + 2, dark(col, 0.42));
+    g.rect(x, y, w, h, col);
+    g.rect(x, y, w - 1, 1, mix(col, [255, 255, 255], 0.55));
+    g.set(x, y + 1, mix(col, [255, 255, 255], 0.35));
+    g.rect(x + 1, y + h - 1, w - 1, 1, dark(col, 0.72));
+  }
+
+  function aetherOre(name, col) {
+    tex(name, function (g) {
+      g.fill([206, 202, 190]); g.noise(0.08); g.speck(14, [182, 178, 166]);
+      kristall(g, 3, 3, 4, 4, col);
+      kristall(g, 10, 2, 3, 3, col);
+      kristall(g, 9, 9, 4, 4, col);
+      kristall(g, 2, 10, 3, 3, col);
+      g.set(7, 7, mix(col, [255, 255, 255], 0.4));
+      g.set(8, 12, col);
+    });
+  }
+  aetherOre('ambrosium_ore', [252, 178, 44]);
+  aetherOre('zanite_ore', [146, 86, 226]);
+  aetherOre('gravitite_ore', [72, 226, 186]);
+
+  tex('log_skyroot', function (g) {
+    g.fill([120, 108, 96]); g.noise(0.10);
+    for (var x = 0; x < 16; x += 3) for (var y = 0; y < 16; y++) g.set(x, y, [98, 88, 78]);
+  });
+  tex('log_skyroot_top', function (g) {
+    g.fill([154, 142, 126]); g.noise(0.07);
+    for (var r = 2; r < 8; r += 2) g.frame(8 - r, 8 - r, r * 2, r * 2, [122, 112, 100]);
+  });
+  tex('planks_skyroot', function (g) {
+    g.fill([166, 154, 138]); g.noise(0.06);
+    for (var y = 0; y < 16; y += 4) for (var x = 0; x < 16; x++) g.set(x, y, [134, 124, 110]);
+  });
+  tex('leaves_skyroot', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+      if (g.r() < 0.16) continue;
+      g.set(x, y, mix([96, 186, 150], [58, 140, 108], g.r()));
+    }
+  });
+  tex('log_golden_oak', function (g) {
+    g.fill([176, 142, 74]); g.noise(0.10);
+    for (var x = 0; x < 16; x += 4) for (var y = 0; y < 16; y++) g.set(x, y, [140, 110, 54]);
+  });
+  tex('log_golden_oak_top', function (g) {
+    g.fill([206, 172, 96]); g.noise(0.07);
+    for (var r = 2; r < 8; r += 2) g.frame(8 - r, 8 - r, r * 2, r * 2, [166, 134, 68]);
+  });
+  tex('leaves_golden_oak', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+      if (g.r() < 0.16) continue;
+      g.set(x, y, mix([238, 206, 96], [196, 158, 52], g.r()));
+    }
+  });
+  function cloudTex(name, col) {
+    tex(name, function (g) {
+      g.fill(col, 205); g.noise(0.05);
+      for (var i = 0; i < 20; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 2, mix(col, [255, 255, 255], 0.5), 190);
+    });
+  }
+  cloudTex('aercloud', [238, 246, 252]);
+  cloudTex('aercloud_blue', [150, 196, 250]);
+  cloudTex('aercloud_golden', [250, 228, 150]);
+
+  tex('aether_flower', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 9; y < 16; y++) g.set(8, y, [88, 156, 122]);
+    g.blob(8, 6, 2.4, [226, 156, 236]);
+    g.blob(8, 6, 1, [255, 236, 150]);
+  });
+  tex('blueberry_bush', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var i = 0; i < 60; i++) g.set(3 + ((g.r() * 10) | 0), 5 + ((g.r() * 10) | 0), [72, 132, 96]);
+    for (var k = 0; k < 6; k++) g.blob(4 + ((g.r() * 9) | 0), 7 + ((g.r() * 7) | 0), 1.1, [72, 86, 190]);
+  });
+  tex('portal_aether', function (g) {
+    g.fill([120, 186, 236]); g.noise(0.16);
+    for (var i = 0; i < 44; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, mix([190, 232, 255], [255, 255, 255], g.r()));
+  });
+
+  // ============================================================
   //  MOB-TEXTUREN
   // ============================================================
   function mobTex(name, base, fn) {
@@ -619,6 +794,33 @@
     g.rect(5, 10, 2, 3, [20, 20, 20]); g.rect(9, 10, 2, 3, [20, 20, 20]);
   });
   mobTex('mob_creeper_flash', [255, 240, 240]);
+
+  // ---------- Dorfbewohner ----------
+  var VILL_SKIN = [200, 156, 126];
+  mobTex('mob_villager', VILL_SKIN);
+  mobTex('mob_villager_nose', dark(VILL_SKIN, 0.74));
+  mobTex('mob_villager_face', VILL_SKIN, function (g) {
+    g.rect(0, 0, 16, 3, [86, 62, 46]);                       // Haarkranz
+    g.rect(2, 4, 12, 1, [92, 68, 50]);                       // Augenbrauen
+    g.rect(3, 5, 3, 2, [245, 245, 250]); g.rect(10, 5, 3, 2, [245, 245, 250]);
+    g.rect(4, 5, 1, 2, [60, 90, 160]); g.rect(11, 5, 1, 2, [60, 90, 160]);
+    g.rect(6, 12, 4, 1, [140, 100, 80]);                     // Mund
+  });
+  // Ein Robenmuster je Beruf: Grundton plus Schürze und Gürtel
+  [['bauer', [140, 108, 66], [190, 175, 140]],
+   ['bibliothekar', [200, 200, 205], [110, 78, 150]],
+   ['schmied', [70, 70, 78], [60, 52, 44]],
+   ['metzger', [225, 225, 225], [190, 70, 60]],
+   ['steinmetz', [150, 150, 155], [120, 96, 60]]
+  ].forEach(function (p) {
+    mobTex('mob_villager_' + p[0], [122, 88, 62], function (g) {
+      g.rect(0, 0, 16, 5, [122, 88, 62]);                    // Kragen
+      g.rect(0, 5, 16, 11, p[1]);
+      g.rect(0, 9, 16, 2, p[2]);                             // Gürtel
+      g.rect(6, 5, 4, 11, dark(p[1], 0.86));                 // Mittelnaht
+      g.noise(0.05);
+    });
+  });
   mobTex('player_skin', [80, 130, 200]);
   mobTex('player_face', [222, 175, 138], function (g) {
     g.rect(0, 0, 16, 4, [90, 62, 38]);
@@ -677,6 +879,20 @@
   }
   gem('diamond', [110, 235, 225]);
   gem('emerald', [45, 210, 105]);
+  gem('zanite_gemstone', [126, 86, 190]);
+  gem('gravitite', [96, 190, 168]);
+  nugget('quartz', [232, 226, 218]);
+  nugget('blueberries', [82, 96, 200]);
+  ingot('nether_brick', [96, 46, 52]);
+  // Ambrosium: leuchtender Scherben
+  itemTex('ambrosium_shard', function (g) {
+    var pts = [[8, 3], [11, 6], [12, 10], [9, 13], [5, 12], [3, 8], [5, 5]];
+    for (var y = 3; y < 14; y++) for (var x = 3; x < 14; x++) {
+      if (Math.abs(x - 8) + Math.abs(y - 8) < 5) g.set(x, y, [246, 176, 60]);
+    }
+    for (var i = 0; i < pts.length; i++) g.set(pts[i][0], pts[i][1], [255, 226, 140]);
+    g.blob(7, 7, 1.4, [255, 240, 190]);
+  });
 
   itemTex('feather', function (g) {
     for (var i = 0; i < 10; i++) g.set(5 + ((i * 0.4) | 0), 13 - i, [220, 220, 225]);
@@ -752,7 +968,8 @@
   // Werkzeuge (Vorlagen + Farbtönung pro Material)
   var tierCol = {
     wood: [150, 112, 62], stone: [125, 125, 125], iron: [216, 216, 216],
-    gold: [250, 210, 60], diamond: [110, 235, 225]
+    gold: [250, 210, 60], diamond: [110, 235, 225],
+    holystone: [206, 202, 190], zanite: [138, 96, 206], gravitite: [104, 206, 182]
   };
   // Werkzeuge als Pixel-Vorlagen (16x16). H = Kopf, h = Kopfschatten,
   // S/s = Stiel, G/g = Griff. Kopf oben, Stiel diagonal nach unten links.
@@ -931,7 +1148,10 @@
   });
 
   // Rüstung
-  var armorCol = { leather: [140, 96, 62], gold: [250, 210, 60], iron: [216, 216, 216], diamond: [110, 235, 225] };
+  var armorCol = {
+    leather: [140, 96, 62], gold: [250, 210, 60], iron: [216, 216, 216], diamond: [110, 235, 225],
+    zanite: [138, 96, 206], gravitite: [104, 206, 182]
+  };
   Object.keys(armorCol).forEach(function (m) {
     var c = armorCol[m];
     itemTex(m + '_helmet', function (g) {
@@ -957,6 +1177,67 @@
   // ============================================================
   //  Nachträge: Mob-Körperteile ohne Gesicht, Entities, neue Blöcke
   // ============================================================
+  // ---------- Nether-Mobs ----------
+  mobTex('mob_piglin', [226, 152, 148]);
+  mobTex('mob_piglin_shirt', [188, 148, 62]);
+  mobTex('mob_piglin_face', [226, 152, 148], function (g) {
+    g.rect(3, 5, 3, 2, [30, 26, 24]); g.rect(10, 5, 3, 2, [30, 26, 24]);
+    g.rect(4, 9, 8, 5, [206, 118, 124]);
+    g.rect(6, 11, 1, 2, [140, 66, 74]); g.rect(9, 11, 1, 2, [140, 66, 74]);
+    g.rect(1, 4, 2, 4, [206, 130, 130]); g.rect(13, 4, 2, 4, [206, 130, 130]);
+  });
+  mobTex('mob_ghast', [232, 230, 232]);
+  mobTex('mob_ghast_face', [232, 230, 232], function (g) {
+    g.rect(3, 5, 3, 3, [20, 20, 24]); g.rect(10, 5, 3, 3, [20, 20, 24]);
+    g.rect(4, 10, 8, 3, [20, 20, 24]);
+  });
+  mobTex('mob_magma', [58, 24, 18], function (g) {
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.4, [86, 34, 24]);
+  });
+  mobTex('mob_magma_core', [252, 170, 50], function (g) {
+    for (var i = 0; i < 22; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.6, [255, 220, 110]);
+  });
+  mobTex('mob_magma_face', [58, 24, 18], function (g) {
+    g.rect(3, 5, 3, 3, [255, 190, 60]); g.rect(10, 5, 3, 3, [255, 190, 60]);
+    g.rect(5, 11, 6, 2, [255, 150, 40]);
+  });
+
+  // ---------- Aether-Mobs ----------
+  // Moas gibt es in drei Farben – die Textur wählt der Renderer über mob.moaColor
+  [['moa_blue', [124, 158, 226]], ['moa_white', [238, 238, 240]], ['moa_black', [72, 72, 82]]]
+    .forEach(function (m) { mobTex('mob_' + m[0], m[1]); });
+  mobTex('mob_moa_face', [226, 226, 230], function (g) {
+    g.rect(3, 5, 2, 2, [25, 25, 30]); g.rect(11, 5, 2, 2, [25, 25, 30]);
+    g.rect(6, 9, 4, 4, [240, 176, 60]);
+  });
+  mobTex('mob_phyg', [244, 186, 196]);
+  mobTex('mob_phyg_wing', [252, 250, 248]);
+  mobTex('mob_phyg_face', [244, 186, 196], function (g) {
+    g.rect(3, 4, 3, 3, [20, 20, 25]); g.rect(10, 4, 3, 3, [20, 20, 25]);
+    g.rect(4, 9, 8, 5, [226, 148, 164]);
+    g.rect(6, 11, 1, 2, [156, 84, 100]); g.rect(9, 11, 1, 2, [156, 84, 100]);
+  });
+  mobTex('mob_sheepuff', [242, 246, 250], function (g) {
+    for (var i = 0; i < 44; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.6, [222, 232, 244]);
+  });
+  mobTex('mob_sheepuff_face', [232, 226, 220], function (g) {
+    g.rect(3, 5, 3, 3, [20, 20, 25]); g.rect(10, 5, 3, 3, [20, 20, 25]);
+    g.rect(5, 11, 6, 2, [176, 166, 158]);
+  });
+  mobTex('mob_zephyr', [222, 238, 252]);
+  mobTex('mob_zephyr_face', [222, 238, 252], function (g) {
+    g.rect(3, 5, 3, 3, [96, 140, 196]); g.rect(10, 5, 3, 3, [96, 140, 196]);
+    g.rect(6, 10, 4, 2, [96, 140, 196]);
+  });
+  mobTex('mob_cockatrice', [92, 176, 132], function (g) {
+    for (var i = 0; i < 30; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.3, [70, 148, 108]);
+  });
+  mobTex('mob_cockatrice_face', [92, 176, 132], function (g) {
+    g.rect(3, 5, 2, 2, [210, 60, 60]); g.rect(11, 5, 2, 2, [210, 60, 60]);
+    g.rect(6, 9, 4, 4, [232, 176, 60]);
+    g.rect(6, 1, 4, 3, [200, 60, 70]);
+  });
+
   mobTex('mob_sheep_skin', [222, 210, 198]);
   mobTex('mob_chicken_leg', [238, 170, 48]);
   mobTex('mob_player_arm', [222, 175, 138]);

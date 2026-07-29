@@ -87,8 +87,29 @@
       }
     });
 
+    // Klick neben das Fenster wirft den Stack an der Maus in die Welt – wie Q.
+    // Links = alles, rechts = ein Stück.
+    this.screen.addEventListener('mousedown', function (ev) {
+      if (ev.target !== self.screen || !self.cursor) return;
+      ev.preventDefault();
+      self.dropCursor(ev.button === 2 ? 1 : self.cursor.count);
+    });
+    this.screen.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+
     this.buildHudIcons();
     this.updateHotbar();
+  };
+
+  // Wirft n Stück aus dem Cursor-Stack vor den Spieler
+  UI.prototype.dropCursor = function (n) {
+    if (!this.cursor) return;
+    n = Math.min(n, this.cursor.count);
+    if (n <= 0) return;
+    this.game.throwStack({ id: this.cursor.id, count: n, dur: this.cursor.dur });
+    this.cursor.count -= n;
+    if (this.cursor.count <= 0) this.cursor = null;
+    this.game.audio.play('pop');
+    this.updateCursorEl();
   };
 
   // ---------- HUD-Symbole prozedural erzeugen ----------
@@ -327,6 +348,8 @@
       if (this.craftGrid[i]) { this.game.player.inventory.add(this.craftGrid[i]); this.craftGrid[i] = null; }
     }
     this.open = null;
+    this.trader = null;
+    this.tradeRows = null;
     this.screen.innerHTML = '';
     this.screen.style.display = 'none';
     this.updateCursorEl();
@@ -347,6 +370,7 @@
     else if (type === 'furnace') this.buildFurnace(data);
     else if (type === 'chest') this.buildChest(data);
     else if (type === 'creative') this.buildCreative();
+    else if (type === 'trade') this.buildTrade(data);
   };
 
   UI.prototype.makeSlot = function (parent, getFn, setFn, opts) {
@@ -371,6 +395,7 @@
     }
     this.updateCursorEl();
     this.updateHotbar();
+    if (this.open === 'trade') this.refreshTrade();
   };
 
   UI.prototype.updateCursorEl = function () {
@@ -671,9 +696,106 @@
     return stack.count === 0;
   };
 
+  // ---------- Handel ----------
+  UI.prototype.buildTrade = function (villager) {
+    var self = this, inv = this.game.player.inventory;
+    this.slotList = [];
+    this.trader = villager;
+
+    var win = el('div', 'window trade', this.screen);
+    var head = el('div', 'wtitle', win);
+    head.textContent = 'Handel — ' + (villager.professionTitle || 'Dorfbewohner');
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var list = el('div', 'tradelist', win);
+    this.tradeRows = [];
+    (villager.offers || []).forEach(function (offer, idx) {
+      var row = el('div', 'traderow', list);
+      var give = el('div', 'tside', row);
+      offer.give.forEach(function (g) {
+        var s = el('div', 'slot', give);
+        self.renderSlot(s, { id: g[0], count: g[1] });
+      });
+      el('div', 'tarrow', row).textContent = '➜';
+      var got = el('div', 'tside', row);
+      var gs = el('div', 'slot', got);
+      self.renderSlot(gs, { id: offer.get[0], count: offer.get[1] });
+      var btn = el('button', 'tbtn', row);
+      btn.addEventListener('mousedown', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        self.doTrade(idx);
+      });
+      self.tradeRows.push({ row: row, btn: btn, offer: offer });
+    });
+
+    if (!this.tradeRows.length) {
+      el('div', 'whint', win).textContent = 'Dieser Bewohner hat gerade nichts anzubieten.';
+    }
+
+    el('div', 'wsep', win);
+    var main = el('div', 'invgrid', win);
+    for (var m = 9; m < 36; m++) {
+      (function (mi) {
+        self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; },
+          { area: 'inv', index: mi });
+      })(m);
+    }
+    var hb = el('div', 'invgrid hotbarrow', win);
+    for (var hh = 0; hh < 9; hh++) {
+      (function (hi) {
+        self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; },
+          { area: 'inv', index: hi });
+      })(hh);
+    }
+
+    el('div', 'whint', win).textContent = 'Smaragde findest du in Smaragderz — oder du verkaufst dem Dorf, was es braucht.';
+    this.refreshTrade();
+    this.refreshSlots();
+  };
+
+  UI.prototype.canAfford = function (offer) {
+    var inv = this.game.player.inventory;
+    if (offer.uses >= offer.max) return false;
+    // Ein Angebot kann dieselbe Zutat zweimal listen
+    var need = {};
+    for (var i = 0; i < offer.give.length; i++) need[offer.give[i][0]] = (need[offer.give[i][0]] || 0) + offer.give[i][1];
+    for (var id in need) if (inv.count(id) < need[id]) return false;
+    return true;
+  };
+
+  UI.prototype.refreshTrade = function () {
+    if (!this.tradeRows) return;
+    for (var i = 0; i < this.tradeRows.length; i++) {
+      var r = this.tradeRows[i];
+      var out = r.offer.uses >= r.offer.max;
+      var ok = this.canAfford(r.offer);
+      r.btn.disabled = !ok;
+      r.btn.textContent = out ? 'Ausverkauft' : 'Tauschen';
+      r.row.classList.toggle('soldout', out);
+    }
+  };
+
+  UI.prototype.doTrade = function (idx) {
+    var g = this.game, inv = g.player.inventory;
+    var offer = this.tradeRows[idx].offer;
+    if (!this.canAfford(offer)) { g.audio.play('nope'); return; }
+    for (var i = 0; i < offer.give.length; i++) inv.remove(offer.give[i][0], offer.give[i][1]);
+    var rest = inv.add(I.newStack(offer.get[0], offer.get[1]));
+    if (rest > 0) g.throwStack(I.newStack(offer.get[0], rest));
+    offer.uses++;
+    g.player.addXP(2);
+    g.audio.play('trade');
+    this.refreshTrade();
+    this.refreshSlots();
+  };
+
   // ---------- Kreativ-Palette ----------
   UI.prototype.buildCreative = function () {
     var self = this, inv = this.game.player.inventory;
+    // Der Reiterwechsel ruft diese Funktion erneut auf. Ohne das Leeren hing das
+    // neue Fenster einfach unter dem alten.
+    this.screen.innerHTML = '';
     this.slotList = [];
     var win = el('div', 'window creative', this.screen);
     var head = el('div', 'wtitle', win); head.textContent = 'Kreativmodus — Gegenstände';

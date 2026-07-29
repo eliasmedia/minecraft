@@ -56,6 +56,19 @@
     return n;
   };
 
+  // Entfernt n Stück eines Items; gibt false zurück, wenn nicht genug da ist
+  Inventory.prototype.remove = function (id, n) {
+    if (this.count(id) < n) return false;
+    for (var i = 0; i < this.size && n > 0; i++) {
+      var s = this.slots[i];
+      if (!s || s.id !== id) continue;
+      var take = Math.min(s.count, n);
+      s.count -= take; n -= take;
+      if (s.count <= 0) this.slots[i] = null;
+    }
+    return true;
+  };
+
   Inventory.prototype.consumeSelected = function (n) {
     var s = this.slots[this.selected];
     if (!s) return false;
@@ -95,6 +108,18 @@
     }
     return d;
   };
+
+  // Trägt der Spieler dieses Rüstungsteil? slot 0=Helm 1=Brust 2=Hose 3=Schuhe
+  Inventory.prototype.wears = function (mat, slot) {
+    var a = this.armor[slot];
+    return !!(a && a.id === mat + '_' + ARMOR_PIECE[slot]);
+  };
+  Inventory.prototype.armorSetCount = function (mat) {
+    var n = 0;
+    for (var i = 0; i < 4; i++) if (this.wears(mat, i)) n++;
+    return n;
+  };
+  var ARMOR_PIECE = ['helmet', 'chestplate', 'leggings', 'boots'];
 
   Inventory.prototype.clear = function () {
     for (var i = 0; i < this.size; i++) this.slots[i] = null;
@@ -149,6 +174,8 @@
     this.placeCd = 0;
     this.breakCd = 0;
     this.lastDamageSource = null;
+    this.portalCd = 0;
+    this.portalTime = 0;
   }
   MC.Player = Player;
 
@@ -183,11 +210,25 @@
     var wantSprint = input.key('ControlLeft') || input.sprintToggle;
     this.sprinting = wantSprint && fwd > 0 && !this.sneaking && (creative || this.food > 6);
 
+    // Block unter den Füßen: Seelensand bremst, blaue Wolken federn,
+    // goldene Wolken fangen den Sturz ab
+    var groundB = B.byId[world.getBlock(Math.floor(this.x), Math.floor(this.y - 0.2), Math.floor(this.z))];
+
+    // Gravititrüstung: jedes Teil bringt eine eigene Eigenschaft mit
+    var inv = this.inventory;
+    this.gravHelm = inv.wears('gravitite', 0);
+    this.gravChest = inv.wears('gravitite', 1);
+    this.gravLegs = inv.wears('gravitite', 2);
+    this.gravBoots = inv.wears('gravitite', 3);
+    this.gravFull = this.gravHelm && this.gravChest && this.gravLegs && this.gravBoots;
+
     var speed = 4.317;
     if (this.sprinting) speed = 5.6;
     if (this.sneaking && !this.flying) speed = 1.45;
     if (this.flying) speed = this.sprinting ? 21 : 10.5;
     if (this.inWater && !this.flying) speed *= 0.62;
+    if (this.onGround && !this.flying && groundB && groundB.slow) speed *= (1 - groundB.slow);
+    if (this.gravLegs && !this.flying) speed *= 1.28;   // Hose: leichtfüßig
 
     var len = Math.sqrt(fwd * fwd + side * side);
     var wx = 0, wz = 0;
@@ -218,37 +259,72 @@
       if (input.key('Space')) {
         if (this.inWater) this.vy = 4.4;
         else if (this.onGround) {
-          this.vy = 8.85;   // ~1,2 Blöcke Sprunghöhe wie im Original
+          // Brustpanzer aus Gravitit hebt einen deutlich höher
+          this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
           this.exhaust(this.sprinting ? 0.2 : 0.05);
+          if (this.gravChest) game.particles.crit(this.x, this.y + 0.2, this.z);
+        } else if (this.gravFull && this.vy < 0 && !this.doubleJumped) {
+          // Voller Satz: ein einziger Sprung mitten in der Luft
+          this.doubleJumped = true;
+          this.vy = 10.5;
+          this.fallStart = null;
+          game.particles.crit(this.x, this.y + 0.4, this.z);
+          game.audio.play('pop');
         }
       }
+      if (this.onGround) this.doubleJumped = false;
 
       this.vy -= (this.inWater ? 9 : 32) * dt;
       if (this.inWater && this.vy < -3) this.vy = -3;
       if (this.vy < -78) this.vy = -78;
 
-      // Leiter: langsames Absinken, Klettern mit Leertaste oder Laufen gegen die Wand
       this.onLadder = this.checkLadder();
+
+      var beforeY = this.y;
+      var sneakGuard = this.sneaking && this.onGround;
+      var oldX = this.x, oldZ = this.z, oldY = this.y;
+      // Auf dem Boden automatisch eine halbe Stufe hochsteigen (Stufen, Treppen,
+      // Ackerboden). Beim Schleichen und in der Luft bleibt es beim reinen Zug.
+      if (this.onGround) P.moveWithStep(world, this, this.vx * dt, this.vz * dt, 0.6);
+      else P.move(world, this, this.vx * dt, 0, this.vz * dt);
+      if (sneakGuard && !this.onFloorAt(this.x, this.y, this.z)) {
+        // Schleichen: nicht von der Kante fallen
+        if (this.onFloorAt(oldX, this.y, this.z)) { this.x = oldX; this.vx = 0; }
+        else if (this.onFloorAt(this.x, this.y, oldZ)) { this.z = oldZ; this.vz = 0; }
+        else { this.x = oldX; this.y = oldY; this.z = oldZ; this.vx = 0; this.vz = 0; }
+      }
+      // Der Auto-Schritt darf keinen Fallschaden auslösen
+      if (this.y > oldY) beforeY = this.y;
+
+      // Leiter: langsames Absinken, Klettern mit Leertaste oder Laufen gegen die
+      // Wand. Muss nach dem Horizontalzug stehen, denn erst der setzt collidedH.
       if (this.onLadder) {
         if (this.vy < -2.6) this.vy = -2.6;
         if (input.key('Space') || (len > 0 && this.collidedH)) this.vy = 3.4;
         if (this.sneaking) this.vy = 0;
         this.fallStart = null;
       }
-
-      var beforeY = this.y;
-      var sneakGuard = this.sneaking && this.onGround;
-      var oldX = this.x, oldZ = this.z;
-      P.move(world, this, this.vx * dt, 0, this.vz * dt);
-      if (sneakGuard && !this.onFloorAt(this.x, this.y, this.z)) {
-        // Schleichen: nicht von der Kante fallen
-        if (this.onFloorAt(oldX, this.y, this.z)) { this.x = oldX; this.vx = 0; }
-        else if (this.onFloorAt(this.x, this.y, oldZ)) { this.z = oldZ; this.vz = 0; }
-        else { this.x = oldX; this.z = oldZ; this.vx = 0; this.vz = 0; }
-      }
+      var vyBefore = this.vy;
       P.move(world, this, 0, this.vy * dt, 0);
+      // Auf einer blauen Wolke federt man zurück in die Höhe
+      if (this.onGround && vyBefore < -1) {
+        var landB = B.byId[world.getBlock(Math.floor(this.x), Math.floor(this.y - 0.2), Math.floor(this.z))];
+        if (landB && landB.bounce) {
+          this.vy = landB.bounce;
+          this.onGround = false;
+          this.fallStart = null;
+          game.audio.play('pop');
+        } else if (landB && landB.soft) {
+          this.fallStart = null;
+        }
+      }
 
-      var friction = this.onGround ? 0.0015 : 0.35;
+      // Reibung: glatte Blöcke (Eis, Flugsand) lassen einen weiterrutschen
+      var friction = 0.35;
+      if (this.onGround) {
+        var slick = groundB && groundB.slippery ? groundB.slippery : 0;
+        friction = slick ? Math.pow(0.0015, 1 - slick) : 0.0015;
+      }
       var k = Math.pow(friction, dt);
       this.vx *= k; this.vz *= k;
 
@@ -260,7 +336,11 @@
       if (this.inWater) this.fallStart = null;
       if (this.onGround && this.fallStart !== null) {
         var fd = this.fallStart - this.y;
-        if (fd > 3.2) {
+        // Gravititstiefel fangen jeden Aufprall ab
+        if (fd > 3.2 && this.gravBoots) {
+          game.particles.crit(this.x, this.y + 0.1, this.z);
+          game.audio.play('pop');
+        } else if (fd > 3.2) {
           var dmg = Math.floor(fd - 3);
           if (dmg > 0) { this.hurt(dmg, null, game); game.audio.play('fall'); }
         }
@@ -288,7 +368,8 @@
     this.headInWater = headB && headB.name === 'water';
     this.headInLava = headB && headB.name === 'lava';
 
-    if (this.headInWater && !creative) {
+    // Gravitithelm lässt einen unter Wasser atmen
+    if (this.headInWater && !creative && !this.gravHelm) {
       this.air -= dt;
       if (this.air <= 0) { this.air = 0; this.drownTimer = (this.drownTimer || 0) + dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2, null, game); game.audio.play('hurt'); } }
       if (Math.random() < dt * 4) game.particles.splash(this.x, this.eyeY(), this.z, 1);
@@ -331,6 +412,8 @@
       } else this.starveTimer = 0;
     }
 
+    // Wer im Aether durch die Leere fällt, kommt in der Oberwelt wieder heraus
+    if (world.dim === 'aether' && this.y < -8) { game.fallFromAether(); return; }
     if (this.y < -24) this.hurt(999, null, game);
   };
 
