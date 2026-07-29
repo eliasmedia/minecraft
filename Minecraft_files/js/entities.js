@@ -544,6 +544,28 @@
         part('legL', 'mob_chicken_leg', 0, 0, -1, 2, 7, 2, 'legFL', [1, 7, 0])
       ]
     },
+    // ---- Das Ende ----
+    // Maßstab 2,6 statt 1: der Drache misst so gut zehn Blöcke von der
+    // Schnauze bis zur Schwanzspitze und ebenso viel von Flügel zu Flügel.
+    ender_dragon: {
+      height: 3.0, width: 6.0, scale: 2.6,
+      parts: [
+        part('body', 'mob_dragon', -5, 5, -10, 10, 8, 22),
+        part('neck', 'mob_dragon', -3, 9, -18, 6, 6, 9, 'dragonNeck', [0, 11, -10]),
+        part('head', { all: 'mob_dragon', front: 'mob_dragon_face' }, -4, 9, -27, 8, 7, 10, 'dragonHead', [0, 11, -18]),
+        part('jaw', 'mob_dragon', -3, 6, -26, 6, 3, 8, 'dragonJaw', [0, 11, -18]),
+        part('wingR', 'mob_dragon_wing', -31, 11, -6, 26, 1, 14, 'wingR', [-5, 12, 0]),
+        part('wingL', 'mob_dragon_wing', 5, 11, -6, 26, 1, 14, 'wingL', [5, 12, 0]),
+        part('tail1', 'mob_dragon', -3, 6, 12, 6, 6, 12, 'dragonTail1', [0, 9, 12]),
+        part('tail2', 'mob_dragon', -2, 7, 24, 4, 4, 12, 'dragonTail2', [0, 9, 24]),
+        part('legR', 'mob_dragon', -8, 0, -4, 4, 6, 4, 'legFR', [-6, 6, -2]),
+        part('legL', 'mob_dragon', 4, 0, -4, 4, 6, 4, 'legFL', [6, 6, -2])
+      ]
+    },
+    end_crystal: {
+      height: 1.4, width: 1.0, scale: 1,
+      parts: [part('core', 'end_crystal', -5, 4, -5, 10, 10, 10, 'crystalSpin', [0, 9, 0])]
+    },
     villager: {
       height: 1.9, width: 0.6, scale: 0.95,
       parts: [

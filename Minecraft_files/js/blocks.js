@@ -24,6 +24,7 @@
   B.SHAPE_FIRE = 13;
   B.SHAPE_GATE = 14;   // Zauntor
   B.SHAPE_PORTAL = 15; // Portalfläche (dünne Ebene, Achse in Meta-Bit 0)
+  B.SHAPE_PORTAL_FLAT = 16; // liegende Portalfläche (Endportal)
 
   B.byId = [];
   B.byName = {};
@@ -383,6 +384,25 @@
     alphaPass: true, light: 11, hardness: -1, drop: null, item: false, opacity: 0, portal: 'aether'
   });
 
+  // ============================================================
+  //  DAS ENDE
+  // ============================================================
+  define('end_stone', { title: 'Endstein', hardness: 3, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('end_stone_bricks', { title: 'Endsteinziegel', hardness: 3, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  // Der Rahmen ist so unzerstörbar wie im Original – wer ihn abbauen könnte,
+  // könnte das einzige Endportal der Welt versehentlich zerlegen.
+  define('end_portal_frame', {
+    title: 'Endportalrahmen', hardness: -1, drop: null, item: false, light: 1, sound: 'stone',
+    tex: { top: 'end_portal_frame_top', bottom: 'end_stone', side: 'end_portal_frame_side' }
+  });
+  define('portal_end', {
+    title: 'Endportal', shape: B.SHAPE_PORTAL_FLAT, solid: false, collide: false, opaque: false,
+    alphaPass: true, light: 11, hardness: -1, drop: null, item: false, opacity: 0, portal: 'the_end'
+  });
+  define('dragon_egg', {
+    title: 'Drachenei', hardness: 3, tool: 'pickaxe', level: 3, light: 1, sound: 'stone', group: 'bau'
+  });
+
   // ---------- Bett ----------
   define('bed', {
     title: 'Bett', shape: B.SHAPE_BED, opaque: false, hardness: 0.2, sound: 'cloth',
@@ -493,6 +513,7 @@
       case B.SHAPE_LADDER:
       case B.SHAPE_FIRE:
       case B.SHAPE_PORTAL:
+      case B.SHAPE_PORTAL_FLAT:
         return null;
       default:
         return [[0, 0, 0, 1, 1, 1]];
@@ -518,6 +539,7 @@
       case B.SHAPE_LADDER: return B.ladderBox(meta);
       case B.SHAPE_FIRE: return [0.05, 0, 0.05, 0.95, 1, 0.95];
       case B.SHAPE_PORTAL: return (meta & 1) ? [0.375, 0, 0, 0.625, 1, 1] : [0, 0, 0.375, 1, 1, 0.625];
+      case B.SHAPE_PORTAL_FLAT: return [0, 0.6, 0, 1, 0.9, 1];
       default: return [0, 0, 0, 1, 1, 1];
     }
   };

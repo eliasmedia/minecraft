@@ -368,8 +368,9 @@
     this.headInWater = headB && headB.name === 'water';
     this.headInLava = headB && headB.name === 'lava';
 
-    // Gravitithelm lässt einen unter Wasser atmen
-    if (this.headInWater && !creative && !this.gravHelm) {
+    // Der Gravitithelm bringt kein Atmen unter Wasser mehr, sondern das HUD:
+    // Lebensbalken über Kreaturen und den Kompass zum Endportal.
+    if (this.headInWater && !creative) {
       this.air -= dt;
       if (this.air <= 0) { this.air = 0; this.drownTimer = (this.drownTimer || 0) + dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2, null, game); game.audio.play('hurt'); } }
       if (Math.random() < dt * 4) game.particles.splash(this.x, this.eyeY(), this.z, 1);
@@ -512,6 +513,12 @@
     this.starveTimer = 0;
     this.drownTimer = 0;
     var sp = this.spawnPoint;
+    // Wiederbelebt wird immer in der Oberwelt – sonst stünde man nach einem Tod
+    // im Ende an den Oberweltkoordinaten mitten in der Leere.
+    if (game.dim !== 'overworld') {
+      game.generateAround(game.dimWorld('overworld'), Math.round(sp.x), Math.round(sp.z), 1);
+      game.travelTo('overworld', { x: sp.x, y: sp.y, z: sp.z });
+    }
     this.x = sp.x; this.y = sp.y; this.z = sp.z;
     game.ensureChunksAround(this.x, this.z, 2);
     // sicheren Boden finden

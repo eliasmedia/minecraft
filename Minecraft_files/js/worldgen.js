@@ -215,6 +215,7 @@
     // Nether und Aether haben eigene Generatoren – hier nur die Oberwelt
     if (this.dim === 'nether') return MC.Dim.generateNether(this, cx, cz, blocks, meta);
     if (this.dim === 'aether') return MC.Dim.generateAether(this, cx, cz, blocks, meta);
+    if (this.dim === 'the_end') return MC.Dim.generateEnd(this, cx, cz, blocks, meta);
     var SEA = this.sea;
     var wx0 = cx * CS, wz0 = cz * CS;
     var x, y, z, i;
@@ -423,6 +424,9 @@
 
     // Zuletzt das Dorf – es überschreibt Gelände und Bewuchs
     if (village) MC.Village.generate(this, cx, cz, blocks, meta);
+    // Die Festung mit dem Endportal liegt tief darunter und gibt es genau
+    // einmal je Welt – sie hängt bewusst nicht am Schalter für Dörfer.
+    if (MC.Stronghold) MC.Stronghold.draw(this, cx, cz, blocks, meta);
   };
 
   function nearWater(blocks, x, y, z) {

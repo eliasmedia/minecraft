@@ -1091,6 +1091,7 @@
   World.prototype.daylight = function () {
     if (this.dim === 'nether') return 0.34;
     if (this.dim === 'aether') return 1;
+    if (this.dim === 'the_end') return 0.85;
     var t = this.time;
     var a = Math.cos((t - 0.5) * Math.PI * 2) * 0.5 + 0.5; // 1 = Mittag
     var d = U.clamp((a - 0.15) / 0.5, 0, 1);

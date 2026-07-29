@@ -97,7 +97,154 @@
     this.screen.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
 
     this.buildHudIcons();
+    this.buildCompass();
     this.updateHotbar();
+  };
+
+  // ============================================================
+  //  Kompassband
+  // ============================================================
+  // Ein Streifen oben am Bildschirm, wie ihn Spiele üblicherweise zeigen:
+  // ±90° Blickfeld, Norden ist -Z. Sichtbar, sobald man einen Kompass in der
+  // Hand hält oder den Gravitithelm trägt.
+  var COMPASS_FOV = 90;
+  var DIRS = [['N', 0], ['NO', 45], ['O', 90], ['SO', 135],
+              ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
+
+  UI.prototype.buildCompass = function () {
+    this.compassEl = document.getElementById('compass');
+    this.compassBand = document.getElementById('compassband');
+    this.compassCoords = document.getElementById('compasscoords');
+    this.compassMarks = [];
+    var self = this;
+    DIRS.forEach(function (d) {
+      var e = el('i', 'cdir' + (d[0].length === 1 ? ' major' : ''), self.compassBand);
+      e.textContent = d[0];
+      self.compassMarks.push({ el: e, angle: d[1] * Math.PI / 180 });
+    });
+    // Zielmarke: zeigt mit dem Gravitithelm zum Endportal
+    this.compassGoal = el('i', 'cgoal', this.compassBand);
+    this.compassGoal.textContent = '◆';
+  };
+
+  // Winkel im Uhrzeigersinn ab Norden (-Z)
+  function bearingTo(dx, dz) { return Math.atan2(dx, -dz); }
+  function wrapPi(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  }
+
+  function placeMark(node, delta) {
+    var deg = delta * 180 / Math.PI;
+    if (Math.abs(deg) > COMPASS_FOV) { node.style.display = 'none'; return; }
+    node.style.display = '';
+    node.style.left = (50 + deg / COMPASS_FOV * 50) + '%';
+    node.style.opacity = (1 - Math.abs(deg) / COMPASS_FOV * 0.75).toFixed(2);
+  }
+
+  // Wohin zeigt die Marke? Nur der Gravitithelm kennt das Ziel.
+  UI.prototype.compassTarget = function () {
+    var g = this.game;
+    if (!g.player.gravHelm) return null;
+    if (g.dim === 'overworld') {
+      try { return MC.Stronghold.portalPos(g.world.gen); } catch (e) { return null; }
+    }
+    if (g.dim === 'the_end') return { x: 0, y: MC.End.TOP, z: 0, title: 'Ausgang' };
+    return null;
+  };
+
+  UI.prototype.updateCompass = function () {
+    var g = this.game, p = g.player;
+    if (!p) return;
+    var st = p.inventory.selectedStack();
+    var inHand = !!(st && st.id === 'compass');
+    if (!inHand && !p.gravHelm) { this.compassEl.style.display = 'none'; return; }
+    this.compassEl.style.display = 'flex';
+
+    var d = p.lookDir();
+    var bearing = bearingTo(d.x, d.z);
+    for (var i = 0; i < this.compassMarks.length; i++) {
+      var m = this.compassMarks[i];
+      placeMark(m.el, wrapPi(m.angle - bearing));
+    }
+
+    var t = this.compassTarget();
+    var extra = '';
+    if (t) {
+      var tdx = t.x - p.x, tdz = t.z - p.z;
+      placeMark(this.compassGoal, wrapPi(bearingTo(tdx, tdz) - bearing));
+      extra = '   ' + (t.title || 'Endportal') + ' ' + Math.round(Math.sqrt(tdx * tdx + tdz * tdz)) + ' m';
+    } else {
+      this.compassGoal.style.display = 'none';
+    }
+
+    this.compassCoords.textContent =
+      'X ' + Math.floor(p.x) + '   Y ' + Math.floor(p.y) + '   Z ' + Math.floor(p.z) + extra;
+  };
+
+  // ============================================================
+  //  Bossleiste (Enderdrache)
+  // ============================================================
+  UI.prototype.updateBossBar = function () {
+    var g = this.game;
+    if (!this.bossEl) {
+      this.bossEl = document.getElementById('bossbar');
+      this.bossName = document.getElementById('bossname');
+      this.bossFill = document.getElementById('bossfill');
+      this.bossHint = document.getElementById('bosshint');
+    }
+    var dragon = (g.dim === 'the_end' && MC.End) ? MC.End.dragon(g.world) : null;
+    if (!dragon) { this.bossEl.style.display = 'none'; return; }
+    this.bossEl.style.display = 'flex';
+    this.bossName.textContent = 'Enderdrache';
+    this.bossFill.style.width = Math.max(0, dragon.hp / dragon.maxHp * 100) + '%';
+    var n = MC.End.crystalsAlive(g.world).length;
+    this.bossHint.textContent = n
+      ? n + ' Enderkristall' + (n === 1 ? '' : 'e') + ' heilen ihn noch'
+      : 'Alle Kristalle zerstört';
+  };
+
+  // ============================================================
+  //  Abspann
+  // ============================================================
+  UI.prototype.showCredits = function () {
+    var self = this, g = this.game;
+    if (!this.creditsEl) this.creditsEl = document.getElementById('credits');
+    this.creditsOpen = true;
+    g.exitPointerLock();
+    this.creditsEl.style.display = 'flex';
+    this.creditsEl.innerHTML = '';
+    var roll = el('div', 'croll', this.creditsEl);
+    roll.innerHTML = [
+      '<h1>Du hast es geschafft.</h1>',
+      '<p>Der Enderdrache ist gefallen. Das Portal hat dich zurückgetragen.</p>',
+      '<hr>',
+      '<h2>Der Weg dahin</h2>',
+      '<p>Ein Baum. Ein paar Bretter. Eine Werkbank.<br>' +
+      'Eine Nacht, die man in einem Erdloch abgewartet hat.</p>',
+      '<p>Zehn Blöcke Obsidian und ein Feuerzeug — der <b>Nether</b>.<br>' +
+      'Vierzehn Blöcke Glowstone aus einer Bastion — der <b>Aether</b>.<br>' +
+      'Gravitit aus dem Bauch einer schwebenden Insel — <b>das Ende</b>.</p>',
+      '<hr>',
+      '<h2>Minecraft — HTML Edition</h2>',
+      '<p>Eine Voxelwelt in einer Datei.<br>' +
+      'Eigener WebGL2-Renderer, 345 prozedurale Texturen,<br>' +
+      'kein Framework, kein Server, keine externen Dateien.</p>',
+      '<p class="dim">Privates Lernprojekt. Minecraft ist eine Marke von Mojang Studios.</p>',
+      '<hr>',
+      '<p>Die Welt läuft weiter. Das Ende steht offen — der Drache kommt nicht wieder.</p>'
+    ].join('');
+    var btn = el('button', 'mbtn', this.creditsEl);
+    btn.textContent = 'Weiterspielen';
+    btn.addEventListener('click', function () { self.hideCredits(); });
+  };
+
+  UI.prototype.hideCredits = function () {
+    if (!this.creditsOpen) return;
+    this.creditsOpen = false;
+    this.creditsEl.style.display = 'none';
+    this.game.requestPointerLock();
   };
 
   // Wirft n Stück aus dem Cursor-Stack vor den Spieler
@@ -298,6 +445,9 @@
     this.overlay.className = ov;
     this.overlay.style.opacity = g.damageFlash > 0 ? Math.min(0.55, g.damageFlash * 0.55) : (ov ? 1 : 0);
     if (g.damageFlash > 0) this.overlay.className = 'damage';
+
+    this.updateCompass();
+    this.updateBossBar();
   };
 
   UI.prototype.flashPickup = function (stack) {
@@ -336,9 +486,10 @@
   // ============================================================
   //  Bildschirme
   // ============================================================
-  UI.prototype.isOpen = function () { return this.open !== null; };
+  UI.prototype.isOpen = function () { return this.open !== null || !!this.creditsOpen; };
 
   UI.prototype.close = function () {
+    if (this.creditsOpen) { this.hideCredits(); return; }
     if (this.cursor) {
       this.game.player.inventory.add(this.cursor);
       this.cursor = null;

@@ -246,6 +246,71 @@ canvas#gl {
   border: 2px solid #666; text-shadow: 2px 2px 0 #000;
 }
 
+/* ---------- Kompassband ---------- */
+#compass {
+  position: fixed; left: 50%; top: 10px; transform: translateX(-50%);
+  display: none; flex-direction: column; align-items: center; gap: 3px;
+}
+#compassband {
+  position: relative; width: min(460px, 74vw); height: 22px; overflow: hidden;
+  background: rgba(10,10,12,.55); border: 1px solid #00000090;
+  box-shadow: inset 0 0 12px rgba(0,0,0,.6);
+}
+/* Weiche Kanten, damit die Marken am Rand nicht abgeschnitten wirken */
+#compassband::before, #compassband::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 34px; pointer-events: none;
+}
+#compassband::before { left: 0; background: linear-gradient(90deg, rgba(10,10,12,.95), transparent); }
+#compassband::after { right: 0; background: linear-gradient(-90deg, rgba(10,10,12,.95), transparent); }
+#compassband .cmid {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: #7ef22a; opacity: .9;
+}
+#compassband .cdir, #compassband .cgoal {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  font-size: 11px; font-style: normal; color: #dcdcdc;
+  text-shadow: 1px 1px 0 #000; white-space: nowrap;
+}
+#compassband .cdir.major { font-size: 14px; font-weight: bold; color: #fff; }
+#compassband .cgoal { font-size: 13px; color: #b98cff; text-shadow: 0 0 6px #7a3cff, 1px 1px 0 #000; }
+#compasscoords {
+  font-size: 11.5px; color: #e2e2e2; text-shadow: 1px 1px 0 #000;
+  background: rgba(10,10,12,.5); padding: 2px 9px; letter-spacing: .4px;
+}
+
+/* ---------- Bossleiste ---------- */
+#bossbar {
+  position: fixed; left: 50%; top: 66px; transform: translateX(-50%);
+  display: none; flex-direction: column; align-items: center; gap: 2px;
+  width: min(520px, 80vw);
+}
+#bossname { font-size: 15px; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+#bossbar .bbar {
+  width: 100%; height: 10px; background: #1a1020; border: 1px solid #000;
+  box-shadow: 0 0 10px rgba(150,60,255,.35);
+}
+#bossbar .bbar i {
+  display: block; height: 100%; width: 100%;
+  background: linear-gradient(#d36cff, #7a1fd0);
+  transition: width .18s;
+}
+#bosshint { font-size: 11px; opacity: .75; text-shadow: 1px 1px 0 #000; }
+
+/* ---------- Abspann ---------- */
+#credits {
+  position: fixed; inset: 0; display: none; z-index: 60;
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 18px; padding: 40px 20px; overflow-y: auto; pointer-events: auto;
+  background: radial-gradient(ellipse at 50% 0%, #1b0d2e, #05040a 70%);
+}
+.croll { max-width: 620px; text-align: center; line-height: 1.85; font-size: 13.5px; }
+.croll h1 { font-size: 34px; margin: 0 0 6px; text-shadow: 0 0 26px rgba(180,110,255,.5); }
+.croll h2 { font-size: 18px; margin: 18px 0 4px; color: #b98cff; }
+.croll hr { border: none; border-top: 1px solid #ffffff22; margin: 20px 0; }
+.croll b { color: #7ef22a; }
+.croll .dim { opacity: .5; font-size: 11.5px; }
+#credits .mbtn { width: 240px; }
+
 /* ---------- Debug ---------- */
 #debug {
   position: fixed; left: 8px; top: 8px; display: none;

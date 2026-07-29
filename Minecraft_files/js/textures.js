@@ -1317,6 +1317,94 @@
   });
 
   // ============================================================
+  //  DAS ENDE
+  // ============================================================
+  var END_STONE = [222, 224, 168];
+  tex('end_stone', function (g) {
+    g.fill(END_STONE); g.noise(0.07);
+    g.speck(26, dark(END_STONE, 0.88)); g.speck(12, mix(END_STONE, [255, 255, 235], 0.5));
+  });
+  tex('end_stone_bricks', function (g) {
+    g.fill(mix(END_STONE, [255, 255, 230], 0.15)); g.noise(0.05);
+    var mortar = dark(END_STONE, 0.78);
+    for (var y = 0; y < 16; y += 8) {
+      for (var x = 0; x < 16; x++) { g.set(x, y, mortar); g.set(x, y + 7, mortar); }
+      var off = y === 0 ? 0 : 8;
+      g.rect(off, y, 1, 8, mortar);
+      g.rect((off + 8) % 16, y, 1, 8, mortar);
+    }
+  });
+  // Rahmen: heller Sockel, oben die eingelassene, grün leuchtende Platte
+  tex('end_portal_frame_side', function (g) {
+    g.fill(dark(END_STONE, 0.82)); g.noise(0.06);
+    g.rect(0, 0, 16, 4, mix(END_STONE, [120, 176, 140], 0.45));
+    for (var x = 0; x < 16; x++) g.set(x, 4, dark(END_STONE, 0.6));
+  });
+  tex('end_portal_frame_top', function (g) {
+    g.fill(mix(END_STONE, [140, 190, 156], 0.4)); g.noise(0.05);
+    g.frame(2, 2, 12, 12, dark(END_STONE, 0.55));
+    g.rect(3, 3, 10, 10, [46, 120, 96]);
+    g.blob(8, 8, 3.2, [92, 210, 160]);
+    g.blob(7, 7, 1.4, [190, 250, 220]);
+  });
+  // Portalfläche: Blick in einen Sternenhimmel
+  tex('portal_end', function (g) {
+    g.fill([6, 4, 14]);
+    for (var i = 0; i < 46; i++) {
+      var b = 0.35 + g.r() * 0.65;
+      g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [200 * b, 220 * b, 255 * b]);
+    }
+    for (var k = 0; k < 8; k++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [190, 150, 255]);
+  });
+  tex('dragon_egg', function (g) {
+    g.fill([16, 12, 24]); g.noise(0.2);
+    for (var i = 0; i < 20; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.5, [40, 26, 58]);
+    for (var k = 0; k < 14; k++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [170, 120, 235]);
+  });
+  tex('end_crystal', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 0; y < 16; y++) {
+      for (var x = 0; x < 16; x++) {
+        var d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
+        if (d > 8) continue;
+        g.set(x, y, mix([232, 210, 140], [140, 96, 200], d / 8), 235);
+      }
+    }
+    g.blob(7, 6, 2, [255, 248, 210], 250);
+  });
+
+  // Lebensbalken über Kreaturen (nur mit dem Gravitithelm sichtbar)
+  tex('hpbar_bg', function (g) { g.fill([16, 16, 20], 210); g.frame(0, 0, 16, 16, [0, 0, 0]); });
+  tex('hpbar_fill', function (g) {
+    g.fill([214, 44, 44]);
+    for (var x = 0; x < 16; x++) { g.set(x, 0, [255, 120, 120]); g.set(x, 15, [140, 20, 20]); }
+  });
+
+  // ---------- Enderdrache ----------
+  var DRAGON = [30, 26, 40];
+  mobTex('mob_dragon', DRAGON, function (g) {
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.4, [46, 40, 62]);
+  });
+  mobTex('mob_dragon_wing', [22, 19, 32], function (g) {
+    for (var y = 0; y < 16; y += 4) for (var x = 0; x < 16; x++) g.set(x, y, [44, 38, 60]);
+  });
+  mobTex('mob_dragon_face', DRAGON, function (g) {
+    g.rect(2, 5, 4, 3, [214, 66, 226]); g.rect(10, 5, 4, 3, [214, 66, 226]);
+    g.rect(3, 6, 2, 1, [255, 190, 255]); g.rect(11, 6, 2, 1, [255, 190, 255]);
+    g.rect(4, 12, 8, 2, [16, 14, 22]);
+  });
+
+  // ---------- Kompass ----------
+  itemTex('compass', function (g) {
+    g.blob(8, 8, 6.6, [78, 78, 86]);
+    g.blob(8, 8, 5.4, [188, 190, 198]);
+    g.blob(8, 8, 4.2, [24, 26, 38]);
+    for (var y = 4; y <= 7; y++) g.rect(7, y, 2, 1, [226, 58, 58]);
+    for (var y2 = 9; y2 <= 12; y2++) g.rect(7, y2, 2, 1, [232, 232, 238]);
+    g.rect(7, 7, 2, 2, [250, 250, 255]);
+  });
+
+  // ============================================================
   //  Zugriff
   // ============================================================
   T.names = names;

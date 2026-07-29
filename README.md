@@ -17,7 +17,7 @@ Minecraft_files/
   css/style.css
   js/  util · blocks · items · recipes · textures · glcore · mesher
        particles · icons · worldgen · village · dimensions · world
-       entities · player · renderer · audio · ui · main
+       entities · theend · player · renderer · audio · ui · main
 ```
 
 ## Steuerung
@@ -55,10 +55,15 @@ Baumaterial richtet sich nach dem Biom. Truhen in Häusern und Schmiede sind
 gefüllt — Brot, Werkzeug, Erz, gelegentlich ein Smaragd. Das Dorf steht auf einem
 eingeebneten Plateau, dessen Rand ins Gelände ausläuft.
 
-**Der Weg nach oben** — die drei Welten bauen aufeinander auf: in der Oberwelt
+**Der Weg nach oben** — die vier Welten bauen aufeinander auf: in der Oberwelt
 sucht man Obsidian für das Netherportal, im Nether die Bastionen, weil nur dort
-Glowstone liegt und Glowstone der Rahmen für das Aetherportal ist. Erst der
-Aether gibt die beste Rüstung her.
+Glowstone liegt und Glowstone der Rahmen für das Aetherportal ist. Der Aether
+gibt die beste Rüstung her — und den Gravitit, mit dem sich in der Oberwelt das
+Endportal öffnen lässt. Dahinter wartet der Drache.
+
+**Kompass** — vier Eisenbarren und ein Redstone. In der Hand blendet er oben ein
+Band mit den Himmelsrichtungen ein, darunter die eigenen Koordinaten. Norden
+liegt wie im Original auf −Z.
 
 **Nether** — Portal aus einem Obsidianrahmen (4×5, zehn Blöcke), gezündet mit dem
 Feuerzeug. Dahinter liegt eine geschlossene Höhlenwelt zwischen zwei
@@ -97,11 +102,29 @@ dass es irgendwo draufsteht:
 
 | Teil | Wirkung |
 |---|---|
-| Helm | man atmet unter Wasser weiter |
+| Helm | HUD: Lebensbalken über allem, was lebt, und ein Kompass zum Endportal |
 | Brustpanzer | Sprunghöhe von 1,2 auf 2,7 Blöcke |
 | Hose | knapp 30 % schneller zu Fuß |
 | Stiefel | kein Fallschaden mehr |
 | alle vier | zusätzlich ein Sprung mitten in der Luft |
+
+**Festung** — genau eine je Welt, dreißig Blöcke unter der Oberfläche und ein
+paar hundert Blöcke vom Ursprung entfernt. Portalsaal mit zwei Lavabecken und
+zwei Truhen, ein Gang zur Bibliothek, ein Leiterschacht, der drei Blöcke unter
+dem Gras endet — den Rest gräbt man selbst. In der Mitte des Saals liegt der
+Endportalrahmen: zwölf Blöcke im 5×5-Quadrat ohne Ecken, genau wie im Original.
+Gefunden wird die Festung nicht mit Enderaugen, sondern über den Kompass im HUD
+des Gravitithelms; geöffnet wird das Portal mit einem **Gravitit** aus dem
+Aether statt mit zwölf Augen.
+
+**Das Ende** — eine Insel aus Endstein in der violetten Leere, zehn
+Obsidiantürme im Kreis darum, auf jedem ein Enderkristall auf einem Sockel aus
+Grundgestein. In der Mitte der erloschene Sockel des Ausgangsportals. Darüber
+kreist der **Enderdrache**: 200 Leben, er stürzt sich auf den Spieler, fegt ihn
+mit dem Flügelschlag weg und spuckt Feuerbälle. Solange ein Kristall steht,
+heilt er sich — wer gewinnen will, sprengt erst die Türme leer. Fällt er, zündet
+das Ausgangsportal, das Drachenei erscheint auf seiner Säule, und wer hindurch
+geht, sieht den Abspann und steht wieder an seinem Spawnpunkt.
 
 **Dorfbewohner & Handel** — fünf Berufe (Bauer, Bibliothekar, Schmied, Metzger,
 Steinmetz) mit eigener Robe und je drei bis vier Angeboten. Rechtsklick öffnet das
@@ -111,12 +134,12 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — über 100 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 145 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
-Truhe, Bett, TNT und Ackerboden. Rund 180 Items: Werkzeuge und Waffen in 5
-Materialstufen, Rüstung in 4 Stufen, Nahrung, Rohstoffe.
+Truhe, Bett, TNT und Ackerboden. Rund 250 Items: Werkzeuge und Waffen in 8
+Materialstufen, Rüstung in 6 Stufen, Nahrung, Rohstoffe, Kompass.
 
-**Spielschleife** — 109 Crafting-Rezepte (2×2 und 3×3, geformt und ungeformt);
+**Spielschleife** — 155 Crafting-Rezepte (2×2 und 3×3, geformt und ungeformt);
 Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
@@ -126,9 +149,10 @@ Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respa
 Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 
 **Mobs** — Schwein, Kuh, Schaf (16 Wollfarben, scherbar), Huhn, Zombie, Skelett
-(schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner. Spawn nach
-Lichtlevel und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops,
-XP-Kugeln.
+(schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
+Piglin, Ghast und Magmawürfel, im Aether Moa, Phyg, Sheepuff, Cockatrice und
+Zephyr, im Ende der Enderdrache samt Enderkristallen. Spawn nach Lichtlevel und
+Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops, XP-Kugeln.
 
 **Physik & Simulation** — fließendes Wasser und Lava mit 8 Fließstufen,
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,
@@ -147,13 +171,17 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 * klassische `<script>`-Tags statt ES-Module
 * eigener WebGL2-Renderer statt three.js
-* alle Texturen zur Laufzeit per Canvas erzeugt (228 Stück) statt Bilddateien
+* alle Texturen zur Laufzeit per Canvas erzeugt (345 Stück) statt Bilddateien
 * alle Klänge per WebAudio synthetisiert statt Audiodateien
 * Chunk-Meshing zeitbudgetiert im Main-Thread statt in Workern
 
 ## Noch offen
 
-Redstone, das End, Loren, Verzauberung, Brauen, Mehrspieler. Im Nether fehlen
+**Als Nächstes:** Karten — ein Item, das das erkundete Gelände von oben zeigt und
+sich in einem Rahmen an die Wand hängen lässt. Der Kompass ist die Vorstufe davon.
+
+Redstone, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen Endermen, die
+äußeren Inseln und das Wiederbeleben des Drachen. Im Nether fehlen
 Festungen und Blazes, im Aether die drei Dungeons und reitbare Moas. Dorfbewohner
 laufen geradlinig auf ihr Ziel zu statt einen Weg zu suchen; ein Haus hinter einer
 Mauer erreichen sie nicht. Ihre schon getätigten Handelszüge überleben das

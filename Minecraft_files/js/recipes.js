@@ -164,6 +164,9 @@
   // Ambrosiumfackel: leuchtet wie eine normale
   shaped(['A', 'S'], { A: 'ambrosium_shard', S: 'stick' }, 'torch', 4);
   shaped(['MM', 'MM'], { M: 'magma_block' }, 'magma_block', 1);
+  // Kompass wie im Original: Eisen ringsum, Redstone in der Mitte
+  shaped(['.I.', 'IRI', '.I.'], { I: 'iron_ingot', R: 'redstone' }, 'compass', 1);
+  shaped(['EE', 'EE'], { E: 'end_stone' }, 'end_stone_bricks', 4);
 
   // ---------------- Schmelzen ----------------
   smelt('cobblestone', 'stone');

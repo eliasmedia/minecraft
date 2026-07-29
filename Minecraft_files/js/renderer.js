@@ -293,6 +293,8 @@
     // Der Nether hat keinen Himmel, nur roten Dunst. Im Aether ist immer Tag.
     if (world.dim === 'nether') return { zenith: [0.22, 0.06, 0.05], horizon: [0.36, 0.11, 0.07] };
     if (world.dim === 'aether') return { zenith: [0.42, 0.68, 0.98], horizon: [0.78, 0.90, 1.0] };
+    // Das Ende hat keinen Himmel, nur die violette Leere
+    if (world.dim === 'the_end') return { zenith: [0.035, 0.020, 0.055], horizon: [0.075, 0.045, 0.105] };
     var t = world.time;
     var dayZ = [0.30, 0.55, 0.95], dayH = [0.62, 0.78, 1.0];
     var nightZ = [0.015, 0.02, 0.06], nightH = [0.05, 0.06, 0.14];
@@ -314,6 +316,7 @@
   Renderer.prototype.ambient = function (world) {
     if (world.dim === 'nether') return 0.44;
     if (world.dim === 'aether') return 0.34;   // Inselunterseiten bleiben sonst schwarz
+    if (world.dim === 'the_end') return 0.30;  // düster, aber man sieht, worauf man tritt
     return 0;
   };
 
@@ -352,13 +355,14 @@
     if (underwater) { fogNear = 0.5; fogFar = 16; }
     else if (p.headInLava) { fogNear = 0.1; fogFar = 2.2; }
     else if (world.dim === 'nether') { fogNear = this.renderDistance * CS * 0.22; fogFar = this.renderDistance * CS * 0.85; }
+    else if (world.dim === 'the_end') { fogNear = this.renderDistance * CS * 0.45; fogFar = this.renderDistance * CS * 1.05; }
     else { fogNear = this.renderDistance * CS * 0.55; fogFar = this.renderDistance * CS * 0.97; }
 
     gl.clearColor(fogColor[0], fogColor[1], fogColor[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // ---- Himmel ---- (im Nether bleibt es beim roten Dunst)
-    if (!underwater && !p.headInLava && world.dim !== 'nether') {
+    if (!underwater && !p.headInLava && world.dim !== 'nether' && world.dim !== 'the_end') {
       gl.useProgram(this.progSky.prog);
       gl.depthMask(false);
       gl.disable(gl.CULL_FACE);
@@ -462,7 +466,7 @@
   Renderer.prototype.renderClouds = function (game, daylight, fogColor, fogNear, fogFar) {
     var gl = this.gl, p = game.player, mp = this.progMain;
     // Im Nether ist eine Decke aus Grundgestein, im Aether liegen die Wolken tief
-    if (game.world.dim === 'nether') return;
+    if (game.world.dim === 'nether' || game.world.dim === 'the_end') return;
     var y = game.world.dim === 'aether' ? 10 : 118;   // im Aether als ferner Wolkenboden
     var size = 512;
     var t = game.time * 0.6;
@@ -537,7 +541,10 @@
       if (e.dead) continue;
       var dx = e.x - p.x, dz = e.z - p.z;
       if (dx * dx + dz * dz > (this.renderDistance * CS) * (this.renderDistance * CS)) continue;
-      if (!U.aabbInFrustum(this.frustum, e.x - 1.2, e.y - 0.4, e.z - 1.2, e.x + 1.2, e.y + e.height + 1, e.z + 1.2)) continue;
+      // Der Drache ist deutlich größer als seine Trefferbox – ohne eigenen
+      // Radius würde er am Bildrand einfach verschwinden.
+      var cr = e.cullRadius || 1.2;
+      if (!U.aabbInFrustum(this.frustum, e.x - cr, e.y - cr, e.z - cr, e.x + cr, e.y + e.height + cr, e.z + cr)) continue;
       this.stats.entities++;
 
       var lr = world.getLightRaw(Math.floor(e.x), Math.floor(e.y + e.height * 0.5), Math.floor(e.z));
@@ -551,9 +558,46 @@
         this.drawSprite(e.x, e.y, e.z, 0.7,
           T.layer(e.fire ? 'fire_0' : 'aercloud'), e.fire ? 1 : bl, e.fire ? 1 : sl, game);
       }
-      else if (e.type === 'mob') this.drawMob(e, bl, sl, game);
+      else if (e.type === 'mob') {
+        this.drawMob(e, bl, sl, game);
+        // Das HUD des Gravitithelms: Lebensbalken über allem, was lebt.
+        // Der Drache hat seine eigene Leiste oben am Bildschirm.
+        if (p.gravHelm && e.maxHp && !e.noHealthBar && dx * dx + dz * dz < 32 * 32) this.drawHealthBar(e);
+      }
     }
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
+  };
+
+  // Schwebender Lebensbalken über einer Kreatur, immer zur Kamera gedreht
+  Renderer.prototype.drawHealthBar = function (e) {
+    var frac = U.clamp(e.hp / e.maxHp, 0, 1);
+    var w = Math.max(0.8, e.width * 1.1), h = 0.13;
+    var y = e.y + e.height + 0.34;
+    var r = this.camRight(), u = this.camUp();
+    var d = this.dynData, n = 0;
+    // Hintergrund, dann die Füllung minimal davor – sonst kämpfen beide um die Tiefe
+    var bars = [
+      { layer: T.layer('hpbar_bg'), w: w, off: 0, push: 0 },
+      { layer: T.layer('hpbar_fill'), w: w * frac, off: -(w - w * frac) / 2, push: 0.006 }
+    ];
+    var cam = [this.view[2], this.view[6], this.view[10]];   // Blickachse (zur Kamera hin)
+    for (var b = 0; b < bars.length; b++) {
+      var bar = bars[b];
+      if (bar.w <= 0.001) continue;
+      var corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+      var uvs = [[0, 1], [1, 1], [1, 0], [0, 0]];
+      for (var i = 0; i < 4; i++) {
+        var sx = bar.off + corners[i][0] * bar.w / 2, sy = corners[i][1] * h / 2;
+        d[n++] = e.x + r[0] * sx + u[0] * sy + cam[0] * bar.push;
+        d[n++] = y + r[1] * sx + u[1] * sy + cam[1] * bar.push;
+        d[n++] = e.z + r[2] * sx + u[2] * sy + cam[2] * bar.push;
+        d[n++] = uvs[i][0]; d[n++] = uvs[i][1]; d[n++] = bar.layer;
+        d[n++] = 1; d[n++] = 1; d[n++] = 1;
+      }
+    }
+    this.gl.disable(this.gl.CULL_FACE);
+    this.drawDyn(n);
+    this.gl.enable(this.gl.CULL_FACE);
   };
 
   Renderer.prototype.drawSprite = function (x, y, z, size, layer, bl, sl, game) {
@@ -767,6 +811,14 @@
       case 'tentacle': r.x = Math.sin(mob.age * 1.6) * 0.22; r.z = Math.cos(mob.age * 1.3) * 0.16; break;
       case 'wingR': r.z = -Math.abs(Math.sin(walk * 1.4)) * 0.9; break;
       case 'wingL': r.z = Math.abs(Math.sin(walk * 1.4)) * 0.9; break;
+      // ---- Enderdrache ----
+      // Hals und Schwanz schwingen gegenläufig, damit der Flug wellenförmig wirkt
+      case 'dragonNeck': r.x = -0.10 + Math.sin(mob.age * 1.4) * 0.10; break;
+      case 'dragonHead': r.x = -0.16 + Math.sin(mob.age * 1.4 + 0.5) * 0.12; break;
+      case 'dragonJaw': r.x = -0.16 + Math.sin(mob.age * 1.4 + 0.5) * 0.12 - (mob.mouthOpen || 0) * 0.5; break;
+      case 'dragonTail1': r.y = Math.sin(mob.age * 1.5) * 0.20; break;
+      case 'dragonTail2': r.y = Math.sin(mob.age * 1.5 - 0.7) * 0.30; break;
+      case 'crystalSpin': r.x = 0.42; r.y = mob.age * 1.5; break;
     }
     return r;
   }

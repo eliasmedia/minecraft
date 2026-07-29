@@ -259,6 +259,11 @@
               break;
             }
 
+            case B.SHAPE_PORTAL_FLAT: {
+              emitFlatPortal(buf, x, y, z, block);
+              break;
+            }
+
             case B.SHAPE_LADDER: {
               emitLadder(buf, x, y, z, meta, gl(x, y, z));
               break;
@@ -521,6 +526,26 @@
           a[n++] = UVS[side === 0 ? i : (3 - i)][0];
           a[n++] = UVS[side === 0 ? i : (3 - i)][1];
           a[n++] = layer;
+          a[n++] = 1; a[n++] = 0; a[n++] = 1;   // leuchtet selbst
+        }
+        buf.n = n;
+      }
+    }
+
+    // Endportal: liegende, beidseitig sichtbare Fläche knapp unter der Oberkante
+    // des Rahmens – man schaut von oben in die Sterne hinein.
+    function emitFlatPortal(buf, x, y, z, block) {
+      var layer = T.layer(typeof block.tex === 'string' ? block.tex : block.tex.top);
+      var h = 0.75;
+      var q = [[0, h, 1], [1, h, 1], [1, h, 0], [0, h, 0]];
+      for (var side = 0; side < 2; side++) {
+        buf.need(4 * 9);
+        var a = buf.a, n = buf.n;
+        for (var i = 0; i < 4; i++) {
+          var k = side === 0 ? i : (3 - i);
+          var p = q[k];
+          a[n++] = bx0 + x + p[0]; a[n++] = y + p[1]; a[n++] = bz0 + z + p[2];
+          a[n++] = UVS[k][0]; a[n++] = UVS[k][1]; a[n++] = layer;
           a[n++] = 1; a[n++] = 0; a[n++] = 1;   // leuchtet selbst
         }
         buf.n = n;

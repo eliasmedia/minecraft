@@ -128,6 +128,7 @@
     this.seed = seed;
     this.worldSettings = MC.normalizeWorldOpts(settings);
     this.worlds = {};
+    this.endState = { dragonDead: false };
     this.dim = 'overworld';
     this.world = this.dimWorld('overworld');
     this.particles = new MC.Particles(this.world);
@@ -211,6 +212,8 @@
 
   // Ein Portal betreten: Gegenstück in der Zielwelt suchen oder eins bauen
   Game.prototype.usePortal = function (kind) {
+    // Das Ende hat feste Ein- und Ausstiegspunkte statt eines Gegenstücks
+    if (kind === 'the_end') { MC.End.usePortal(this); return; }
     var p = this.player;
     var from = this.dim;
     var to = (from === kind) ? 'overworld' : kind;
@@ -237,6 +240,19 @@
       pos = MC.Dim.Portal.build(target, tx, ty, tz, kind);
     }
     this.travelTo(to, pos);
+  };
+
+  // Das Ausgangsportal im Ende: zurück in die Oberwelt, dazu der Abspann
+  Game.prototype.finishGame = function () {
+    var p = this.player;
+    var sp = p.spawnPoint || { x: 0.5, y: 80, z: 0.5 };
+    var over = this.dimWorld('overworld');
+    this.generateAround(over, Math.round(sp.x), Math.round(sp.z), 1);
+    var gy = MC.Dim.findGround(over, Math.floor(sp.x), Math.floor(sp.z), Math.round(sp.y));
+    this.travelTo('overworld', { x: sp.x, y: (gy < 0 ? sp.y : gy) + 0.05, z: sp.z });
+    this.player.portalCd = 4;
+    this.saveWorld();
+    this.ui.showCredits();
   };
 
   // Sturz durch die Leere des Aether: man fällt in der Oberwelt vom Himmel
@@ -695,6 +711,8 @@
         return;
       }
     }
+    // Gravitit auf einen Endportalrahmen: die Fläche reißt auf
+    if (it.name === 'gravitite' && MC.End.tryIgnite(this)) return;
     // Feuerzeug: erst Portal versuchen, sonst Feuer legen
     if (it.name === 'flint_and_steel') {
       if (this.tryIgnitePortal('nether')) return;
@@ -716,7 +734,10 @@
       var loot = null;
       try {
         if (w.dim === 'nether') loot = MC.Dim.fortressLoot(w.gen, x, y, z);
-        else if (MC.Village && w.gen.o.structures) loot = MC.Village.chestLoot(w.gen, x, y, z);
+        else if (w.dim === 'overworld') {
+          loot = MC.Stronghold.chestLoot(w.gen, x, y, z);
+          if (!loot && MC.Village && w.gen.o.structures) loot = MC.Village.chestLoot(w.gen, x, y, z);
+        }
       } catch (e) { loot = null; }
       return { type: 'chest', items: loot || new Array(27) };
     });
@@ -1217,7 +1238,12 @@
         '<hr>',
         '<b>Nether:</b> Obsidianrahmen 4×5 mit dem <b>Feuerzeug</b> zünden.',
         'Dort Bastionen suchen — nur sie haben <b>Glowstone</b>.',
-        '<b>Aether:</b> derselbe Rahmen aus <b>Glowstone</b>, mit einem <b>Eimer Wasser</b> fluten.'
+        '<b>Aether:</b> derselbe Rahmen aus <b>Glowstone</b>, mit einem <b>Eimer Wasser</b> fluten.',
+        '<b>Das Ende:</b> der <b>Gravitithelm</b> zeigt oben einen Kompass zur',
+        'vergrabenen Festung. Dort das Endportal mit einem <b>Gravitit</b> zünden,',
+        'den Enderdrachen erlegen — erst dann führt ein Portal zurück.',
+        '<hr>',
+        '<b>Kompass</b> (4 Eisen + Redstone): zeigt Himmelsrichtung und Koordinaten.'
       ].join('<br>');
       box.appendChild(d);
       btn('Zurück', function () { self.showMenu(self.started ? 'pause' : 'main'); });
@@ -1324,6 +1350,7 @@
       time: this.world.time,
       mode: this.mode,
       dim: this.dim,
+      endState: this.endState,
       player: this.player.serialize(),
       dims: dims
     };
@@ -1360,6 +1387,7 @@
       overworld: { chunks: data.chunks || {}, tileEntities: data.tileEntities || {}, time: data.time }
     };
     this.worlds = {};
+    this.endState = data.endState || { dragonDead: false };
     this.dim = (data.dim && MC.Dim.TITLE[data.dim]) ? data.dim : 'overworld';
     this.world = this.dimWorld(this.dim);
     if (data.time !== undefined && this.dim === 'overworld') this.world.time = data.time;
@@ -1457,6 +1485,12 @@
         e.update(dt, this);
       }
       MC.Spawner.tick(this, dt);
+      // Im Ende sorgt ein eigener Takt dafür, dass Kristalle und Drache stehen,
+      // sobald die Chunks um die Insel geladen sind
+      if (this.dim === 'the_end') {
+        this.endTimer = (this.endTimer || 0) + dt;
+        if (this.endTimer > 1) { this.endTimer = 0; MC.End.tick(this); }
+      }
       this.particles.update(dt);
       this.world.update(dt, p.x, p.y, p.z);
       if ((this.tickCount % 4) === 0) this.tickFurnaces();
@@ -1494,7 +1528,7 @@
     var p = this.player, w = this.world;
     if (p.portalCd > 0) { p.portalCd -= dt; }
     var b = B.byId[w.getBlock(Math.floor(p.x), Math.floor(p.y + 0.6), Math.floor(p.z))];
-    var inPortal = b && b.shape === B.SHAPE_PORTAL;
+    var inPortal = b && (b.shape === B.SHAPE_PORTAL || b.shape === B.SHAPE_PORTAL_FLAT);
     if (!inPortal) { p.portalTime = 0; return; }
     if (p.portalCd > 0) return;
     p.portalTime = (p.portalTime || 0) + dt;

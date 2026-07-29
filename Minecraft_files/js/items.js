@@ -145,6 +145,9 @@
   define('water_bucket', { title: 'Wassereimer', stack: 1, group: 'werkzeug' });
   define('lava_bucket', { title: 'Lavaeimer', stack: 1, group: 'werkzeug', fuel: 20000 });
   define('flint_and_steel', { title: 'Feuerzeug', stack: 1, durability: 64, group: 'werkzeug' });
+  // In der Hand blendet der Kompass oben ein Band mit Himmelsrichtung und
+  // Koordinaten ein – die Nadel selbst steckt in der Oberfläche, nicht im Item.
+  define('compass', { title: 'Kompass', stack: 1, group: 'werkzeug' });
 
   // ---------- Rüstung ----------
   I.ARMOR = {
