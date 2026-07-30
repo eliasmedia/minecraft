@@ -242,14 +242,28 @@
     this.travelTo(to, pos);
   };
 
+  // Eine Stelle, an der man wirklich stehen kann: erst der gemerkte Spawnpunkt
+  // selbst (Bett im Haus), sonst die Oberfläche derselben Spalte. Ohne das
+  // landet man nach der Rückkehr aus dem Ende schon mal mitten im Berg.
+  Game.prototype.safeSpawnPos = function (world, sp) {
+    var x = Math.floor(sp.x), z = Math.floor(sp.z);
+    function frei(y) {
+      if (y < 1 || y >= WH - 1) return false;
+      return world.getBlock(x, y, z) === 0 && world.getBlock(x, y + 1, z) === 0 &&
+             B.isSolid(world.getBlock(x, y - 1, z));
+    }
+    var y0 = Math.round(sp.y);
+    for (var d = 0; d <= 2; d++) if (frei(y0 + d)) return { x: sp.x, y: y0 + d + 0.05, z: sp.z };
+    for (var y = WH - 3; y > 1; y--) if (frei(y)) return { x: sp.x, y: y + 0.05, z: sp.z };
+    return { x: sp.x, y: sp.y, z: sp.z };
+  };
+
   // Das Ausgangsportal im Ende: zurück in die Oberwelt, dazu der Abspann
   Game.prototype.finishGame = function () {
-    var p = this.player;
-    var sp = p.spawnPoint || { x: 0.5, y: 80, z: 0.5 };
+    var sp = this.player.spawnPoint || { x: 0.5, y: 80, z: 0.5 };
     var over = this.dimWorld('overworld');
     this.generateAround(over, Math.round(sp.x), Math.round(sp.z), 1);
-    var gy = MC.Dim.findGround(over, Math.floor(sp.x), Math.floor(sp.z), Math.round(sp.y));
-    this.travelTo('overworld', { x: sp.x, y: (gy < 0 ? sp.y : gy) + 0.05, z: sp.z });
+    this.travelTo('overworld', this.safeSpawnPos(over, sp));
     this.player.portalCd = 4;
     this.saveWorld();
     this.ui.showCredits();
@@ -711,8 +725,8 @@
         return;
       }
     }
-    // Gravitit auf einen Endportalrahmen: die Fläche reißt auf
-    if (it.name === 'gravitite' && MC.End.tryIgnite(this)) return;
+    // Enderauge in einen Endportalrahmen setzen; beim zwölften zündet das Portal
+    if (it.name === 'ender_eye' && MC.End.placeEye(this)) return;
     // Feuerzeug: erst Portal versuchen, sonst Feuer legen
     if (it.name === 'flint_and_steel') {
       if (this.tryIgnitePortal('nether')) return;
@@ -1240,8 +1254,12 @@
         'Dort Bastionen suchen — nur sie haben <b>Glowstone</b>.',
         '<b>Aether:</b> derselbe Rahmen aus <b>Glowstone</b>, mit einem <b>Eimer Wasser</b> fluten.',
         '<b>Das Ende:</b> der <b>Gravitithelm</b> zeigt oben einen Kompass zur',
-        'vergrabenen Festung. Dort das Endportal mit einem <b>Gravitit</b> zünden,',
-        'den Enderdrachen erlegen — erst dann führt ein Portal zurück.',
+        'vergrabenen Festung. Zwölf <b>Enderaugen</b> in die Rahmenblöcke setzen',
+        '(Lohenrute → Lohenstaub + Enderperle), dann den Drachen erlegen —',
+        'erst danach führt ein Portal zurück.',
+        '<b>Lohen</b> gibt es nur an den Bastionen im Nether, <b>Endermen</b> nachts',
+        'in der Oberwelt, im Nether und im Ende. Endermen bleiben friedlich,',
+        'bis man ihnen ins Gesicht sieht.',
         '<hr>',
         '<b>Kompass</b> (4 Eisen + Redstone): zeigt Himmelsrichtung und Koordinaten.'
       ].join('<br>');

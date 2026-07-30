@@ -225,11 +225,14 @@
       'Eine Nacht, die man in einem Erdloch abgewartet hat.</p>',
       '<p>Zehn Blöcke Obsidian und ein Feuerzeug — der <b>Nether</b>.<br>' +
       'Vierzehn Blöcke Glowstone aus einer Bastion — der <b>Aether</b>.<br>' +
-      'Gravitit aus dem Bauch einer schwebenden Insel — <b>das Ende</b>.</p>',
+      'Ein Helm aus Gravitit, der den Weg zeigt.</p>',
+      '<p>Sechs Lohenruten. Zwölf Enderperlen. Zwölf Augen.<br>' +
+      'Und ganz unten, unter dreißig Blöcken Stein, ein Rahmen,<br>' +
+      'der auf genau das gewartet hat — <b>das Ende</b>.</p>',
       '<hr>',
       '<h2>Minecraft — HTML Edition</h2>',
       '<p>Eine Voxelwelt in einer Datei.<br>' +
-      'Eigener WebGL2-Renderer, 345 prozedurale Texturen,<br>' +
+      'Eigener WebGL2-Renderer, 355 prozedurale Texturen,<br>' +
       'kein Framework, kein Server, keine externen Dateien.</p>',
       '<p class="dim">Privates Lernprojekt. Minecraft ist eine Marke von Mojang Studios.</p>',
       '<hr>',

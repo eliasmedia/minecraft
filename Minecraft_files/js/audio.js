@@ -180,6 +180,8 @@
       case 'ghast': this.tone(t, 0.9, 0.22 * g, 'sine', 620, 240, 5); this.noise(t, 0.7, 0.1 * g, 'lowpass', 900, 1, 300); break;
       case 'trade': this.tone(t, 0.1, 0.18 * g, 'sine', 700, 950); this.tone(t + 0.09, 0.16, 0.16 * g, 'sine', 950, 1250); break;
       case 'nope': this.tone(t, 0.14, 0.18 * g, 'square', 240, 160, 10); break;
+      // Enderman: ein trockenes, abwärts gleitendes Knurren
+      case 'enderman': this.tone(t, 0.5, 0.22 * g, 'sawtooth', 520, 90, 3); this.noise(t, 0.3, 0.1 * g, 'bandpass', 1400, 3, 600); break;
       default: break;
     }
   };

@@ -819,6 +819,9 @@
       case 'dragonTail1': r.y = Math.sin(mob.age * 1.5) * 0.20; break;
       case 'dragonTail2': r.y = Math.sin(mob.age * 1.5 - 0.7) * 0.30; break;
       case 'crystalSpin': r.x = 0.42; r.y = mob.age * 1.5; break;
+      // Die beiden Rutenringe der Lohe drehen gegenläufig
+      case 'blazeRing': r.y = mob.age * 1.7; break;
+      case 'blazeRing2': r.y = -mob.age * 1.2; break;
     }
     return r;
   }

@@ -166,6 +166,9 @@
   shaped(['MM', 'MM'], { M: 'magma_block' }, 'magma_block', 1);
   // Kompass wie im Original: Eisen ringsum, Redstone in der Mitte
   shaped(['.I.', 'IRI', '.I.'], { I: 'iron_ingot', R: 'redstone' }, 'compass', 1);
+  // Enderauge: eine Lohenrute gibt zwei Staub, Staub plus Perle gibt das Auge
+  shapeless(['blaze_rod'], 'blaze_powder', 2);
+  shapeless(['blaze_powder', 'ender_pearl'], 'ender_eye', 1);
   shaped(['EE', 'EE'], { E: 'end_stone' }, 'end_stone_bricks', 4);
 
   // ---------------- Schmelzen ----------------

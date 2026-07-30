@@ -58,8 +58,9 @@ eingeebneten Plateau, dessen Rand ins Gelände ausläuft.
 **Der Weg nach oben** — die vier Welten bauen aufeinander auf: in der Oberwelt
 sucht man Obsidian für das Netherportal, im Nether die Bastionen, weil nur dort
 Glowstone liegt und Glowstone der Rahmen für das Aetherportal ist. Der Aether
-gibt die beste Rüstung her — und den Gravitit, mit dem sich in der Oberwelt das
-Endportal öffnen lässt. Dahinter wartet der Drache.
+gibt die beste Rüstung her — und mit ihr den Kompass, der die Festung mit dem
+Endportal findet. Aufgeschlossen wird es mit zwölf Enderaugen. Dahinter wartet
+der Drache.
 
 **Kompass** — vier Eisenbarren und ein Redstone. In der Hand blendet er oben ein
 Band mit den Himmelsrichtungen ein, darunter die eigenen Koordinaten. Norden
@@ -72,6 +73,11 @@ Netherquarz und Zaniterz in Adern, Lavaseen im Untergeschoss. Kein Tageslicht,
 roter Dunst, kurze Sicht. Bewohnt von Piglins, Magmawürfeln und Ghasts, die
 Feuerbälle werfen — Lava macht ihnen nichts aus. Ein Block im Nether entspricht
 acht in der Oberwelt, ein Portal dort spart also Wege.
+
+**Lohen** — schwebende Köpfe, umkreist von zwei gegenläufigen Ringen brennender
+Ruten. Sie schießen Flammen, die wehtun, aber kein Loch ins Gelände reißen. Es
+gibt sie nur rund um eine Bastion, höchstens vier auf einmal, und sie sind die
+einzige Quelle für **Lohenruten** — damit auch der Schlüssel zu den Enderaugen.
 
 **Bastionen** — kleine Festungen aus Netherziegeln, etwa alle 160 Blöcke, an
 ihren vier Glowstone-Leuchtfeuern schon von weitem zu erkennen. Sie sind die
@@ -112,19 +118,25 @@ dass es irgendwo draufsteht:
 paar hundert Blöcke vom Ursprung entfernt. Portalsaal mit zwei Lavabecken und
 zwei Truhen, ein Gang zur Bibliothek, ein Leiterschacht, der drei Blöcke unter
 dem Gras endet — den Rest gräbt man selbst. In der Mitte des Saals liegt der
-Endportalrahmen: zwölf Blöcke im 5×5-Quadrat ohne Ecken, genau wie im Original.
-Gefunden wird die Festung nicht mit Enderaugen, sondern über den Kompass im HUD
-des Gravitithelms; geöffnet wird das Portal mit einem **Gravitit** aus dem
-Aether statt mit zwölf Augen.
+Endportalrahmen: zwölf Blöcke im 5×5-Quadrat ohne Ecken, genau wie im Original,
+und wie dort steckt in jedem zehnten schon ein Auge.
+
+**Enderaugen** — der Weg dorthin ist der aus dem Original: eine **Lohe** an einer
+Netherbastion lässt Lohenruten fallen, eine Rute wird zu zwei Lohenstaub, Staub
+plus **Enderperle** vom Enderman gibt ein Enderauge. Zwölf davon in die Rahmen,
+dann reißt die Fläche auf. Gefunden wird die Festung aber nicht mit geworfenen
+Augen, sondern über den Kompass im HUD des Gravitithelms.
 
 **Das Ende** — eine Insel aus Endstein in der violetten Leere, zehn
 Obsidiantürme im Kreis darum, auf jedem ein Enderkristall auf einem Sockel aus
-Grundgestein. In der Mitte der erloschene Sockel des Ausgangsportals. Darüber
-kreist der **Enderdrache**: 200 Leben, er stürzt sich auf den Spieler, fegt ihn
-mit dem Flügelschlag weg und spuckt Feuerbälle. Solange ein Kristall steht,
-heilt er sich — wer gewinnen will, sprengt erst die Türme leer. Fällt er, zündet
-das Ausgangsportal, das Drachenei erscheint auf seiner Säule, und wer hindurch
-geht, sieht den Abspann und steht wieder an seinem Spawnpunkt.
+Grundgestein. In der Mitte eine Schale aus Grundgestein mit einem Pfeiler und
+vier Fackeln: der erloschene Sockel des Ausgangsportals. Darüber kreist der
+**Enderdrache**: 200 Leben, er stürzt sich auf den Spieler, fegt ihn mit dem
+Flügelschlag weg und spuckt Feuerbälle. Solange ein Kristall steht, heilt er
+sich — wer gewinnen will, sprengt erst die Türme leer. Fällt er, füllt sich die
+Schale mit Portalfläche, das Drachenei erscheint auf dem Pfeiler, und wer
+hindurchgeht, sieht den Abspann und steht wieder an seinem Spawnpunkt — im Bett,
+falls eines gesetzt ist. Dazu streifen Endermen über die Insel.
 
 **Dorfbewohner & Handel** — fünf Berufe (Bauer, Bibliothekar, Schmied, Metzger,
 Steinmetz) mit eigener Robe und je drei bis vier Angeboten. Rechtsklick öffnet das
@@ -150,9 +162,11 @@ Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 
 **Mobs** — Schwein, Kuh, Schaf (16 Wollfarben, scherbar), Huhn, Zombie, Skelett
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
-Piglin, Ghast und Magmawürfel, im Aether Moa, Phyg, Sheepuff, Cockatrice und
-Zephyr, im Ende der Enderdrache samt Enderkristallen. Spawn nach Lichtlevel und
-Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops, XP-Kugeln.
+Piglin, Ghast, Magmawürfel und die Lohe an den Bastionen, im Aether Moa, Phyg,
+Sheepuff, Cockatrice und Zephyr, im Ende der Enderdrache samt Enderkristallen.
+Der **Enderman** läuft in allen Welten herum: friedlich, bis das Fadenkreuz auf
+seinem Kopf liegt, springt kurze Strecken, meidet Wasser. Spawn nach Lichtlevel
+und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops, XP-Kugeln.
 
 **Physik & Simulation** — fließendes Wasser und Lava mit 8 Fließstufen,
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,
@@ -171,7 +185,7 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 * klassische `<script>`-Tags statt ES-Module
 * eigener WebGL2-Renderer statt three.js
-* alle Texturen zur Laufzeit per Canvas erzeugt (345 Stück) statt Bilddateien
+* alle Texturen zur Laufzeit per Canvas erzeugt (355 Stück) statt Bilddateien
 * alle Klänge per WebAudio synthetisiert statt Audiodateien
 * Chunk-Meshing zeitbudgetiert im Main-Thread statt in Workern
 
@@ -180,9 +194,9 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 **Als Nächstes:** Karten — ein Item, das das erkundete Gelände von oben zeigt und
 sich in einem Rahmen an die Wand hängen lässt. Der Kompass ist die Vorstufe davon.
 
-Redstone, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen Endermen, die
-äußeren Inseln und das Wiederbeleben des Drachen. Im Nether fehlen
-Festungen und Blazes, im Aether die drei Dungeons und reitbare Moas. Dorfbewohner
+Redstone, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen die äußeren
+Inseln und das Wiederbeleben des Drachen; Enderperlen lassen sich noch nicht
+werfen. Im Aether fehlen die drei Dungeons und reitbare Moas. Dorfbewohner
 laufen geradlinig auf ihr Ziel zu statt einen Weg zu suchen; ein Haus hinter einer
 Mauer erreichen sie nicht. Ihre schon getätigten Handelszüge überleben das
 Entladen des Dorfes nicht — der Vorrat eines Angebots füllt sich dann wieder auf.

@@ -22,6 +22,9 @@
     this.r = MC.U.rng(seed);
   }
   G.prototype.set = function (x, y, c, a) {
+    // blob() läuft mit halben Schritten – ohne das Abrunden landet der
+    // Byte-Index zwischen zwei Pixeln und die Farbkanäle verrutschen.
+    x = Math.floor(x); y = Math.floor(y);
     if (x < 0 || y < 0 || x >= TILE || y >= TILE) return;
     var i = (y * TILE + x) * 4;
     this.d[i] = c[0]; this.d[i + 1] = c[1]; this.d[i + 2] = c[2];
@@ -1347,6 +1350,17 @@
     g.blob(8, 8, 3.2, [92, 210, 160]);
     g.blob(7, 7, 1.4, [190, 250, 220]);
   });
+  // Derselbe Rahmen mit eingesetztem Enderauge
+  tex('end_portal_frame_eye', function (g) {
+    g.fill(mix(END_STONE, [140, 190, 156], 0.4)); g.noise(0.05);
+    g.frame(2, 2, 12, 12, dark(END_STONE, 0.55));
+    g.rect(3, 3, 10, 10, [20, 54, 46]);
+    // Auge: querovale Iris mit dunkler Pupille und einem Glanzpunkt
+    g.rect(4, 5, 8, 6, [58, 186, 150]);
+    g.rect(5, 4, 6, 8, [58, 186, 150]);
+    g.rect(6, 6, 4, 4, [14, 20, 28]);
+    g.rect(6, 6, 2, 2, [190, 250, 232]);
+  });
   // Portalfläche: Blick in einen Sternenhimmel
   tex('portal_end', function (g) {
     g.fill([6, 4, 14]);
@@ -1392,6 +1406,54 @@
     g.rect(2, 5, 4, 3, [214, 66, 226]); g.rect(10, 5, 4, 3, [214, 66, 226]);
     g.rect(3, 6, 2, 1, [255, 190, 255]); g.rect(11, 6, 2, 1, [255, 190, 255]);
     g.rect(4, 12, 8, 2, [16, 14, 22]);
+  });
+
+  // ---------- Lohe ----------
+  mobTex('mob_blaze', [246, 178, 34], function (g) {
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.5, [252, 216, 96]);
+  });
+  mobTex('mob_blaze_face', [246, 178, 34], function (g) {
+    g.rect(3, 5, 3, 3, [72, 30, 6]); g.rect(10, 5, 3, 3, [72, 30, 6]);
+    g.rect(4, 11, 8, 2, [128, 52, 10]);
+  });
+  mobTex('mob_blaze_rod', [252, 214, 84], function (g) {
+    for (var y = 0; y < 16; y += 3) for (var x = 0; x < 16; x++) g.set(x, y, [232, 150, 26]);
+  });
+
+  // ---------- Enderman ----------
+  mobTex('mob_enderman', [18, 16, 22], function (g) {
+    for (var i = 0; i < 16; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [34, 30, 42]);
+  });
+  mobTex('mob_enderman_face', [18, 16, 22], function (g) {
+    g.rect(1, 6, 6, 3, [206, 160, 255]);
+    g.rect(9, 6, 6, 3, [206, 160, 255]);
+    g.rect(2, 7, 4, 1, [255, 240, 255]);
+    g.rect(10, 7, 4, 1, [255, 240, 255]);
+  });
+
+  // ---------- Items rund um das Enderauge ----------
+  itemTex('blaze_rod', function (g) {
+    for (var y = 1; y < 15; y++) { g.set(7, y, [252, 214, 84]); g.set(8, y, [226, 158, 30]); }
+    g.set(7, 0, [255, 244, 180]); g.set(8, 0, [255, 224, 120]);
+    g.set(7, 15, [180, 110, 20]); g.set(8, 15, [180, 110, 20]);
+  });
+  itemTex('blaze_powder', function (g) {
+    for (var i = 0; i < 46; i++) {
+      var x = 3 + ((g.r() * 10) | 0), y = 4 + ((g.r() * 9) | 0);
+      g.set(x, y, mix([255, 226, 120], [226, 132, 24], g.r()));
+    }
+  });
+  itemTex('ender_pearl', function (g) {
+    g.blob(8, 8, 5.4, [24, 78, 70]);
+    g.blob(8, 8, 4.2, [58, 168, 146]);
+    g.blob(7, 6, 2.2, [140, 226, 206]);
+    g.blob(6, 5, 1, [230, 255, 246]);
+  });
+  itemTex('ender_eye', function (g) {
+    g.blob(8, 8, 5.4, [22, 62, 52]);
+    g.blob(8, 8, 4.4, [52, 176, 140]);
+    g.blob(8, 8, 2.2, [16, 20, 28]);
+    g.blob(7, 7, 1, [200, 255, 236]);
   });
 
   // ---------- Kompass ----------

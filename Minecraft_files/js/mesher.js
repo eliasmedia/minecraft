@@ -72,6 +72,8 @@
     if (block.shape === B.SHAPE_CROP) return T.layer('wheat_stage' + Math.min(3, meta >> 1));
     // Tür: obere/untere Hälfte bestimmt die Textur, nicht die Fläche
     if (block.shape === B.SHAPE_DOOR) return T.layer((meta & 1) ? tex.top : tex.bottom);
+    // Endportalrahmen: Meta-Bit 0 = Enderauge eingesetzt
+    if (block.name === 'end_portal_frame' && face === 2 && (meta & 1)) return T.layer('end_portal_frame_eye');
     // Stämme mit Achse
     if (block.name.indexOf('log_') === 0) {
       var axis = meta & 3;
@@ -261,6 +263,14 @@
 
             case B.SHAPE_PORTAL_FLAT: {
               emitFlatPortal(buf, x, y, z, block);
+              break;
+            }
+
+            case B.SHAPE_EGG: {
+              for (var eg = 0; eg < B.EGG_LAYERS.length; eg++) {
+                var L = B.EGG_LAYERS[eg];
+                emitShapedBox(buf, x, y, z, [L[0], L[1], L[2]], [L[3], L[4], L[5]], block, meta);
+              }
               break;
             }
 

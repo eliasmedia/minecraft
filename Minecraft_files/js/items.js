@@ -73,9 +73,15 @@
     ['nether_brick', 'Netherziegelstein', 'material', 0],
     // Aether
     ['zanite_gemstone', 'Zanit', 'material', 0],
-    ['gravitite', 'Gravitit', 'material', 0]
+    ['gravitite', 'Gravitit', 'material', 0],
+    // Das Ende: Lohenrute und Enderperle ergeben zusammen das Enderauge
+    ['blaze_rod', 'Lohenrute', 'material', 2400],
+    ['blaze_powder', 'Lohenstaub', 'material', 0],
+    ['ender_eye', 'Enderauge', 'material', 0]
   ];
   mats.forEach(function (m) { define(m[0], { title: m[1], group: m[2], fuel: m[3] }); });
+  // Enderperlen stapeln sich wie im Original nur bis 16
+  define('ender_pearl', { title: 'Enderperle', stack: 16, group: 'material' });
 
   // ---------- Nahrung ----------
   var foods = [

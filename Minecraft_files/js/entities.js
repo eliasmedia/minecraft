@@ -485,6 +485,33 @@
         part('shellB', 'mob_magma', -6, 0, -6, 12, 5, 12)
       ]
     },
+    // Lohe: ein schwebender Kopf, umkreist von zwei Ringen brennender Ruten
+    blaze: {
+      height: 1.8, width: 0.6, scale: 1,
+      parts: [
+        part('head', { all: 'mob_blaze', front: 'mob_blaze_face' }, -4, 14, -4, 8, 8, 8),
+        part('r0', 'mob_blaze_rod', -7, 6, -1, 2, 8, 2, 'blazeRing', [0, 10, 0]),
+        part('r1', 'mob_blaze_rod', 5, 6, -1, 2, 8, 2, 'blazeRing', [0, 10, 0]),
+        part('r2', 'mob_blaze_rod', -1, 6, -7, 2, 8, 2, 'blazeRing', [0, 10, 0]),
+        part('r3', 'mob_blaze_rod', -1, 6, 5, 2, 8, 2, 'blazeRing', [0, 10, 0]),
+        part('r4', 'mob_blaze_rod', -5, 0, -5, 2, 8, 2, 'blazeRing2', [0, 4, 0]),
+        part('r5', 'mob_blaze_rod', 3, 0, -5, 2, 8, 2, 'blazeRing2', [0, 4, 0]),
+        part('r6', 'mob_blaze_rod', -5, 0, 3, 2, 8, 2, 'blazeRing2', [0, 4, 0]),
+        part('r7', 'mob_blaze_rod', 3, 0, 3, 2, 8, 2, 'blazeRing2', [0, 4, 0])
+      ]
+    },
+    // Enderman: knapp drei Blöcke hoch, dünn, mit leuchtenden Augen
+    enderman: {
+      height: 2.9, width: 0.6, scale: 1,
+      parts: [
+        part('head', { all: 'mob_enderman', front: 'mob_enderman_face' }, -4, 40, -4, 8, 8, 8, 'head', [0, 40, 0]),
+        part('body', 'mob_enderman', -4, 26, -2, 8, 14, 4),
+        part('armR', 'mob_enderman', -6, 8, -1, 2, 22, 2, 'armZ', [-5, 30, 0]),
+        part('armL', 'mob_enderman', 4, 8, -1, 2, 22, 2, 'armZ', [5, 30, 0]),
+        part('legR', 'mob_enderman', -3, 0, -1, 2, 26, 2, 'legFR', [-2, 26, 0]),
+        part('legL', 'mob_enderman', 1, 0, -1, 2, 26, 2, 'legFL', [2, 26, 0])
+      ]
+    },
     // ---- Aether ----
     moa: {
       height: 1.9, width: 0.8, scale: 1,
@@ -606,8 +633,14 @@
     villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
     // ---- Nether ----
     piglin: { hp: 20, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
-    ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'ghast', fireproof: true },
+    ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, projectile: 'fireball', drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'ghast', fireproof: true },
     magma_cube: { hp: 12, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }], xp: 4, sound: 'thud', fireproof: true },
+    // Lohe: einzige Quelle für Lohenruten, darum nur bei den Bastionen
+    blaze: { hp: 20, hostile: true, speed: 1.5, damage: 5, ranged: true, flying: true, projectile: 'flame', drops: [{ id: 'blaze_rod', min: 1, max: 2 }], xp: 10, sound: 'fizz', fireproof: true },
+    // ---- Enderman: überall zu Hause, friedlich bis man ihn anstarrt ----
+    // Zwei Perlen als Höchstwert: für zwölf Augen wären 0–1 wie im Original
+    // hier zu zäh, weil deutlich weniger Endermen unterwegs sind
+    enderman: { hp: 40, hostile: false, speed: 3.4, damage: 7, drops: [{ id: 'ender_pearl', min: 0, max: 2 }], xp: 5, sound: 'enderman' },
     // ---- Aether ----
     moa: { hp: 14, hostile: false, speed: 2.2, drops: [{ id: 'feather', min: 1, max: 3 }], xp: 3, sound: 'chicken' },
     phyg: { hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
@@ -696,6 +729,9 @@
     if (!this.spec.fireproof && P.inLiquid(world, this, 'lava')) {
       if ((game.tickCount % 12) === 0) this.hurt(4, null, game);
     }
+
+    // Endermen haben ihren eigenen Kopf: Blickkontakt, Sprünge, Wasserscheu
+    if (this.mobType === 'enderman') this.endermanTick(dt, game);
 
     // Fliegende Mobs schweben, statt zu laufen
     if (this.spec.flying) { this.flyTick(dt, game, foeOf(this, game)); return; }
@@ -880,28 +916,33 @@
     if (p && this.distTo(p) > 90) this.dead = true;
   };
 
-  // Ghast wirft Feuerbälle, Zephyr Schneebälle: der eine zündet, der andere stößt
+  // Ghast wirft Feuerbälle, die Lohe kleine Flammen, der Zephyr Schneebälle:
+  // der erste sprengt, der zweite brennt nur, der dritte stößt weg.
   Mob.prototype.shootBall = function (game, target) {
     var dx = target.x - this.x;
     var dy = (target.y + 0.9) - (this.y + this.height * 0.5);
     var dz = target.z - this.z;
     var d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-    var fire = this.mobType === 'ghast';
-    var speed = fire ? 14 : 17;
+    var kind = this.spec.projectile || 'snowball';
+    var fire = kind !== 'snowball';
+    var speed = kind === 'fireball' ? 14 : (kind === 'flame' ? 22 : 17);
+    var power = kind === 'fireball' ? 2.4 : 0;
     var b = new Projectile(this.world,
       this.x + dx / d * 1.4, this.y + this.height * 0.5 + dy / d * 1.4, this.z + dz / d * 1.4,
-      dx / d * speed, dy / d * speed, dz / d * speed, this, fire);
+      dx / d * speed, dy / d * speed, dz / d * speed, this, fire, power);
     this.world.entities.push(b);
     game.audio.play3d(fire ? 'fizz' : 'bow', this.x, this.y, this.z, game.player);
   };
 
-  // ---- Geschoss von Ghast/Zephyr ----
-  function Projectile(world, x, y, z, vx, vy, vz, owner, fire) {
+  // ---- Geschoss von Ghast/Lohe/Zephyr/Drache ----
+  // power > 0 sprengt beim Aufschlag, power 0 macht nur Schaden
+  function Projectile(world, x, y, z, vx, vy, vz, owner, fire, power) {
     Entity.call(this, world, x, y, z);
     this.width = 0.5; this.height = 0.5;
     this.vx = vx; this.vy = vy; this.vz = vz;
     this.owner = owner;
     this.fire = !!fire;
+    this.power = power === undefined ? 2.4 : power;
     this.type = 'projectile';
     this.gravity = 0;
     this.life = 5;
@@ -936,8 +977,16 @@
   Projectile.prototype.impact = function (game, x, y, z) {
     this.dead = true;
     var p = game.player;
-    if (this.fire) {
-      MC.explode(game, x, y, z, 2.4);
+    if (this.fire && this.power <= 0) {
+      // Flamme der Lohe: verbrennt, reißt aber kein Loch ins Gelände
+      game.particles.flame(x, y, z, 10);
+      game.audio.play3d('fizz', x, y, z, p);
+      if (p && !p.dead) {
+        var fdx = p.x - x, fdy = (p.y + 0.9) - y, fdz = p.z - z;
+        if (fdx * fdx + fdy * fdy + fdz * fdz < 2.2 * 2.2) p.hurt(5, this, game);
+      }
+    } else if (this.fire) {
+      MC.explode(game, x, y, z, this.power);
     } else {
       // Schneeball: kein Schaden, aber kräftiger Stoß – so fegt der Zephyr
       // dich von der Insel
@@ -1038,6 +1087,67 @@
     return false;   // draußen bei Tag -> normales Umherwandern
   };
 
+  // ---- Enderman ----
+  // Friedlich, bis man ihm ins Gesicht sieht. Springt kurz umher, weicht Wasser
+  // aus und setzt sich beim Angriff direkt neben den Spieler.
+  Mob.prototype.endermanTick = function (dt, game) {
+    var w = this.world, p = game.player;
+
+    if (P.inLiquid(w, this, 'water')) {
+      this.wetTimer = (this.wetTimer || 0) + dt;
+      if (this.wetTimer > 0.5) { this.wetTimer = 0; this.hurt(2, null, game); }
+      this.teleportNear(game, 16);
+    } else this.wetTimer = 0;
+
+    // Blickkontakt: Fadenkreuz auf dem Kopf, Sichtlinie frei
+    if (!this.hostile && p && !p.dead && game.mode !== 'creative') {
+      var dx = p.x - this.x, dy = p.eyeY() - (this.y + this.height * 0.9), dz = p.z - this.z;
+      var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d > 1 && d < 32) {
+        var look = p.lookDir();
+        var dot = -(look.x * dx + look.y * dy + look.z * dz) / d;
+        if (dot > 0.985 && this.canSee(p)) {
+          this.hostile = true;
+          this.attackCd = 0.8;
+          game.audio.play3d('enderman', this.x, this.y, this.z, p);
+          game.ui.toast('Der Enderman starrt zurück.');
+        }
+      }
+    }
+
+    this.tpCd = (this.tpCd === undefined) ? 2 + Math.random() * 4 : this.tpCd - dt;
+    if (this.tpCd <= 0) {
+      this.tpCd = this.hostile ? 3 + Math.random() * 4 : 6 + Math.random() * 8;
+      if (this.hostile && p && !p.dead && this.distTo(p) > 6) this.teleportTo(game, p.x, p.z, 3);
+      else if (!this.hostile) this.teleportNear(game, 14);
+    }
+  };
+
+  Mob.prototype.teleportNear = function (game, r) {
+    var a = Math.random() * Math.PI * 2, d = 4 + Math.random() * r;
+    return this.teleportTo(game, this.x + Math.cos(a) * d, this.z + Math.sin(a) * d, 0);
+  };
+
+  Mob.prototype.teleportTo = function (game, wx, wz, spread) {
+    var w = this.world;
+    for (var t = 0; t < 8; t++) {
+      var x = Math.floor(wx + (Math.random() - 0.5) * spread * 2);
+      var z = Math.floor(wz + (Math.random() - 0.5) * spread * 2);
+      if (!w.isLoaded(x, 64, z)) continue;
+      var y = MC.Dim.findGround(w, x, z, Math.round(this.y));
+      if (y < 0) continue;
+      // knapp drei Blöcke hoch – ohne Kopffreiheit steckt er in der Decke
+      if (w.getBlock(x, y + 2, z) !== 0) continue;
+      game.particles.crit(this.x, this.y + 1.6, this.z);
+      this.x = x + 0.5; this.y = y; this.z = z + 0.5;
+      this.vx = this.vy = this.vz = 0;
+      game.particles.crit(this.x, this.y + 1.6, this.z);
+      game.audio.play3d('pop', this.x, this.y, this.z, game.player);
+      return true;
+    }
+    return false;
+  };
+
   Mob.prototype.nearestHostile = function (r) {
     var ents = this.world.entities;
     for (var i = 0; i < ents.length; i++) {
@@ -1105,6 +1215,11 @@
     if (this.hurtTime > 0.25 || this.dead) return;
     this.hp -= amount;
     this.hurtTime = 0.5;
+    // Ein getroffener Enderman wird wütend und setzt sich erst einmal ab
+    if (this.mobType === 'enderman') {
+      this.hostile = true;
+      if (this.hp > 0 && Math.random() < 0.5) { this.teleportNear(game, 12); return; }
+    }
     this.panic = this.hostile ? 0 : 4;
     if (source) {
       var dx = this.x - source.x, dz = this.z - source.z;
@@ -1169,6 +1284,7 @@
     var maxPassive = 16;
 
     if (world.dim !== 'overworld') {
+      if (world.dim === 'nether') Spawner.blazes(game);
       Spawner.otherDim(game, world, p, hostiles, passives, maxHostile, maxPassive);
       return;
     }
@@ -1203,10 +1319,13 @@
         // Feindlich: dunkel, fester Boden
         var y = pickDarkSpot(world, x, z, p);
         if (y < 0) continue;
-        var kinds2 = ['zombie', 'skeleton', 'creeper'];
+        // Endermen sind seltener als das übrige Nachtvolk
+        var kinds2 = ['zombie', 'zombie', 'skeleton', 'skeleton', 'creeper', 'creeper', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
         var mm = new Mob(world, kind2, x + 0.5, y, z + 0.5);
         if (mm.distTo(p) < 14) continue;
+        // Endermen sind fast drei Blöcke hoch und brauchen entsprechend Platz
+        if (mm.height > 2 && world.getBlock(x, y + 2, z) !== 0) continue;
         world.entities.push(mm);
         hostiles++;
       }
@@ -1216,16 +1335,21 @@
   // Nether und Aether haben eigene Bewohner. Im Nether ist es überall dunkel,
   // also spawnen Monster unabhängig von der Tageszeit; im Aether ist es umgekehrt.
   var DIM_MOBS = {
-    nether: { hostile: ['piglin', 'piglin', 'zombie', 'magma_cube', 'ghast'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
-    aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'], ground: ['aether_grass', 'quicksoil', 'holystone'] }
+    nether: { hostile: ['piglin', 'piglin', 'zombie', 'magma_cube', 'ghast', 'enderman'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
+    aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'], ground: ['aether_grass', 'quicksoil', 'holystone'] },
+    // Im Ende soll der Drache die Hauptrolle behalten – Endermen bleiben selten
+    the_end: { hostile: ['enderman'], passive: [], ground: ['end_stone'], rate: 0.25, max: 5 }
   };
 
   Spawner.otherDim = function (game, world, p, hostiles, passives, maxHostile, maxPassive) {
     var table = DIM_MOBS[world.dim];
     if (!table) return;
     var groundIds = table.ground.map(function (n) { return B.id(n); });
+    // Eigene Obergrenze je Dimension – im Ende soll der Drache die Bühne haben
+    if (table.max !== undefined) maxHostile = Math.min(maxHostile, table.max);
 
     for (var t = 0; t < 8; t++) {
+      if (table.rate !== undefined && Math.random() > table.rate) continue;
       var ang = Math.random() * Math.PI * 2;
       var r = 18 + Math.random() * 34;
       var x = Math.floor(p.x + Math.cos(ang) * r);
@@ -1256,6 +1380,7 @@
       var sy2 = spec.flying ? y + 6 + Math.random() * 8 : y + 0.1;
       var m = new Mob(world, kind, x + 0.5, sy2, z + 0.5);
       if (m.distTo(p) < 14) continue;
+      if (m.height > 2 && world.getBlock(x, y + 2, z) !== 0) continue;
       world.entities.push(m);
       if (wantHostile) hostiles++; else passives++;
 
@@ -1266,6 +1391,35 @@
           passives++;
         }
       }
+    }
+  };
+
+  // Lohen gehören zur Bastion, nicht in den freien Nether. Sie kommen darum
+  // nicht aus der allgemeinen Tabelle – sonst nähmen Piglins ihnen die Plätze
+  // weg und Lohenruten wären reine Glückssache. Eine Bastion hält bis zu vier.
+  Spawner.blazes = function (game) {
+    var w = game.world, p = game.player;
+    var list = MC.Dim.fortressNear(w.gen, Math.floor(p.x), Math.floor(p.z));
+    if (!list || !list.length) return;
+    var f = list[0];
+
+    var n = 0;
+    for (var i = 0; i < w.entities.length; i++) {
+      var e = w.entities[i];
+      if (!e.dead && e.mobType === 'blaze') n++;
+    }
+    if (n >= 4) return;
+
+    for (var t = 0; t < 6; t++) {
+      var x = f.x + Math.round((Math.random() - 0.5) * 20);
+      var z = f.z + Math.round((Math.random() - 0.5) * 20);
+      var y = f.y + 3 + ((Math.random() * 6) | 0);
+      if (!w.isLoaded(x, y, z)) continue;
+      if (w.getBlock(x, y, z) !== 0 || w.getBlock(x, y + 1, z) !== 0) continue;
+      var m = new Mob(w, 'blaze', x + 0.5, y, z + 0.5);
+      if (m.distTo(p) < 10 || m.distTo(p) > 48) continue;
+      w.entities.push(m);
+      return;   // pro Durchlauf höchstens eine
     }
   };
 

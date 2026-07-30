@@ -5,7 +5,9 @@
             der Endportalrahmen — zwölf Blöcke im 5x5-Quadrat ohne Ecken, wie
             im Original. Gefunden wird sie nicht mit Enderaugen, sondern über
             den Kompass im HUD des Gravitithelms.
-   Geöffnet: ein Gravitit auf einen Rahmenblock reißt die Fläche auf.
+   Geöffnet: zwölf Enderaugen, eines je Rahmenblock. Ein Auge entsteht aus
+            Lohenstaub (Lohe an einer Netherbastion) und einer Enderperle
+            (Enderman) – derselbe Weg wie im Original.
    Das Ende: eine Insel aus Endstein in der Leere, zehn Obsidiantürme mit
             Enderkristallen, in der Mitte das erloschene Ausgangsportal. Wer
             den Drachen besiegt, zündet es und sieht den Abspann.
@@ -116,11 +118,14 @@
     }
 
     // ---- Endportalrahmen: 5x5 ohne Ecken = zwölf Blöcke ----
+    // Wie im Original steckt in jedem zehnten Rahmen schon ein Enderauge
     for (x = -2; x <= 2; x++) {
       for (z = -2; z <= 2; z++) {
         var ring = Math.max(Math.abs(x), Math.abs(z)) === 2;
         var ecke = Math.abs(x) === 2 && Math.abs(z) === 2;
-        if (ring && !ecke) set(s.x + x, y + 1, s.z + z, d.frame);
+        if (!ring || ecke) continue;
+        var auge = U.hash3(s.x + x, 77, s.z + z) < 0.1 ? 1 : 0;
+        set(s.x + x, y + 1, s.z + z, d.frame, auge);
       }
     }
     // Der Sockel unter der Portalfläche bleibt fest – anders als im Original
@@ -332,33 +337,64 @@
     }
   };
 
-  // Sockel aus Grundgestein. Die Portalfläche selbst entsteht erst, wenn der
-  // Drache gefallen ist – vorher ist die Mulde leer.
+  // Der Sockel wie im Original: eine Schale aus Grundgestein, in der Mitte ein
+  // Pfeiler mit vier Fackeln. Die Portalfläche entsteht erst, wenn der Drache
+  // gefallen ist – vorher ist die Mulde leer.
+  var EXIT_R2 = 7;   // Radius² der Portalfläche: 5x5 ohne Ecken = 21 Blöcke
+
+  // Alle Felder der Portalfläche, ohne den Mittelpfeiler
+  E.exitField = function () {
+    var out = [];
+    for (var x = -3; x <= 3; x++) {
+      for (var z = -3; z <= 3; z++) {
+        if (x * x + z * z > EXIT_R2) continue;
+        if (x === 0 && z === 0) continue;
+        out.push([x, z]);
+      }
+    }
+    return out;
+  };
+
   function drawExitPortal(set) {
     var bedrock = B.id('bedrock'), torch = B.id('torch');
     var y = E.TOP;
     for (var x = -6; x <= 6; x++) {
       for (var z = -6; z <= 6; z++) {
         var d2 = x * x + z * z;
-        if (d2 > 36) continue;
+        if (d2 > 40) continue;
         set(x, y, z, bedrock);
-        for (var k = 1; k <= 6; k++) set(x, y + k, z, 0);
-        // niedrige Brüstung rund um die 3x3-Mulde
-        if (d2 >= 16) { set(x, y + 1, z, bedrock); set(x, y + 2, z, bedrock); }
+        for (var k = 1; k <= 8; k++) set(x, y + k, z, 0);
+        // Die Schale steigt nach außen in zwei Stufen an
+        if (d2 >= 17) set(x, y + 1, z, bedrock);
+        if (d2 >= 30) set(x, y + 2, z, bedrock);
       }
     }
-    // vier Ecktürme mit Fackeln
-    var ecken = [[-4, -4], [4, -4], [-4, 4], [4, 4]];
-    for (var e = 0; e < ecken.length; e++) {
-      for (var h = 1; h <= 4; h++) set(ecken[e][0], y + h, ecken[e][1], bedrock);
-      set(ecken[e][0], y + 5, ecken[e][1], torch);
-    }
+    // Mittelpfeiler, oben rundum eine Fackel; das Drachenei kommt später darauf
+    set(0, y + 1, 0, bedrock);
+    set(0, y + 2, 0, bedrock);
+    set(1, y + 2, 0, torch, 4);
+    set(-1, y + 2, 0, torch, 2);
+    set(0, y + 2, 1, torch, 1);
+    set(0, y + 2, -1, torch, 3);
   }
 
   // ============================================================
-  //  Portalfläche zünden (Gravitit auf einen Rahmenblock)
+  //  Enderaugen einsetzen
   // ============================================================
-  // Vom angeklickten Rahmen aus die Mitte suchen und den Ring prüfen.
+  // Die zwölf Rahmenblöcke eines Rings. Meta-Bit 0 sagt, ob ein Auge drinsteckt.
+  E.RING = (function () {
+    var out = [];
+    for (var dx = -2; dx <= 2; dx++) {
+      for (var dz = -2; dz <= 2; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== 2) continue;
+        if (Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+        out.push([dx, dz]);
+      }
+    }
+    return out;
+  })();
+
+  // Vom angeklickten Rahmen aus die Mitte suchen
   E.ringCenter = function (world, x, y, z) {
     var frame = B.id('end_portal_frame');
     for (var dx = -2; dx <= 2; dx++) {
@@ -370,33 +406,55 @@
   };
 
   function ringComplete(world, cx, cy, cz, frame) {
-    for (var dx = -2; dx <= 2; dx++) {
-      for (var dz = -2; dz <= 2; dz++) {
-        var ring = Math.max(Math.abs(dx), Math.abs(dz)) === 2;
-        var ecke = Math.abs(dx) === 2 && Math.abs(dz) === 2;
-        if (!ring || ecke) continue;
-        if (world.getBlock(cx + dx, cy, cz + dz) !== frame) return false;
-      }
+    for (var i = 0; i < E.RING.length; i++) {
+      if (world.getBlock(cx + E.RING[i][0], cy, cz + E.RING[i][1]) !== frame) return false;
     }
     return true;
   }
 
-  E.tryIgnite = function (game) {
+  // Wie viele der zwölf Rahmen haben schon ein Auge?
+  E.eyesSet = function (world, c) {
+    var n = 0;
+    for (var i = 0; i < E.RING.length; i++) {
+      if (world.getMeta(c.x + E.RING[i][0], c.y, c.z + E.RING[i][1]) & 1) n++;
+    }
+    return n;
+  };
+
+  // Rechtsklick mit einem Enderauge auf einen Rahmenblock
+  E.placeEye = function (game) {
     var w = game.world, t = game.target;
     if (!t || w.getBlock(t.x, t.y, t.z) !== B.id('end_portal_frame')) return false;
-    var c = E.ringCenter(w, t.x, t.y, t.z);
-    if (!c) { game.ui.toast('Der Rahmen ist nicht vollständig.'); return true; }
-    var portal = B.id('portal_end');
-    if (w.getBlock(c.x, c.y, c.z) === portal) return false;
-    for (var dx = -1; dx <= 1; dx++) {
-      for (var dz = -1; dz <= 1; dz++) w.setBlock(c.x + dx, c.y, c.z + dz, portal, 0);
-    }
-    game.particles.crit(c.x + 0.5, c.y + 1, c.z + 0.5);
+    if (w.getMeta(t.x, t.y, t.z) & 1) { game.ui.toast('In diesem Rahmen steckt schon ein Auge.'); return true; }
+
+    w.setMetaOnly(t.x, t.y, t.z, w.getMeta(t.x, t.y, t.z) | 1);
+    game.particles.crit(t.x + 0.5, t.y + 1.1, t.z + 0.5);
     game.audio.play('levelup');
     game.player.swingTime = 1;
     if (game.mode !== 'creative') game.player.inventory.consumeSelected(1);
-    game.ui.toast('Das Endportal öffnet sich.');
+
+    var c = E.ringCenter(w, t.x, t.y, t.z);
+    if (!c) { game.ui.toast('Der Rahmen ist nicht vollständig.'); return true; }
+    var n = E.eyesSet(w, c);
+    if (n < E.RING.length) {
+      game.ui.toast('Enderauge eingesetzt — ' + n + ' von ' + E.RING.length + '.');
+      return true;
+    }
+    E.ignite(game, c);
     return true;
+  };
+
+  E.ignite = function (game, c) {
+    var w = game.world;
+    var portal = B.id('portal_end');
+    for (var dx = -1; dx <= 1; dx++) {
+      for (var dz = -1; dz <= 1; dz++) w.setBlock(c.x + dx, c.y, c.z + dz, portal, 0);
+    }
+    for (var k = 0; k < 12; k++) {
+      game.particles.crit(c.x + 0.5 + (Math.random() - 0.5) * 4, c.y + 1.2, c.z + 0.5 + (Math.random() - 0.5) * 4);
+    }
+    game.audio.play('levelup');
+    game.ui.toast('Alle zwölf Augen sitzen. Das Endportal öffnet sich.');
   };
 
   // ============================================================
@@ -612,13 +670,18 @@
     return best;
   }
 
-  // Heilstrahl als Partikelkette zwischen Kristall und Drache
+  // Heilstrahl als Partikelkette zwischen Kristall und Drache. Einzelne,
+  // stehende Partikel statt crit() – das ergibt eine Linie statt einer Wolke
+  // und kostet ein Zehntel der Partikel.
   function beam(game, dragon, crystal) {
-    for (var t = 0; t <= 1.001; t += 0.12) {
-      game.particles.crit(
+    var layer = MC.Textures.layer('p_yellow');
+    var y0 = crystal.y + 0.6, y1 = dragon.y + 1.2;
+    for (var t = 0; t <= 1.001; t += 0.08) {
+      game.particles.spawn(
         crystal.x + (dragon.x - crystal.x) * t,
-        crystal.y + 0.6 + (dragon.y + 1.2 - crystal.y - 0.6) * t,
-        crystal.z + (dragon.z - crystal.z) * t);
+        y0 + (y1 - y0) * t,
+        crystal.z + (dragon.z - crystal.z) * t,
+        0, 0, 0, layer, 0.13, 0.45, 0);
     }
   }
 
@@ -684,18 +747,13 @@
   E.onDragonDead = function (game) {
     var w = game.world;
     E.state(game).dragonDead = true;
-    var portal = B.id('portal_end'), bedrock = B.id('bedrock'), egg = B.id('dragon_egg');
-    var y = E.TOP + 1;
-    for (var dx = -1; dx <= 1; dx++) {
-      for (var dz = -1; dz <= 1; dz++) {
-        if (dx === 0 && dz === 0) continue;
-        w.setBlock(dx, y, dz, portal, 0);
-      }
+    var portal = B.id('portal_end'), egg = B.id('dragon_egg');
+    var field = E.exitField();
+    for (var i = 0; i < field.length; i++) {
+      w.setBlock(field[i][0], E.TOP, field[i][1], portal, 0);
     }
-    // Das Ei thront auf einer kleinen Säule mitten im Portal
-    w.setBlock(0, y, 0, bedrock, 0);
-    w.setBlock(0, y + 1, 0, bedrock, 0);
-    w.setBlock(0, y + 2, 0, egg, 0);
+    // Das Ei thront auf dem Pfeiler in der Mitte
+    w.setBlock(0, E.TOP + 3, 0, egg, 0);
     game.audio.play('levelup');
     game.ui.toast('Das Portal zurück in die Oberwelt hat sich geöffnet.');
     game.saveWorld();

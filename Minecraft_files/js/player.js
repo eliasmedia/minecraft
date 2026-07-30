@@ -521,10 +521,9 @@
     }
     this.x = sp.x; this.y = sp.y; this.z = sp.z;
     game.ensureChunksAround(this.x, this.z, 2);
-    // sicheren Boden finden
-    for (var y = MC.WORLD_HEIGHT - 2; y > 1; y--) {
-      if (this.world.getBlock(Math.floor(this.x), y, Math.floor(this.z)) !== 0) { this.y = y + 1.05; break; }
-    }
+    // Bett zuerst, sonst die Oberfläche derselben Spalte
+    var pos = game.safeSpawnPos(this.world, sp);
+    this.x = pos.x; this.y = pos.y; this.z = pos.z;
     game.ui.hideDeath();
   };
 

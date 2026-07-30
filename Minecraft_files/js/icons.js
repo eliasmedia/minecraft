@@ -72,6 +72,11 @@
         isoBox(ctx, [0, 0, 0, 1, 0.5, 1], block, 0);
         return c;
 
+      case B.SHAPE_EGG:
+        // von unten nach oben zeichnen, dann verdecken die oberen Lagen richtig
+        for (var eg = 0; eg < B.EGG_LAYERS.length; eg++) isoBox(ctx, B.EGG_LAYERS[eg], block, 0);
+        return c;
+
       case B.SHAPE_BED:
         isoBox(ctx, [0, 0, 0, 1, 0.5625, 1], block, 0);
         return c;

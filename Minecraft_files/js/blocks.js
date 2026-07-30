@@ -25,6 +25,18 @@
   B.SHAPE_GATE = 14;   // Zauntor
   B.SHAPE_PORTAL = 15; // Portalfläche (dünne Ebene, Achse in Meta-Bit 0)
   B.SHAPE_PORTAL_FLAT = 16; // liegende Portalfläche (Endportal)
+  B.SHAPE_EGG = 17;    // gestapelte Quader in Eiform (Drachenei)
+
+  // Silhouette des Dracheneis in Sechzehnteln, von unten nach oben
+  B.EGG_LAYERS = [
+    [3, 0, 3, 13, 1, 13],
+    [2, 1, 2, 14, 4, 14],
+    [1, 4, 1, 15, 8, 15],
+    [2, 8, 2, 14, 12, 14],
+    [3, 12, 3, 13, 14, 13],
+    [5, 14, 5, 11, 15, 11],
+    [6, 15, 6, 10, 16, 10]
+  ].map(function (b) { return b.map(function (v) { return v / 16; }); });
 
   B.byId = [];
   B.byName = {};
@@ -400,7 +412,8 @@
     alphaPass: true, light: 11, hardness: -1, drop: null, item: false, opacity: 0, portal: 'the_end'
   });
   define('dragon_egg', {
-    title: 'Drachenei', hardness: 3, tool: 'pickaxe', level: 3, light: 1, sound: 'stone', group: 'bau'
+    title: 'Drachenei', shape: B.SHAPE_EGG, opaque: false, hardness: 3, tool: 'pickaxe', level: 3,
+    light: 1, sound: 'stone', group: 'bau'
   });
 
   // ---------- Bett ----------
@@ -503,6 +516,9 @@
         return null;
       case B.SHAPE_STAIRS:
         return B.stairBoxes(meta);
+      case B.SHAPE_EGG:
+        // eine Box reicht für die Kollision, die Feinform bleibt Optik
+        return [[0.0625, 0, 0.0625, 0.9375, 1, 0.9375]];
       case B.SHAPE_FENCE:
         // etwas breiter als der Pfosten, damit man nicht durchschlüpft
         return [[0.25, 0, 0.25, 0.75, 1.5, 0.75]];
@@ -540,6 +556,7 @@
       case B.SHAPE_FIRE: return [0.05, 0, 0.05, 0.95, 1, 0.95];
       case B.SHAPE_PORTAL: return (meta & 1) ? [0.375, 0, 0, 0.625, 1, 1] : [0, 0, 0.375, 1, 1, 0.625];
       case B.SHAPE_PORTAL_FLAT: return [0, 0.6, 0, 1, 0.9, 1];
+      case B.SHAPE_EGG: return [0.0625, 0, 0.0625, 0.9375, 1, 0.9375];
       default: return [0, 0, 0, 1, 1, 1];
     }
   };
