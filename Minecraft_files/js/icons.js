@@ -78,14 +78,14 @@
         isoBox(ctx, [0.0625, 0, 0.0625, 0.9375, 0.0625, 0.9375], block, 0);
         return c;
 
-      case B.SHAPE_REPEATER:
+      case B.SHAPE_REPEATER: {
         isoBox(ctx, [0, 0, 0, 1, 0.125, 1], block, 0);
-        // die beiden Fackelstummel obendrauf
-        isoBox(ctx, [0.44, 0.125, 0.18, 0.56, 0.4, 0.3],
-               { tex: 'redstone_torch_off', shape: B.SHAPE_CUBE, name: 'x' }, 0);
-        isoBox(ctx, [0.44, 0.125, 0.62, 0.56, 0.4, 0.74],
-               { tex: 'redstone_torch', shape: B.SHAPE_CUBE, name: 'x' }, 0);
+        // zwei Fackelstummel, wie am Block: vorne fest, hinten je nach Stufe
+        var pin = { tex: 'redstone_torch_off', shape: B.SHAPE_CUBE, name: 'pin' };
+        isoBox(ctx, [0.4, 0.125, 0.1, 0.6, 0.62, 0.3], pin, 0);
+        isoBox(ctx, [0.4, 0.125, 0.7, 0.6, 0.62, 0.9], pin, 0);
         return c;
+      }
 
       case B.SHAPE_BUTTON:
         isoBox(ctx, [0.3125, 0, 0.3125, 0.6875, 0.125, 0.6875], block, 4);
@@ -150,7 +150,8 @@
     if (cache[itemId]) return cache[itemId];
     var it = I.get(itemId);
     var c;
-    if (it && it.block && B.byName[it.block]) c = blockIcon(B.byName[it.block], 0);
+    if (it && it.iconTex) c = itemIcon(it.iconTex);
+    else if (it && it.block && B.byName[it.block]) c = blockIcon(B.byName[it.block], 0);
     else if (it && it.place && B.byName[it.place]) c = blockIcon(B.byName[it.place], 0);
     else if (it) c = itemIcon(T.has(it.tex) ? it.tex : 'white');
     else c = itemIcon('white');

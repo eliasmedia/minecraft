@@ -866,7 +866,7 @@
   nugget('flint', [60, 55, 55]);
   nugget('gunpowder', [90, 90, 90]);
   nugget('sugar', [242, 242, 245]);
-  nugget('redstone', [200, 30, 30]);
+
   nugget('lapis', [45, 70, 190]);
   nugget('glowstone_dust', [250, 235, 160]);
 
@@ -876,6 +876,21 @@
     '..OMMMMMMMMMMO..', '..OhMMMMMMMMhO..', '...OhhhhhhhhO...', '....OOOOOOOO....',
     '................', '................', '................', '................'
   ];
+  // Redstone als Item ist Staub: lose Körner, kein Klumpen und kein Kreuz
+  itemTex('redstone', function (g) {
+    for (var i = 0; i < 34; i++) {
+      var x = 3 + ((g.r() * 10) | 0), y = 4 + ((g.r() * 9) | 0);
+      var hell = g.r();
+      g.set(x, y, hell > 0.72 ? [255, 96, 88] : (hell > 0.34 ? [214, 40, 38] : [152, 22, 22]));
+    }
+    // ein paar größere Krümel, damit es Körnung bekommt
+    for (var k = 0; k < 5; k++) {
+      var bx = 4 + ((g.r() * 8) | 0), by = 5 + ((g.r() * 7) | 0);
+      g.rect(bx, by, 2, 2, [196, 32, 30]);
+      g.set(bx, by, [246, 84, 76]);
+    }
+  });
+
   function ingot(name, col) {
     itemTex(name, function (g) { drawArt(g, INGOT_ART, artPal(col)); });
   }
@@ -1461,20 +1476,25 @@
     for (var y = 0; y < 16; y += 4) for (var x = 0; x < 16; x++) g.set(x, y, [116, 84, 46]);
   });
   // Hebel als Item und Symbol: Sockel mit schräg stehendem Griff im Profil
+  // Hebel als Symbol: breiter Steinsockel, darauf ein kurzer schräger Griff
+  // mit Knauf. Bewusst niedrig und breit, damit die Silhouette eindeutig ist.
   var LEVER_ART = [
-    '................', '..........OO....', '.........OWwO...', '........OWwO....',
-    '.......OWwO.....', '......OWwO......', '.....OWwO.......', '.....OWwO.......',
-    '....OWwO........', '....OvvO........', '...OOOOOO.......', '..OhMMMMhO......',
-    '..OMMMMMMO......', '..OhhhhhhO......', '..OOOOOOOO......', '................'
+    '................', '................', '................', '................',
+    '.........OOO....', '........OWWO....', '........OWWO....', '.......OWWO.....',
+    '......OWWO......', '.....OOWO.......', '...OOOOOO.......', '..OHHHHHHhO.....',
+    '..OMMMMMMMO.....', '..OMMMMMMMO.....', '..OhhhhhhhO.....', '..OOOOOOOOO.....'
   ];
   itemTex('lever', function (g) { drawArt(g, LEVER_ART, artPal([128, 128, 132])); });
 
   // Verstärker: Steinplatte von oben mit Nut, von der Seite ein flacher Rand
+  // Die Oberseite bleibt richtungsneutral – die Richtung liest man an den
+  // beiden Fackelstummeln ab. Eine eingebaute Nut würde sich beim Drehen des
+  // Blocks nicht mitdrehen und dann falsch liegen.
   tex('repeater_top', function (g) {
     g.fill([158, 158, 158]); g.noise(0.07);
-    g.speck(18, [134, 134, 134]);
-    for (var x = 2; x < 14; x++) { g.set(x, 7, [112, 112, 112]); g.set(x, 8, [128, 128, 128]); }
-    g.frame(0, 0, 16, 16, [124, 124, 124]);
+    g.speck(20, [134, 134, 134]);
+    g.frame(0, 0, 16, 16, [120, 120, 120]);
+    g.frame(1, 1, 14, 14, [142, 142, 142]);
   });
   // Die Seite wird über die flache Box gestreckt, also deckend füllen
   tex('repeater_side', function (g) {

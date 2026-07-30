@@ -67,15 +67,26 @@ der Drache.
 Band mit den Himmelsrichtungen ein, darunter die eigenen Koordinaten. Norden
 liegt wie im Original auf −Z.
 
-**Redstone** — eigener Reiter im Kreativmenü. Redstonestaub wird direkt als Leitung gelegt und trägt ein Signal
-15 Blöcke weit, wobei es pro Block eine Stufe verliert. Geschaltet wird mit
-**Hebel**, **Knopf** (springt nach einer Sekunde zurück) und **Druckplatte** (reagiert
-auf Spieler und Mobs); der **Redstoneblock** ist eine Dauerquelle. Der **Verstärker**
-frischt das Signal wieder auf 15 auf, lässt es nur in eine Richtung durch und
-verzögert es um 1 bis 4 Ticks — die Stufe stellt ein Rechtsklick um. Die
-**Redstonefackel** leuchtet, solange ihr Trägerblock *kein* Signal bekommt; damit
-hat man ein Nicht-Gatter und kann Und, Oder und Taktgeber bauen. Als Verbraucher
-hängen Lampe, Eisentür, Zauntor, Holztür und TNT daran.
+**Redstone** — eigener Reiter im Kreativmenü. Redstonestaub wird direkt als Leitung
+gelegt und trägt ein Signal 15 Blöcke weit, wobei es pro Block eine Stufe verliert.
+Geschaltet wird mit **Hebel**, **Knopf** (springt nach einer Sekunde zurück) und
+**Druckplatte** (reagiert auf Spieler und Mobs); der **Redstoneblock** ist eine
+Dauerquelle. Der **Verstärker** frischt das Signal wieder auf 15 auf, lässt es nur in
+eine Richtung durch und verzögert es um 1 bis 4 Redstoneticks — die Stufe stellt ein
+Rechtsklick um, und die beiden Fackelstummel obendrauf zeigen Richtung und
+Einstellung an. Als Verbraucher hängen Lampe, Eisentür, Zauntor, Holztür und TNT daran.
+
+**Starke und schwache Aufladung** — der Kern der Verschaltung, wie im Original.
+*Stark* aufgeladen kann ein Block eine frische Leitung speisen und eine Fackel
+umschalten; das tun Hebel und Knopf mit ihrem Trägerblock, die Druckplatte mit dem
+Block darunter, der Verstärker mit dem Block vor sich, die Fackel mit dem Block über
+sich und eine Leitung mit dem Block, auf dem sie liegt. *Schwach* aufgeladen schaltet
+ein Block nur Mechanismen, die ihn berühren — und schwach lädt eine Leitung die
+Blöcke auf, in die sie waagerecht zeigt. Daraus folgt beides, was man erwartet: ein
+Hebel an einer Wand speist die Leitung auf der anderen Seite, eine Lampe hinter einem
+Block geht an — aber ein Signal läuft nicht endlos von Block zu Block weiter. Und
+eine Leitung auf einem Block schaltet die **Redstonefackel** an dessen Seite ab; das
+ist das Nicht-Gatter, aus dem sich Und, Oder und Taktgeber bauen lassen.
 
 **Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 187
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
@@ -195,6 +206,10 @@ und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops, XP-Kugeln.
 **Physik & Simulation** — fließendes Wasser und Lava mit 8 Fließstufen,
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,
 Grasausbreitung, Blattzerfall, Explosionen mit Blockschaden und Rückstoß.
+
+**Unendliches Wasser** — liegen zwei Quellblöcke mit einem Feld Abstand, wird das
+Feld dazwischen selbst zur Quelle. Damit lässt sich ein Becken bauen, aus dem man
+beliebig oft schöpfen kann. Für Lava gilt das wie im Original *nicht*.
 
 **Technik** — eigener WebGL2-Renderer mit Texture-Array, Chunk-Meshing mit Ambient
 Occlusion und weichem Licht, Flood-Fill-Lichtengine für Sonnen- und Blocklicht,

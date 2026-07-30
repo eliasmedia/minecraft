@@ -1,21 +1,27 @@
 /* ============================================================
    redstone.js  -  Signalquellen, Leitungen, Verstärker, Verbraucher
 
-   Nach den Regeln des Originals, auf das Wesentliche eingekocht:
+   Nach den Regeln des Originals. Der Kern ist die Unterscheidung zwischen
+   starker und schwacher Aufladung eines Blocks:
 
-   Quellen      Hebel, Knopf, Druckplatte, Redstoneblock, Redstonefackel und
-                der Ausgang eines Verstärkers geben Stärke 15 ab.
-   Leitung      Redstonestaub trägt das Signal weiter und verliert pro Block
-                eine Stufe. Bei 0 ist Schluss — also 15 Blöcke Reichweite.
-   Verstärker   frischt das Signal wieder auf 15 auf, lässt es nur in eine
-                Richtung durch und verzögert es um 1 bis 4 Ticks.
-   Fackel       leuchtet, solange ihr Trägerblock KEIN Signal bekommt. Das ist
-                das Nicht-Gatter; damit lassen sich Und, Oder und Taktgeber bauen.
-   Verbraucher  Lampe, Eisentür, Zauntor, Holztür und TNT.
+   stark   kann eine frische Leitung speisen und eine Fackel umschalten.
+           Quellen: Hebel und Knopf laden ihren Trägerblock, die Druckplatte
+           den Block darunter, der Verstärker den Block vor sich, die
+           Redstonefackel den Block über sich, und eine Leitung den Block,
+           auf dem sie liegt.
+   schwach schaltet nur Mechanismen, die den Block berühren. Eine Leitung
+           lädt die Blöcke, auf die sie waagerecht zeigt, nur schwach — darum
+           läuft ein Signal nicht endlos von Block zu Block weiter.
 
-   Vereinfacht gegenüber dem Original: Leitungen laufen waagerecht und über
-   eine Stufe, aber nicht an Wänden hoch, und eine Leitung speist alle
-   angrenzenden Blöcke statt nur die, auf die sie zeigt.
+   Damit funktioniert das, was man erwartet: ein Hebel an einer Wand speist
+   die Leitung auf der anderen Seite, eine Fackel unter einem Block speist die
+   Leitung obendrauf, und eine Leitung auf einem Block schaltet die Fackel an
+   dessen Seite ab — das Nicht-Gatter.
+
+   Leitung   trägt das Signal weiter und verliert pro Block eine Stufe, also
+             15 Blöcke Reichweite.
+   Verstärker frischt auf 15 auf, lässt nur in eine Richtung durch und
+             verzögert um 1 bis 4 Redstoneticks (Rechtsklick stellt um).
    ============================================================ */
 (function () {
   'use strict';
@@ -42,25 +48,46 @@
 
   function isWire(w, x, y, z) { return w.getBlock(x, y, z) === ids().wire; }
 
-  // ---- Verstärker-Meta ----
+  // ---- Verstärker-Meta: Bits 0-1 Richtung, 2-3 Verzögerung, 4 Ausgang an ----
   R.repDir = function (m) { return B.SIDE_DIRS[m & 3]; };
   R.repDelay = function (m) { return ((m >> 2) & 3) + 1; };
   R.repOn = function (m) { return (m & 16) !== 0; };
 
+  // Ein Block, der Aufladung an anliegende Mechanismen weitergibt. Redstoneteile
+  // selbst tun das nicht – eine Lampe leitet nichts weiter.
+  function leitet(id) {
+    var d = ids();
+    if (!id) return false;
+    if (id === d.wire || id === d.torch || id === d.torchOff || id === d.repeater ||
+        id === d.lever || id === d.button || id === d.plate ||
+        id === d.lamp || id === d.lampLit || id === d.block) return false;
+    var b = B.byId[id];
+    return !!(b && b.opaque);
+  }
+
+  // Der Block, an dem ein Hebel oder Knopf hängt
+  function trager(w, x, y, z) {
+    var m = w.getMeta(x, y, z);
+    if (m & 4) return [x, y - 1, z];
+    var d = B.SIDE_DIRS[m & 3];
+    return [x + d[0], y, z + d[1]];
+  }
+
   // ============================================================
-  //  Wie stark speist (sx,sy,sz) das Feld (tx,ty,tz)?
+  //  Direktspeisung einer Leitung durch eine Quelle daneben
   // ============================================================
-  function feeds(w, sx, sy, sz, tx, ty, tz) {
+  function feedsDust(w, sx, sy, sz, tx, ty, tz) {
     var d = ids();
     var id = w.getBlock(sx, sy, sz);
     if (!id) return 0;
     var m = w.getMeta(sx, sy, sz);
+
     if (id === d.block) return R.MAX;
     if (id === d.torch) {
-      // Die Fackel speist alles außer dem Block, an dem sie hängt
+      // Alles außer dem eigenen Trägerblock
       var att = B.torchAttach(m);
-      if (att && tx === sx + att[0] && tz === sz + att[1] && ty === sy) return 0;
-      if (!att && tx === sx && tz === sz && ty === sy - 1) return 0;
+      var tx2 = att ? sx + att[0] : sx, ty2 = att ? sy : sy - 1, tz2 = att ? sz + att[1] : sz;
+      if (tx === tx2 && ty === ty2 && tz === tz2) return 0;
       return R.MAX;
     }
     if (id === d.lever || id === d.button) return (m & 8) ? R.MAX : 0;
@@ -72,24 +99,92 @@
     }
     return 0;
   }
-  R.feeds = feeds;
+  R.feedsDust = feedsDust;
 
-  // Höchste Speisung, die von außen auf dieses Feld trifft
-  function sourceInto(w, x, y, z) {
-    var best = 0;
+  // ============================================================
+  //  Starke Aufladung: speist frische Leitungen, schaltet Fackeln
+  // ============================================================
+  // ohneLeitung überspringt die Leitung, die oben aufliegt. Beim Speisen einer
+  // Leitung ist das nötig: sonst lädt sie den Block unter sich auf, der Block
+  // speist sie zurück, und das Signal hält sich selbst am Leben.
+  R.strong = function (w, x, y, z, ohneLeitung) {
+    var d = ids();
+    var i, n, nx, ny, nz, id, m;
+
+    if (!ohneLeitung && w.getBlock(x, y + 1, z) === d.wire && w.getMeta(x, y + 1, z) > 0) return R.MAX;
+
+    for (i = 0; i < 6; i++) {
+      n = NEI[i];
+      nx = x + n[0]; ny = y + n[1]; nz = z + n[2];
+      id = w.getBlock(nx, ny, nz);
+      if (!id) continue;
+      m = w.getMeta(nx, ny, nz);
+
+      // Fackel lädt den Block über sich
+      if (id === d.torch && ny === y - 1) return R.MAX;
+      // Hebel und Knopf laden ihren Trägerblock
+      if ((id === d.lever || id === d.button) && (m & 8)) {
+        var t = trager(w, nx, ny, nz);
+        if (t[0] === x && t[1] === y && t[2] === z) return R.MAX;
+      }
+      // Druckplatte lädt den Block darunter
+      if (id === d.plate && (m & 1) && ny === y + 1) return R.MAX;
+      // Verstärker lädt den Block vor sich
+      if (id === d.repeater && R.repOn(m)) {
+        var rd = R.repDir(m);
+        if (ny === y && nx + rd[0] === x && nz + rd[1] === z) return R.MAX;
+      }
+    }
+    return 0;
+  };
+
+  // ============================================================
+  //  Schwache Aufladung: schaltet nur anliegende Mechanismen
+  // ============================================================
+  R.weak = function (w, x, y, z) {
+    var d = ids();
     for (var i = 0; i < 6; i++) {
       var n = NEI[i];
-      var s = feeds(w, x + n[0], y + n[1], z + n[2], x, y, z);
+      var nx = x + n[0], ny = y + n[1], nz = z + n[2];
+      var id = w.getBlock(nx, ny, nz);
+      if (!id) continue;
+      // Leitung auf gleicher Höhe zeigt auf diesen Block
+      if (id === d.wire && ny === y && w.getMeta(nx, ny, nz) > 0) return R.MAX;
+      // Fackel neben dem Block (nicht ihr Träger – das prüft strong)
+      if (id === d.torch) {
+        var att = B.torchAttach(w.getMeta(nx, ny, nz));
+        var tx = att ? nx + att[0] : nx, ty = att ? ny : ny - 1, tz = att ? nz + att[1] : nz;
+        if (!(tx === x && ty === y && tz === z)) return R.MAX;
+      }
+    }
+    return 0;
+  };
+
+  // ============================================================
+  //  Startwert einer Leitung
+  // ============================================================
+  function sourceInto(w, x, y, z) {
+    var best = 0, i, n;
+    for (i = 0; i < 6; i++) {
+      n = NEI[i];
+      var s = feedsDust(w, x + n[0], y + n[1], z + n[2], x, y, z);
       if (s > best) best = s;
+    }
+    if (best >= R.MAX) return best;
+    // Ein stark aufgeladener Block speist die Leitung neben ihm
+    for (i = 0; i < 6; i++) {
+      n = NEI[i];
+      var nx = x + n[0], ny = y + n[1], nz = z + n[2];
+      if (!leitet(w.getBlock(nx, ny, nz))) continue;
+      if (R.strong(w, nx, ny, nz, true) > best) best = R.MAX;
     }
     return best;
   }
 
   // ============================================================
-  //  Ein Leitungsnetz neu durchrechnen
+  //  Ein Leitungsnetz durchrechnen
   // ============================================================
-  // Nachbarfelder, mit denen eine Leitung verbunden ist: waagerecht und über
-  // eine Stufe hinweg, damit man Hänge verdrahten kann.
+  // Verbindungen: waagerecht und über eine Stufe, damit Hänge gehen
   function wireNeighbours(w, x, y, z, out) {
     out.length = 0;
     for (var i = 0; i < 4; i++) {
@@ -119,19 +214,15 @@
     return net;
   }
 
-  // Stärken im Netz bestimmen und in die Metadaten schreiben.
-  // Gibt die Randfelder zurück, an denen Verbraucher hängen könnten.
   function solveNet(w, net) {
     var n = net.length, i, j;
     var pow = new Int32Array(n);
     var index = {};
     for (i = 0; i < n; i++) index[net[i][0] + ',' + net[i][1] + ',' + net[i][2]] = i;
-
-    // Startwerte aus den Quellen
     for (i = 0; i < n; i++) pow[i] = sourceInto(w, net[i][0], net[i][1], net[i][2]);
 
-    // Weitergeben, bis sich nichts mehr ändert. Höchstens 15 Runden, weil das
-    // Signal je Block eine Stufe verliert.
+    // Weitergeben, bis nichts mehr wächst – höchstens 15 Runden, weil das
+    // Signal je Block eine Stufe verliert
     var nb = [];
     for (var runde = 0; runde < R.MAX; runde++) {
       var geaendert = false;
@@ -155,15 +246,23 @@
   }
 
   // ============================================================
-  //  Liegt an diesem Block Strom an?
+  //  Liegt an einem Mechanismus Strom an?
   // ============================================================
   R.powered = function (w, x, y, z) {
     var d = ids();
-    for (var i = 0; i < 6; i++) {
-      var n = NEI[i];
-      var nx = x + n[0], ny = y + n[1], nz = z + n[2];
-      if (feeds(w, nx, ny, nz, x, y, z) > 0) return true;
+    var i, n, nx, ny, nz;
+    for (i = 0; i < 6; i++) {
+      n = NEI[i];
+      nx = x + n[0]; ny = y + n[1]; nz = z + n[2];
+      if (feedsDust(w, nx, ny, nz, x, y, z) > 0) return true;
       if (w.getBlock(nx, ny, nz) === d.wire && w.getMeta(nx, ny, nz) > 0) return true;
+    }
+    // Ein aufgeladener Block schaltet auch, was an ihm anliegt – stark oder schwach
+    for (i = 0; i < 6; i++) {
+      n = NEI[i];
+      nx = x + n[0]; ny = y + n[1]; nz = z + n[2];
+      if (!leitet(w.getBlock(nx, ny, nz))) continue;
+      if (R.strong(w, nx, ny, nz) > 0 || R.weak(w, nx, ny, nz) > 0) return true;
     }
     return false;
   };
@@ -177,13 +276,23 @@
     if (!id) return;
     var b = B.byId[id];
     if (!b) return;
+
+    // Fackel und Verstärker schalten verzögert und regeln sich selbst
+    if (id === d.torch || id === d.torchOff) {
+      w.scheduleUpdate(x, y, z, 2);
+      return;
+    }
+    if (id === d.repeater) {
+      w.scheduleUpdate(x, y, z, R.repDelay(w.getMeta(x, y, z)) * 2);
+      return;
+    }
+
     var an = R.powered(w, x, y, z);
 
     if (id === d.lamp && an) { w.setBlock(x, y, z, d.lampLit, 0, { noUpdate: true }); return; }
     if (id === d.lampLit && !an) { w.setBlock(x, y, z, d.lamp, 0, { noUpdate: true }); return; }
 
-    // Eine Tür ist zwei Blöcke hoch. Nur die untere Hälfte entscheidet, sonst
-    // sieht die obere keinen Strom und macht sofort wieder zu.
+    // Eine Tür ist zwei Blöcke hoch; nur die untere Hälfte entscheidet
     if (b.shape === B.SHAPE_DOOR) {
       var dm = w.getMeta(x, y, z);
       if (dm & 1) return;
@@ -192,20 +301,17 @@
     }
     if (b.shape === B.SHAPE_GATE) {
       var gm = w.getMeta(x, y, z);
-      var offen = (gm & 4) !== 0;
-      if (offen !== an) w.setMetaOnly(x, y, z, an ? (gm | 4) : (gm & ~4));
+      if (((gm & 4) !== 0) !== an) w.setMetaOnly(x, y, z, an ? (gm | 4) : (gm & ~4));
       return;
     }
     if (id === d.tnt && an) {
       var game = MC.game;
-      if (!game || !game.world || game.world !== w) return;
+      if (!game || game.world !== w) return;
       w.setBlock(x, y, z, 0, 0);
       w.entities.push(new MC.TNTEntity(w, x + 0.5, y, z + 0.5, 2.5));
       game.audio.play('fizz');
       return;
     }
-    // Fackeln und Verstärker schalten verzögert, damit Taktgeber möglich sind
-    if (id === d.torch || id === d.torchOff || id === d.repeater) w.scheduleUpdate(x, y, z, 2);
   }
 
   // ============================================================
@@ -215,13 +321,10 @@
     if (R.busy) return;
     R.busy = true;
     try {
-      var erledigt = {};      // schon durchgerechnete Leitungen
-      var kandidaten = {};    // Felder, an denen ein Verbraucher hängen könnte
+      var erledigt = {}, kandidaten = {};
       var i, k;
 
       function merke(cx, cy, cz) { kandidaten[cx + ',' + cy + ',' + cz] = [cx, cy, cz]; }
-      // Würfel um ein Feld. Radius 1 genügt nicht: eine Fackel hängt an einem
-      // Block, der neben der Leitung liegt – das sind schon zwei Schritte.
       function merkeUmfeld(cx, cy, cz, r) {
         for (var ax = -r; ax <= r; ax++) {
           for (var ay = -r; ay <= r; ay++) {
@@ -232,11 +335,15 @@
 
       merkeUmfeld(x, y, z, 2);
 
-      // Alle berührten Leitungsnetze neu rechnen. Die Verbraucher hängen am
-      // Rand des Netzes, nicht am Auslöser – ein Hebel kann fünfzehn Blöcke
-      // von seiner Lampe entfernt liegen.
-      var starts = [[x, y, z], [x, y + 1, z], [x, y - 1, z]];
-      for (i = 0; i < 6; i++) starts.push([x + NEI[i][0], y + NEI[i][1], z + NEI[i][2]]);
+      // Alle berührten Leitungsnetze neu rechnen. Der Suchradius ist zwei, weil
+      // eine Quelle über einen Block hinweg wirken kann: Hebel an der Wand,
+      // Leitung auf der anderen Seite – das sind zwei Schritte.
+      var starts = [];
+      for (var sx = -2; sx <= 2; sx++) {
+        for (var sy = -2; sy <= 2; sy++) {
+          for (var sz = -2; sz <= 2; sz++) starts.push([x + sx, y + sy, z + sz]);
+        }
+      }
       for (var s = 0; s < starts.length; s++) {
         var c = starts[s];
         if (!isWire(w, c[0], c[1], c[2])) continue;
@@ -244,7 +351,9 @@
         var net = collectNet(w, c[0], c[1], c[2]);
         for (k = 0; k < net.length; k++) erledigt[net[k][0] + ',' + net[k][1] + ',' + net[k][2]] = true;
         solveNet(w, net);
-        for (k = 0; k < net.length; k++) merkeUmfeld(net[k][0], net[k][1], net[k][2], 1);
+        // Radius 2, weil ein Mechanismus hinter einem Block hängen kann:
+        // Leitung, dann Block, dann Lampe – das sind zwei Schritte.
+        for (k = 0; k < net.length; k++) merkeUmfeld(net[k][0], net[k][1], net[k][2], 2);
       }
 
       for (var key in kandidaten) {
@@ -257,34 +366,31 @@
   // ============================================================
   //  Verzögerte Schaltvorgänge (aus World.doUpdate)
   // ============================================================
-  // Gibt true zurück, wenn der Block behandelt wurde.
   R.tick = function (w, x, y, z) {
     var d = ids();
     var id = w.getBlock(x, y, z);
 
-    // ---- Fackel: an, solange der Trägerblock kein Signal hat ----
+    // ---- Fackel: an, solange ihr Trägerblock nicht STARK aufgeladen ist ----
     if (id === d.torch || id === d.torchOff) {
       var m = w.getMeta(x, y, z);
       var att = B.torchAttach(m);
-      var bx = x, by = y - 1, bz = z;
-      if (att) { bx = x + att[0]; by = y; bz = z + att[1]; }
-      var trägerAn = R.powered(w, bx, by, bz);
-      var willAn = !trägerAn;
-      var istAn = id === d.torch;
-      if (willAn !== istAn) {
+      var bx = att ? x + att[0] : x, by = att ? y : y - 1, bz = att ? z + att[1] : z;
+      var willAn = R.strong(w, bx, by, bz) <= 0;
+      if (willAn !== (id === d.torch)) {
         w.setBlock(x, y, z, willAn ? d.torch : d.torchOff, m, { noUpdate: true });
         R.onChange(w, x, y, z);
       }
       return true;
     }
 
-    // ---- Verstärker: Eingang hinten, Ausgang vorne ----
+    // ---- Verstärker: Eingang hinten, Ausgang vorne, mit Verzögerung ----
     if (id === d.repeater) {
       var rm = w.getMeta(x, y, z);
       var rd = R.repDir(rm);
       var ix = x - rd[0], iz = z - rd[1];
-      var ein = feeds(w, ix, y, iz, x, y, z) > 0 ||
-                (w.getBlock(ix, y, iz) === d.wire && w.getMeta(ix, y, iz) > 0);
+      var ein = feedsDust(w, ix, y, iz, x, y, z) > 0 ||
+                (w.getBlock(ix, y, iz) === d.wire && w.getMeta(ix, y, iz) > 0) ||
+                (leitet(w.getBlock(ix, y, iz)) && R.strong(w, ix, y, iz) > 0);
       if (ein !== R.repOn(rm)) {
         w.setMetaOnly(x, y, z, ein ? (rm | 16) : (rm & ~16));
         R.onChange(w, x, y, z);
@@ -295,11 +401,10 @@
   };
 
   // ============================================================
-  //  Druckplatten: reagieren auf alles, was darauf steht
+  //  Druckplatten
   // ============================================================
   // Neue Platten findet der Nahbereichsscan; gedrückte werden gemerkt und
-  // danach immer geprüft. Sonst bliebe eine Platte für immer unten, sobald man
-  // weit genug weggelaufen ist.
+  // danach immer geprüft, sonst bliebe eine Platte für immer unten.
   R.tickPlates = function (game) {
     var w = game.world, d = ids();
     var p = game.player;
@@ -315,14 +420,12 @@
       return an;
     }
 
-    // 1) gedrückte Platten von letztem Mal
     var gedrueckt = w._platesDown || (w._platesDown = []);
     for (var i = gedrueckt.length - 1; i >= 0; i--) {
       var q = gedrueckt[i];
       if (!schalte(q[0], q[1], q[2])) gedrueckt.splice(i, 1);
     }
 
-    // 2) Umfeld des Spielers nach neu belasteten Platten absuchen
     var px = Math.floor(p.x), py = Math.floor(p.y), pz = Math.floor(p.z);
     for (var dx = -6; dx <= 6; dx++) {
       for (var dy = -3; dy <= 3; dy++) {
@@ -352,8 +455,7 @@
     if (drauf(p)) return true;
     var ents = game.world.entities;
     for (var i = 0; i < ents.length; i++) {
-      var e = ents[i];
-      if (e.type === 'mob' && drauf(e)) return true;
+      if (ents[i].type === 'mob' && drauf(ents[i])) return true;
     }
     return false;
   };
@@ -361,7 +463,6 @@
   // ============================================================
   //  Benutzen (Rechtsklick)
   // ============================================================
-  // Gibt true zurück, wenn der Klick verbraucht wurde.
   R.use = function (game, x, y, z) {
     var w = game.world, d = ids();
     var id = w.getBlock(x, y, z);
@@ -378,24 +479,22 @@
       w.setMetaOnly(x, y, z, m | 8);
       game.audio.play('click');
       R.onChange(w, x, y, z);
-      // hält einen Moment und springt dann zurück
-      w.scheduleUpdate(x, y, z, 20);
       game.buttonReleases = game.buttonReleases || [];
       game.buttonReleases.push({ x: x, y: y, z: z, t: 1.0 });
       return true;
     }
     if (id === d.repeater) {
-      // Rechtsklick stellt die Verzögerung um: 1 → 2 → 3 → 4 → 1
-      var stufe = (m >> 2) & 3;
-      w.setMetaOnly(x, y, z, (m & ~12) | (((stufe + 1) & 3) << 2));
+      var stufe = (((m >> 2) & 3) + 1) & 3;
+      w.setMetaOnly(x, y, z, (m & ~12) | (stufe << 2));
       game.audio.play('click');
-      game.ui.toast('Verzögerung: ' + (((stufe + 1) & 3) + 1) + ' Ticks');
+      game.ui.toast('Verzögerung: ' + (stufe + 1) + (stufe === 0 ? ' Tick' : ' Ticks'));
+      // Sofort neu planen, damit die neue Stufe gleich greift
+      R.onChange(w, x, y, z);
       return true;
     }
     return false;
   };
 
-  // Knöpfe nach Ablauf der Zeit zurückspringen lassen
   R.tickButtons = function (game, dt) {
     var list = game.buttonReleases;
     if (!list || !list.length) return;

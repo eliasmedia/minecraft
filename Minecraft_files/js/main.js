@@ -128,6 +128,9 @@
     this.seed = seed;
     this.worldSettings = MC.normalizeWorldOpts(settings);
     this.worlds = {};
+    // Die gespeicherten Chunkänderungen des vorherigen Spielstands müssen weg,
+    // sonst erbt die neue Welt jeden Block, den man in der alten gesetzt hat.
+    this.savedDims = null;
     this.endState = { dragonDead: false };
     this.achievements = {};
     this.dim = 'overworld';

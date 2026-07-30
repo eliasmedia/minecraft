@@ -26,6 +26,7 @@
       fuel: o.fuel || 0,             // Brennzeit in Ticks (Ofen)
       group: o.group || 'material',
       place: o.place || null,
+      iconTex: o.iconTex || null,   // eigenes Symbol, falls der Block anders aussieht
       onUse: o.onUse || null
     };
     I.byName[name] = it;
@@ -85,7 +86,10 @@
 
   // Redstonestaub wird als Leitung platziert, wie im Original, und alles rund
   // um Redstone bekommt im Kreativmenü einen eigenen Reiter
-  I.byName['redstone'].place = 'redstone_wire';
+  // block statt place, damit placeBlock greift; das Symbol bleibt der Staub,
+  // sonst zeigte das Inventar das Leitungskreuz
+  I.byName['redstone'].block = 'redstone_wire';
+  I.byName['redstone'].iconTex = 'redstone';
   I.byName['redstone'].group = 'redstone';
   if (I.byName['tnt']) I.byName['tnt'].group = 'redstone';
 

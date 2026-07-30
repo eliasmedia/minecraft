@@ -834,6 +834,23 @@
       }
     }
 
+    // Unendliche Quelle: liegen zwei Quellblöcke waagerecht an, wird auch dieses
+    // Feld zur Quelle. Damit lässt sich ein Becken bauen, aus dem man beliebig
+    // oft schöpfen kann – im Original geht das nur mit Wasser, nicht mit Lava.
+    if (isWater && meta !== 0) {
+      var quellen = 0;
+      for (var q = 0; q < 4; q++) {
+        if (this.getBlock(x + HOR[q][0], y, z + HOR[q][1]) !== id) continue;
+        if (this.getMeta(x + HOR[q][0], y, z + HOR[q][1]) === 0) quellen++;
+      }
+      if (quellen >= 2) {
+        this.setMetaOnly(x, y, z, 0);
+        meta = 0;
+        for (var w2 = 0; w2 < 4; w2++) this.scheduleFluid(x + HOR[w2][0], y, z + HOR[w2][1], delay);
+        this.scheduleFluid(x, y - 1, z, delay);
+      }
+    }
+
     // Nachschub prüfen (Quellen bleiben)
     if (meta !== 0) {
       var aboveSame = this.getBlock(x, y + 1, z) === id;

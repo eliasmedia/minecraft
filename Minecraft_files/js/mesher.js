@@ -301,13 +301,17 @@
             case B.SHAPE_REPEATER: {
               emitShapedBox(buf, x, y, z, [0, 0, 0], [1, 0.125, 1], block, meta);
               // zwei Fackelstummel: einer fest, einer je nach Verzögerung versetzt
+              // rd zeigt zum Ausgang. Der feste Stummel sitzt vorne am Ausgang,
+              // der bewegliche wandert je Verzögerungsstufe nach hinten – so
+              // sieht man Richtung und Einstellung auf einen Blick.
               var rd = B.SIDE_DIRS[meta & 3];
               var stufe = ((meta >> 2) & 3);
               var tl = T.layer((meta & 16) ? 'redstone_torch' : 'redstone_torch_off');
-              var f1 = [0.5 - rd[0] * 0.3, 0.5 - rd[1] * 0.3];
-              var f2 = [0.5 + rd[0] * (0.06 + stufe * 0.07), 0.5 + rd[1] * (0.06 + stufe * 0.07)];
-              emitRepeaterPin(buf, x, y, z, f1, tl);
-              emitRepeaterPin(buf, x, y, z, f2, tl);
+              var vorn = [0.5 + rd[0] * 0.3125, 0.5 + rd[1] * 0.3125];
+              var hinten = [0.5 - rd[0] * (0.0625 + stufe * 0.0833),
+                            0.5 - rd[1] * (0.0625 + stufe * 0.0833)];
+              emitRepeaterPin(buf, x, y, z, vorn, tl);
+              emitRepeaterPin(buf, x, y, z, hinten, tl);
               break;
             }
 
@@ -657,12 +661,18 @@
       }
     }
 
-    // Kleiner Fackelstummel auf einem Verstärker, an frei wählbarer Stelle
+    // Kleiner Fackelstummel auf einem Verstärker. Er nutzt denselben
+    // UV-Ausschnitt wie eine echte Fackel – Spalten 7-8, Zeilen 6-15 –, sonst
+    // klebt die ganze Textur auf jeder Seite.
     function emitRepeaterPin(buf, x, y, z, pos, layer) {
-      var mn = [pos[0] - 0.06, 0.125, pos[1] - 0.06];
-      var mx = [pos[0] + 0.06, 0.4, pos[1] + 0.06];
+      var U16 = 1 / 16;
+      var uvSide = [7 * U16, 6 * U16, 9 * U16, 1];
+      var uvTop = [7 * U16, 6 * U16, 9 * U16, 8 * U16];
+      var mn = [pos[0] - 0.0625, 0.125, pos[1] - 0.0625];
+      var mx = [pos[0] + 0.0625, 0.4375, pos[1] + 0.0625];
       for (var f = 0; f < 6; f++) {
-        emitFace(buf, x, y, z, f, layer, null, 0, mn, mx, FULL_UV, false);
+        if (f === 3) continue;                       // Unterseite steckt in der Platte
+        emitFace(buf, x, y, z, f, layer, null, 0, mn, mx, f === 2 ? uvTop : uvSide, false);
       }
     }
 
