@@ -274,6 +274,65 @@
               break;
             }
 
+            // Redstoneleitung: flach auf dem Boden. Die Signalstärke steuert
+            // die Helligkeit über den Shadewert, darum nur eine Textur.
+            case B.SHAPE_WIRE: {
+              var wlay = T.layer('redstone_dust');
+              var kraft = 0.32 + (meta / 15) * 0.68;
+              buf.need(4 * 9);
+              var wa = buf.a, wn = buf.n;
+              var wq = [[0, 0.0625, 1], [1, 0.0625, 1], [1, 0.0625, 0], [0, 0.0625, 0]];
+              for (var wi = 0; wi < 4; wi++) {
+                wa[wn++] = bx0 + x + wq[wi][0]; wa[wn++] = y + wq[wi][1]; wa[wn++] = bz0 + z + wq[wi][2];
+                wa[wn++] = UVS[wi][0]; wa[wn++] = UVS[wi][1]; wa[wn++] = wlay;
+                var wl = gl(x, y, z);
+                wa[wn++] = (wl & 15) / 15; wa[wn++] = ((wl >> 4) & 15) / 15; wa[wn++] = kraft;
+              }
+              buf.n = wn;
+              break;
+            }
+
+            case B.SHAPE_PLATE: {
+              var pm = (meta & 1) ? 0.03125 : 0.0625;
+              emitShapedBox(buf, x, y, z, [0.0625, 0, 0.0625], [0.9375, pm, 0.9375], block, meta);
+              break;
+            }
+
+            case B.SHAPE_REPEATER: {
+              emitShapedBox(buf, x, y, z, [0, 0, 0], [1, 0.125, 1], block, meta);
+              // zwei Fackelstummel: einer fest, einer je nach Verzögerung versetzt
+              var rd = B.SIDE_DIRS[meta & 3];
+              var stufe = ((meta >> 2) & 3);
+              var tl = T.layer((meta & 16) ? 'redstone_torch' : 'redstone_torch_off');
+              var f1 = [0.5 - rd[0] * 0.3, 0.5 - rd[1] * 0.3];
+              var f2 = [0.5 + rd[0] * (0.06 + stufe * 0.07), 0.5 + rd[1] * (0.06 + stufe * 0.07)];
+              emitRepeaterPin(buf, x, y, z, f1, tl);
+              emitRepeaterPin(buf, x, y, z, f2, tl);
+              break;
+            }
+
+            case B.SHAPE_BUTTON: {
+              var bb = B.buttonBox(meta);
+              emitShapedBox(buf, x, y, z, [bb[0], bb[1], bb[2]], [bb[3], bb[4], bb[5]], block, meta);
+              break;
+            }
+
+            case B.SHAPE_LEVER: {
+              var lb = B.leverBox(meta);
+              // Sockel aus Stein
+              emitShapedBox(buf, x, y, z, [lb[0], lb[1], lb[2]], [lb[3], lb[4], lb[5]],
+                            B.byName['cobblestone'], 0);
+              // Griff, je nach Stellung nach vorn oder hinten geneigt
+              var an = (meta & 8) !== 0;
+              var gx = (lb[0] + lb[3]) / 2, gz = (lb[2] + lb[5]) / 2;
+              var neig = an ? 0.18 : -0.18;
+              emitShapedBox(buf, x, y, z,
+                [gx - 0.06 + neig, lb[4], gz - 0.06],
+                [gx + 0.06 + neig, lb[4] + 0.36, gz + 0.06],
+                B.byName['lever'], 0);
+              break;
+            }
+
             case B.SHAPE_LADDER: {
               emitLadder(buf, x, y, z, meta, gl(x, y, z));
               break;
@@ -593,6 +652,15 @@
     function emitShapedBox(buf, x, y, z, mn, mx, block, meta) {
       for (var f = 0; f < 6; f++) {
         emitFace(buf, x, y, z, f, faceLayer(block, f, meta), block, meta, mn, mx, FULL_UV, false);
+      }
+    }
+
+    // Kleiner Fackelstummel auf einem Verstärker, an frei wählbarer Stelle
+    function emitRepeaterPin(buf, x, y, z, pos, layer) {
+      var mn = [pos[0] - 0.06, 0.125, pos[1] - 0.06];
+      var mx = [pos[0] + 0.06, 0.4, pos[1] + 0.06];
+      for (var f = 0; f < 6; f++) {
+        emitFace(buf, x, y, z, f, layer, null, 0, mn, mx, FULL_UV, false);
       }
     }
 

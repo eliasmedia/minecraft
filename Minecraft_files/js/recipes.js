@@ -171,6 +171,15 @@
   shapeless(['blaze_powder', 'ender_pearl'], 'ender_eye', 1);
   shaped(['EE', 'EE'], { E: 'end_stone' }, 'end_stone_bricks', 4);
 
+  // ---------------- Redstone ----------------
+  shaped(['R', 'S'], { R: 'redstone', S: 'stick' }, 'redstone_torch', 1);
+  shaped(['S', 'C'], { S: 'stick', C: 'cobblestone' }, 'lever', 1);
+  shaped(['S'], { S: 'stone' }, 'stone_button', 1);
+  shaped(['SS'], { S: 'stone' }, 'pressure_plate', 1);
+  shaped(['.R.', 'RGR', '.R.'], { R: 'redstone', G: 'glowstone' }, 'redstone_lamp', 1);
+  shaped(['RRR', 'RRR', 'RRR'], { R: 'redstone' }, 'redstone_block', 1);
+  shaped(['TRT', 'SSS'], { T: 'redstone_torch', R: 'redstone', S: 'stone' }, 'repeater', 1);
+
   // ---------------- Schmelzen ----------------
   smelt('cobblestone', 'stone');
   smelt('sand', 'glass');

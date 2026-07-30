@@ -192,6 +192,7 @@
     if (this.attackCd > 0) this.attackCd -= dt;
     if (this.placeCd > 0) this.placeCd -= dt;
     if (this.breakCd > 0) this.breakCd -= dt;
+    if (this.pearlCd > 0) this.pearlCd -= dt;
 
     if (this.dead) { this.vx = this.vz = 0; return; }
 

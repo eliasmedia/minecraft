@@ -246,6 +246,54 @@ canvas#gl {
   border: 2px solid #666; text-shadow: 2px 2px 0 #000;
 }
 
+/* ---------- Rezeptbuch & Erfolge ---------- */
+.bookrow { display: flex; gap: 8px; margin-top: 10px; }
+.bookbtn {
+  font-family: inherit; font-size: 12px; padding: 7px 12px; cursor: pointer;
+  background: #9a9a9a; border: 2px solid; border-color: #ddd #555 #555 #ddd; color: #222;
+  display: flex; align-items: center; gap: 6px;
+}
+.bookbtn:hover { background: #b0b0b0; }
+.bookbtn:active { border-color: #555 #ddd #ddd #555; }
+.bookbtn .bsym { font-size: 15px; line-height: 1; }
+.bookbtn.back { margin-top: 12px; }
+
+.window.book { width: min(640px, 94vw); }
+.recipebox { display: flex; flex-direction: column; gap: 6px; min-height: 260px; }
+.rcard { background: rgba(0,0,0,.13); padding: 7px 9px; }
+.rhead { font-size: 12.5px; color: #333; display: flex; align-items: baseline; gap: 8px; }
+.rhead .rart { margin-left: auto; font-size: 10.5px; color: #666; letter-spacing: .06em; }
+.rrow { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+.rgrid { display: grid; grid-template-columns: repeat(3, 26px); gap: 2px; }
+.slot.mini { width: 26px; height: 26px; border-width: 1px; background-size: 90% 90%; }
+.rarrow { font-size: 18px; color: #555; }
+
+.achtree { display: flex; flex-direction: column; gap: 3px; max-height: 52vh; overflow-y: auto; }
+.achrow {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(0,0,0,.13); padding: 5px 8px;
+  border-left: 3px solid #7a7a7a;
+}
+.achrow.done { border-left-color: #4e8f1e; background: rgba(126,242,42,.14); }
+.achrow.locked { opacity: .45; }
+.achico { flex: 0 0 auto; }
+.achtxt { min-width: 0; }
+.achname { font-size: 12.5px; color: #222; font-weight: bold; }
+.achrow.done .achname { color: #2c5c10; }
+.achdesc { font-size: 11px; color: #555; }
+
+.toast.ach {
+  border-left-color: #ffd447;
+  display: flex; align-items: center; gap: 9px;
+  background: rgba(20,16,4,.82);
+}
+.toast.ach b { color: #ffd447; }
+.achtoastico {
+  width: 30px; height: 30px; flex: 0 0 auto;
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
 /* ---------- Kompassband ---------- */
 #compass {
   position: fixed; left: 50%; top: 10px; transform: translateX(-50%);

@@ -454,6 +454,7 @@
       game.particles.crit(c.x + 0.5 + (Math.random() - 0.5) * 4, c.y + 1.2, c.z + 0.5 + (Math.random() - 0.5) * 4);
     }
     game.audio.play('levelup');
+    MC.Achievements.grant(game, 'endportal');
     game.ui.toast('Alle zwölf Augen sitzen. Das Endportal öffnet sich.');
   };
 
@@ -493,6 +494,7 @@
     this.dead = true;
     E.state(game).crystals[this.crystalIndex] = true;
     MC.explode(game, this.x, this.y + 0.5, this.z, 2.6);
+    MC.Achievements.grant(game, 'kristall');
     game.ui.toast('Ein Enderkristall zerspringt.');
   };
 
@@ -747,6 +749,7 @@
   E.onDragonDead = function (game) {
     var w = game.world;
     E.state(game).dragonDead = true;
+    MC.Achievements.grant(game, 'drache');
     var portal = B.id('portal_end'), egg = B.id('dragon_egg');
     var field = E.exitField();
     for (var i = 0; i < field.length; i++) {

@@ -1456,6 +1456,54 @@
     g.blob(7, 7, 1, [200, 255, 236]);
   });
 
+  // ---------- Redstone ----------
+  // Die Leitung ist ein Kreuz; ihre Helligkeit steuert der Mesher über den
+  // Shadewert, darum bleibt es bei einer Textur.
+  tex('redstone_dust', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var i = 0; i < 16; i++) {
+      g.set(i, 7, [214, 44, 44]); g.set(i, 8, [168, 26, 26]);
+      g.set(7, i, [214, 44, 44]); g.set(8, i, [168, 26, 26]);
+    }
+    g.set(7, 7, [255, 120, 110]); g.set(8, 8, [130, 18, 18]);
+  });
+  tex('redstone_block', function (g) {
+    g.fill([164, 22, 22]); g.noise(0.12);
+    for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.4, [206, 40, 36]);
+    g.speck(14, [255, 110, 100]);
+  });
+  function rsTorch(name, an) {
+    tex(name, function (g) {
+      g.fill([0, 0, 0], 0);
+      for (var y = 5; y < 16; y++) { g.set(7, y, [138, 100, 52]); g.set(8, y, [104, 74, 38]); }
+      if (an) {
+        g.blob(8, 4, 2.2, [255, 92, 76]);
+        g.set(7, 3, [255, 190, 170]); g.set(8, 3, [255, 210, 190]);
+      } else {
+        g.rect(7, 3, 2, 2, [96, 30, 28]);
+      }
+    });
+  }
+  rsTorch('redstone_torch', true);
+  rsTorch('redstone_torch_off', false);
+  tex('lever', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 0; y < 16; y++) { g.set(7, y, [150, 112, 66]); g.set(8, y, [112, 82, 46]); }
+    g.rect(6, 0, 4, 3, [168, 128, 76]);
+  });
+  function lampTex(name, an) {
+    tex(name, function (g) {
+      g.fill(an ? [206, 154, 78] : [104, 74, 46]); g.noise(0.08);
+      for (var i = 0; i < 14; i++) {
+        g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.5, an ? [255, 216, 130] : [138, 102, 62]);
+      }
+      g.frame(0, 0, 16, 16, an ? [150, 104, 48] : [72, 50, 30]);
+      if (an) { g.blob(8, 8, 2.6, [255, 244, 196]); }
+    });
+  }
+  lampTex('redstone_lamp', false);
+  lampTex('redstone_lamp_lit', true);
+
   // ---------- Kompass ----------
   itemTex('compass', function (g) {
     g.blob(8, 8, 6.6, [78, 78, 86]);

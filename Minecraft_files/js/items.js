@@ -83,6 +83,9 @@
   // Enderperlen stapeln sich wie im Original nur bis 16
   define('ender_pearl', { title: 'Enderperle', stack: 16, group: 'material' });
 
+  // Redstonestaub wird als Leitung platziert, wie im Original
+  I.byName['redstone'].place = 'redstone_wire';
+
   // ---------- Nahrung ----------
   var foods = [
     ['apple', 'Apfel', 4, 2.4],

@@ -129,6 +129,7 @@
     this.worldSettings = MC.normalizeWorldOpts(settings);
     this.worlds = {};
     this.endState = { dragonDead: false };
+    this.achievements = {};
     this.dim = 'overworld';
     this.world = this.dimWorld('overworld');
     this.particles = new MC.Particles(this.world);
@@ -208,6 +209,7 @@
     this.ensureChunksAround(p.x, p.z, 2);
     this.ui.toast('Du betrittst: ' + MC.Dim.TITLE[dim]);
     this.audio.play('levelup');
+    MC.Achievements.onDim(this, dim);
   };
 
   // Ein Portal betreten: Gegenstück in der Zielwelt suchen oder eins bauen
@@ -675,6 +677,8 @@
         p.swingTime = 1;
         return;
       }
+      // Hebel, Knopf, Verstärker
+      if (MC.Redstone.use(this, t.x, t.y, t.z)) { p.swingTime = 1; return; }
       if (b.name === 'tnt' && it && it.name === 'flint_and_steel') {
         w.setBlock(t.x, t.y, t.z, 0, 0);
         var tnt = new MC.TNTEntity(w, t.x + 0.5, t.y, t.z + 0.5, 3.5);
@@ -727,6 +731,8 @@
     }
     // Enderauge in einen Endportalrahmen setzen; beim zwölften zündet das Portal
     if (it.name === 'ender_eye' && MC.End.placeEye(this)) return;
+    // Enderperle werfen: man landet dort, wo sie aufschlägt
+    if (it.name === 'ender_pearl') { this.throwPearl(); return; }
     // Feuerzeug: erst Portal versuchen, sonst Feuer legen
     if (it.name === 'flint_and_steel') {
       if (this.tryIgnitePortal('nether')) return;
@@ -890,6 +896,25 @@
     } else if (block.shape === B.SHAPE_GATE) {
       // Schranke quer zur Blickrichtung, damit das Tor in die Zaunlinie passt
       meta = this.facingFromYaw();
+    } else if (block.shape === B.SHAPE_WIRE || block.shape === B.SHAPE_PLATE) {
+      // brauchen festen Boden darunter
+      if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
+      meta = 0;
+    } else if (block.shape === B.SHAPE_REPEATER) {
+      if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
+      // Ausgang zeigt weg vom Spieler
+      meta = (this.facingFromYaw() + 2) & 3;
+    } else if (block.shape === B.SHAPE_LEVER || block.shape === B.SHAPE_BUTTON) {
+      // Auf den Boden gesetzt oder an eine Wand geklebt
+      var wm2 = LADDER_META[t.face];
+      if (t.face === 2) {
+        if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
+        meta = 4;
+      } else if (wm2 !== undefined && B.isOpaque(w.getBlock(nx + B.SIDE_DIRS[wm2][0], ny, nz + B.SIDE_DIRS[wm2][1]))) {
+        meta = wm2;
+      } else if (B.isSolid(w.getBlock(nx, ny - 1, nz))) {
+        meta = 4;
+      } else return;
     } else if (block.name.indexOf('log_') === 0) {
       meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
     } else if (typeof block.tex === 'object' && block.tex.front) {
@@ -935,6 +960,7 @@
     }
     w.time = 0.02;
     p.heal(2);
+    MC.Achievements.grant(this, 'bett');
     this.ui.toast('Gute Nacht. Spawnpunkt gesetzt.');
     this.audio.play('levelup');
   };
@@ -970,6 +996,19 @@
       }
       this.audio.play('splash');
     }
+  };
+
+  Game.prototype.throwPearl = function () {
+    var p = this.player;
+    if (p.pearlCd > 0) return;
+    p.pearlCd = 0.8;
+    var d = p.lookDir();
+    this.world.entities.push(new MC.EnderPearl(this.world,
+      p.x + d.x * 0.4, p.eyeY() - 0.1, p.z + d.z * 0.4,
+      d.x * 22, d.y * 22 + 2, d.z * 22, p));
+    this.audio.play('bow');
+    p.swingTime = 1;
+    if (this.mode !== 'creative') p.inventory.consumeSelected(1);
   };
 
   Game.prototype.shootBow = function () {
@@ -1024,6 +1063,7 @@
           te.cook = 0;
           if (!te.output) te.output = I.newStack(recipe.id, recipe.count);
           else te.output.count += recipe.count;
+          MC.Achievements.onItem(this, recipe.id);
           te.input.count--;
           if (te.input.count <= 0) te.input = null;
           this.player.addXP(1);
@@ -1260,8 +1300,16 @@
         '<b>Lohen</b> gibt es nur an den Bastionen im Nether, <b>Endermen</b> nachts',
         'in der Oberwelt, im Nether und im Ende. Endermen bleiben friedlich,',
         'bis man ihnen ins Gesicht sieht.',
+        '<b>Enderperle</b> werfen: man landet dort, wo sie aufschlägt.',
         '<hr>',
-        '<b>Kompass</b> (4 Eisen + Redstone): zeigt Himmelsrichtung und Koordinaten.'
+        '<b>Kompass</b> (4 Eisen + Redstone): zeigt Himmelsrichtung und Koordinaten.',
+        '<b>Redstone:</b> Staub legt Leitungen (15 Blöcke Reichweite), <b>Hebel</b> und',
+        '<b>Knopf</b> schalten, die <b>Druckplatte</b> reagiert auf Schritte. Der',
+        '<b>Verstärker</b> frischt das Signal auf und verzögert es (Rechtsklick).',
+        'Die <b>Redstonefackel</b> ist an, solange ihr Block kein Signal hat.',
+        'Verbraucher: Lampe, Eisentür, Zauntor, TNT.',
+        '<hr>',
+        '<b>Rezeptbuch</b> und <b>Erfolge</b>: die zwei Knöpfe im Inventar.'
       ].join('<br>');
       box.appendChild(d);
       btn('Zurück', function () { self.showMenu(self.started ? 'pause' : 'main'); });
@@ -1369,6 +1417,7 @@
       mode: this.mode,
       dim: this.dim,
       endState: this.endState,
+      achievements: this.achievements,
       player: this.player.serialize(),
       dims: dims
     };
@@ -1406,6 +1455,7 @@
     };
     this.worlds = {};
     this.endState = data.endState || { dragonDead: false };
+    this.achievements = data.achievements || {};
     this.dim = (data.dim && MC.Dim.TITLE[data.dim]) ? data.dim : 'overworld';
     this.world = this.dimWorld(this.dim);
     if (data.time !== undefined && this.dim === 'overworld') this.world.time = data.time;
@@ -1512,6 +1562,11 @@
       this.particles.update(dt);
       this.world.update(dt, p.x, p.y, p.z);
       if ((this.tickCount % 4) === 0) this.tickFurnaces();
+      // Druckplatten und gedrückte Knöpfe
+      if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
+      MC.Redstone.tickButtons(this, dt);
+      this.achTimer = (this.achTimer || 0) + dt;
+      if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }
 
       this.checkPortal(dt);
       this.camBob = Math.sin(p.bobPhase * 2) * 0.022 * (p.sprinting ? 1.4 : 1);

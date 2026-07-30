@@ -554,6 +554,7 @@
       else if (e.type === 'xp') this.drawSprite(e.x, e.y + 0.15, e.z, 0.28, T.layer('p_yellow'), bl, sl, game);
       else if (e.type === 'arrow') this.drawArrow(e, bl, sl);
       else if (e.type === 'tnt') this.drawTNT(e, bl, sl, game);
+      else if (e.type === 'pearl') this.drawSprite(e.x, e.y, e.z, 0.32, T.layer('ender_pearl'), bl, sl, game);
       else if (e.type === 'projectile') {
         this.drawSprite(e.x, e.y, e.z, 0.7,
           T.layer(e.fire ? 'fire_0' : 'aercloud'), e.fire ? 1 : bl, e.fire ? 1 : sl, game);
@@ -922,6 +923,81 @@
     gl.uniform1f(mp.u.uDaylight, daylight);
   };
 
+  // ---------- Item als extrudiertes Pixelmodell ----------
+  // Ein Item ist keine Pappscheibe: jedes deckende Pixel der 16x16-Textur wird
+  // zu einem Quader mit Tiefe, Seitenflächen entstehen nur an den Rändern zu
+  // durchsichtigen Nachbarn. Genau so löst es das Original.
+  var ITEM_DEPTH = 2 / 16;      // zwei Pixel dick
+  var ITEM_PX = 1 / 16;
+
+  Renderer.prototype.itemMesh = function (texName) {
+    var cache = this._itemMeshes || (this._itemMeshes = {});
+    if (cache[texName]) return cache[texName];
+
+    var data = T.has(texName) ? T.data(texName) : null;
+    if (!data) { cache[texName] = new Float32Array(0); return cache[texName]; }
+    var layer = T.layer(texName);
+    var out = [];
+
+    function alphaAt(px, py) {
+      if (px < 0 || py < 0 || px > 15 || py > 15) return 0;
+      return data[(py * 16 + px) * 4 + 3];
+    }
+
+    // Eine Fläche des Pixelquaders; die UV bleibt immer die des Pixels selbst,
+    // damit die Seitenkanten die Farbe ihrer Kante tragen.
+    function emit(f, mn, mx, u0, u1, vTop, vBot) {
+      var F = MC.Mesher.FACES[f];
+      for (var i = 0; i < 4; i++) {
+        var v = F.v[i], uv = MC.Mesher.UVS[i];
+        out.push(mn[0] + v[0] * (mx[0] - mn[0]),
+                 mn[1] + v[1] * (mx[1] - mn[1]),
+                 mn[2] + v[2] * (mx[2] - mn[2]),
+                 u0 + uv[0] * (u1 - u0),
+                 vTop + uv[1] * (vBot - vTop),
+                 layer, 1, 1, F.shade);
+      }
+    }
+
+    for (var py = 0; py < 16; py++) {
+      for (var px = 0; px < 16; px++) {
+        if (alphaAt(px, py) < 128) continue;
+        var mn = [px * ITEM_PX - 0.5, (15 - py) * ITEM_PX - 0.5, -ITEM_DEPTH / 2];
+        var mx = [mn[0] + ITEM_PX, mn[1] + ITEM_PX, ITEM_DEPTH / 2];
+        var u0 = px / 16, u1 = (px + 1) / 16;
+        var vTop = py / 16, vBot = (py + 1) / 16;
+        // Vorder- und Rückseite immer, Seiten nur an freien Kanten
+        emit(4, mn, mx, u0, u1, vTop, vBot);
+        emit(5, mn, mx, u0, u1, vTop, vBot);
+        if (alphaAt(px + 1, py) < 128) emit(0, mn, mx, u0, u1, vTop, vBot);
+        if (alphaAt(px - 1, py) < 128) emit(1, mn, mx, u0, u1, vTop, vBot);
+        if (alphaAt(px, py - 1) < 128) emit(2, mn, mx, u0, u1, vTop, vBot);
+        if (alphaAt(px, py + 1) < 128) emit(3, mn, mx, u0, u1, vTop, vBot);
+      }
+    }
+    cache[texName] = new Float32Array(out);
+    return cache[texName];
+  };
+
+  // Kopiert ein fertiges Itemmodell skaliert in den dynamischen Puffer und
+  // trägt dabei die aktuelle Beleuchtung ein.
+  Renderer.prototype.putItemMesh = function (mesh, scale, bl, sl) {
+    this.ensureDyn(mesh.length + 64);
+    var d = this.dynData;
+    for (var i = 0; i < mesh.length; i += FPV) {
+      d[i] = mesh[i] * scale;
+      d[i + 1] = mesh[i + 1] * scale;
+      d[i + 2] = mesh[i + 2] * scale;
+      d[i + 3] = mesh[i + 3];
+      d[i + 4] = mesh[i + 4];
+      d[i + 5] = mesh[i + 5];
+      d[i + 6] = bl;
+      d[i + 7] = sl;
+      d[i + 8] = mesh[i + 8];
+    }
+    return mesh.length;
+  };
+
   // ---------- Hand / gehaltenes Item ----------
   Renderer.prototype.renderHand = function (game, daylight) {
     var gl = this.gl, mp = this.progMain, p = game.player;
@@ -969,19 +1045,22 @@
           d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
         }
       }
-    } else {
-      // Item als flache "Karte" oder Arm
-      var texName = it ? it.tex : 'mob_player_arm';
-      if (it && it.name === 'bow' && charge > 0) {
+    } else if (it) {
+      // Item als extrudiertes Pixelmodell – hat Dicke, keine Pappscheibe
+      var texName = it.tex;
+      if (it.name === 'bow' && charge > 0) {
         texName = 'bow_pull_' + (charge > 0.75 ? 2 : (charge > 0.4 ? 1 : 0));
       }
-      var layer2 = T.layer(texName);
-      var w = it ? 0.34 : 0.16, h2 = it ? 0.34 : 0.42, dep = it ? 0.03 : 0.16;
+      n = this.putItemMesh(this.itemMesh(texName), 0.42, bl, sl);
+      d = this.dynData;
+    } else {
+      // leere Hand: der Arm bleibt ein Quader
+      var layer2 = T.layer('mob_player_arm');
       for (var f2 = 0; f2 < 6; f2++) {
         var F2 = MC.Mesher.FACES[f2];
         for (var i2 = 0; i2 < 4; i2++) {
           var v2 = F2.v[i2];
-          d[n++] = (v2[0] - 0.5) * w; d[n++] = (v2[1] - 0.5) * h2; d[n++] = (v2[2] - 0.5) * dep;
+          d[n++] = (v2[0] - 0.5) * 0.16; d[n++] = (v2[1] - 0.5) * 0.42; d[n++] = (v2[2] - 0.5) * 0.16;
           d[n++] = MC.Mesher.UVS[i2][0]; d[n++] = MC.Mesher.UVS[i2][1]; d[n++] = layer2;
           d[n++] = bl; d[n++] = sl; d[n++] = F2.shade;
         }

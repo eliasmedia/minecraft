@@ -17,7 +17,8 @@ Minecraft_files/
   css/style.css
   js/  util · blocks · items · recipes · textures · glcore · mesher
        particles · icons · worldgen · village · dimensions · world
-       entities · theend · player · renderer · audio · ui · main
+       entities · theend · achievements · player · renderer · redstone
+       audio · ui · main
 ```
 
 ## Steuerung
@@ -65,6 +66,27 @@ der Drache.
 **Kompass** — vier Eisenbarren und ein Redstone. In der Hand blendet er oben ein
 Band mit den Himmelsrichtungen ein, darunter die eigenen Koordinaten. Norden
 liegt wie im Original auf −Z.
+
+**Redstone** — Redstonestaub wird direkt als Leitung gelegt und trägt ein Signal
+15 Blöcke weit, wobei es pro Block eine Stufe verliert. Geschaltet wird mit
+**Hebel**, **Knopf** (springt nach einer Sekunde zurück) und **Druckplatte** (reagiert
+auf Spieler und Mobs); der **Redstoneblock** ist eine Dauerquelle. Der **Verstärker**
+frischt das Signal wieder auf 15 auf, lässt es nur in eine Richtung durch und
+verzögert es um 1 bis 4 Ticks — die Stufe stellt ein Rechtsklick um. Die
+**Redstonefackel** leuchtet, solange ihr Trägerblock *kein* Signal bekommt; damit
+hat man ein Nicht-Gatter und kann Und, Oder und Taktgeber bauen. Als Verbraucher
+hängen Lampe, Eisentür, Zauntor, Holztür und TNT daran.
+
+**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 187
+Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
+Sammelbegriffe wie „jede Brettersorte" zeigen einen Vertreter.
+
+**Erfolge** — 27 Stück als Baum, aufgebaut wie im Original: die Oberweltkette von
+„Ein Anfang" bis zum Diamanten ist die aus Minecraft, ab dem Nether folgt der Baum
+unserer eigenen Weltenfolge — Glowstone öffnet den Aether, Gravitit führt zum
+Helmkompass, der Kompass zur Festung, Lohenrute und Enderperle zum Auge, das Auge
+ins Ende. Wer einen Erfolg überspringt, bekommt seine Vorgeschichte rückwirkend
+angerechnet.
 
 **Nether** — Portal aus einem Obsidianrahmen (4×5, zehn Blöcke), gezündet mit dem
 Feuerzeug. Dahinter liegt eine geschlossene Höhlenwelt zwischen zwei
@@ -123,7 +145,9 @@ und wie dort steckt in jedem zehnten schon ein Auge.
 
 **Enderaugen** — der Weg dorthin ist der aus dem Original: eine **Lohe** an einer
 Netherbastion lässt Lohenruten fallen, eine Rute wird zu zwei Lohenstaub, Staub
-plus **Enderperle** vom Enderman gibt ein Enderauge. Zwölf davon in die Rahmen,
+plus **Enderperle** vom Enderman gibt ein Enderauge. Eine Perle lässt sich auch
+werfen — man landet dort, wo sie aufschlägt, und das kostet wie im Original
+etwas Leben. Zwölf davon in die Rahmen,
 dann reißt die Fläche auf. Gefunden wird die Festung aber nicht mit geworfenen
 Augen, sondern über den Kompass im HUD des Gravitithelms.
 
@@ -146,12 +170,12 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — rund 145 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 155 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
-Truhe, Bett, TNT und Ackerboden. Rund 250 Items: Werkzeuge und Waffen in 8
+Truhe, Bett, TNT und Ackerboden. Rund 260 Items: Werkzeuge und Waffen in 8
 Materialstufen, Rüstung in 6 Stufen, Nahrung, Rohstoffe, Kompass.
 
-**Spielschleife** — 155 Crafting-Rezepte (2×2 und 3×3, geformt und ungeformt);
+**Spielschleife** — 187 Rezepte (2×2 und 3×3, geformt und ungeformt);
 Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
@@ -185,7 +209,7 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 * klassische `<script>`-Tags statt ES-Module
 * eigener WebGL2-Renderer statt three.js
-* alle Texturen zur Laufzeit per Canvas erzeugt (355 Stück) statt Bilddateien
+* alle Texturen zur Laufzeit per Canvas erzeugt (362 Stück) statt Bilddateien
 * alle Klänge per WebAudio synthetisiert statt Audiodateien
 * Chunk-Meshing zeitbudgetiert im Main-Thread statt in Workern
 
@@ -194,9 +218,8 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 **Als Nächstes:** Karten — ein Item, das das erkundete Gelände von oben zeigt und
 sich in einem Rahmen an die Wand hängen lässt. Der Kompass ist die Vorstufe davon.
 
-Redstone, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen die äußeren
-Inseln und das Wiederbeleben des Drachen; Enderperlen lassen sich noch nicht
-werfen. Im Aether fehlen die drei Dungeons und reitbare Moas. Dorfbewohner
+Kolben, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen die äußeren
+Inseln und das Wiederbeleben des Drachen. Im Aether fehlen die drei Dungeons und reitbare Moas. Dorfbewohner
 laufen geradlinig auf ihr Ziel zu statt einen Weg zu suchen; ein Haus hinter einer
 Mauer erreichen sie nicht. Ihre schon getätigten Handelszüge überleben das
 Entladen des Dorfes nicht — der Vorrat eines Angebots füllt sich dann wieder auf.

@@ -525,6 +525,228 @@
     else if (type === 'chest') this.buildChest(data);
     else if (type === 'creative') this.buildCreative();
     else if (type === 'trade') this.buildTrade(data);
+    else if (type === 'recipes') this.buildRecipes();
+    else if (type === 'achievements') this.buildAchievements();
+  };
+
+  // Zwei Knöpfe, die aus jedem Inventarfenster ins Rezeptbuch und in die
+  // Erfolge führen. Beide merken sich, woher man kam.
+  UI.prototype.addBookButtons = function (win, zurueck) {
+    var self = this;
+    var reihe = el('div', 'bookrow', win);
+    function knopf(sym, titel, ziel) {
+      var b = el('button', 'bookbtn', reihe);
+      b.type = 'button';
+      b.innerHTML = '<span class="bsym">' + sym + '</span>' + titel;
+      b.addEventListener('mousedown', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        self.backTo = zurueck;
+        self.openScreen(ziel);
+      });
+    }
+    knopf('📖', 'Rezepte', 'recipes');
+    knopf('🏆', 'Erfolge', 'achievements');
+    return reihe;
+  };
+
+  UI.prototype.backButton = function (win) {
+    var self = this;
+    var b = el('button', 'bookbtn back', win);
+    b.type = 'button';
+    b.textContent = '◀ Zurück';
+    b.addEventListener('mousedown', function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      var ziel = self.backTo || 'inventory';
+      self.backTo = null;
+      self.openScreen(ziel);
+    });
+    return b;
+  };
+
+  // ============================================================
+  //  Rezeptbuch
+  // ============================================================
+  // Sammelt alles, was das Spiel herstellen kann: geformte und ungeformte
+  // Rezepte plus die Ofenrezepte. Sammelbegriffe wie "#planks" zeigen ihren
+  // ersten Vertreter, sonst wäre die Zelle leer.
+  UI.prototype.recipeList = function () {
+    if (this._recipes) return this._recipes;
+    var out = [];
+
+    function aufloesen(want) {
+      if (!want) return null;
+      if (want.charAt(0) !== '#') return want;
+      var tag = R.TAGS[want];
+      return tag && tag.length ? tag[0] : null;
+    }
+
+    R.shaped.forEach(function (r) {
+      var grid = new Array(9);
+      for (var y = 0; y < r.h; y++) {
+        for (var x = 0; x < r.w; x++) {
+          grid[y * 3 + x] = aufloesen(r.grid[y][x]);
+        }
+      }
+      out.push({ art: 'Werkbank', grid: grid, out: r.out });
+    });
+
+    R.shapeless.forEach(function (r) {
+      var grid = new Array(9);
+      for (var i = 0; i < r.ing.length && i < 9; i++) grid[i] = aufloesen(r.ing[i]);
+      out.push({ art: 'Ungeformt', grid: grid, out: r.out });
+    });
+
+    for (var input in R.smelting) {
+      var g2 = new Array(9);
+      g2[0] = input;
+      out.push({ art: 'Ofen', grid: g2, out: R.smelting[input] });
+    }
+
+    // Nach Ergebnisnamen sortieren, damit das Blättern eine Ordnung hat
+    out.sort(function (a, b) {
+      var ta = I.title(a.out.id) || a.out.id, tb = I.title(b.out.id) || b.out.id;
+      return ta < tb ? -1 : (ta > tb ? 1 : 0);
+    });
+    this._recipes = out;
+    return out;
+  };
+
+  UI.PAGE_RECIPES = 6;
+
+  UI.prototype.buildRecipes = function () {
+    var self = this;
+    this.slotList = [];
+    var win = el('div', 'window book', this.screen);
+    var head = el('div', 'wtitle', win);
+    head.textContent = 'Rezeptbuch';
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var suche = el('input', 'search', win);
+    suche.placeholder = 'Nach Ergebnis suchen …';
+    suche.value = this.recipeSearch || '';
+    suche.addEventListener('input', function () {
+      self.recipeSearch = this.value;
+      self.recipePage = 0;
+      self.fillRecipes();
+    });
+    suche.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+
+    this.recipeBox = el('div', 'recipebox', win);
+
+    var pager = el('div', 'pager', win);
+    this.rPrev = el('button', 'pagebtn', pager); this.rPrev.textContent = '◀';
+    this.rLabel = el('span', 'pagelabel', pager);
+    this.rNext = el('button', 'pagebtn', pager); this.rNext.textContent = '▶';
+    this.rPrev.addEventListener('mousedown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      self.recipePage = Math.max(0, (self.recipePage || 0) - 1); self.fillRecipes();
+    });
+    this.rNext.addEventListener('mousedown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      self.recipePage = (self.recipePage || 0) + 1; self.fillRecipes();
+    });
+
+    this.backButton(win);
+    this.fillRecipes();
+  };
+
+  UI.prototype.fillRecipes = function () {
+    var self = this;
+    var box = this.recipeBox;
+    box.innerHTML = '';
+    var q = (this.recipeSearch || '').toLowerCase();
+    var alle = this.recipeList().filter(function (r) {
+      if (!q) return true;
+      var t = (I.title(r.out.id) || r.out.id).toLowerCase();
+      return t.indexOf(q) >= 0 || r.out.id.indexOf(q) >= 0;
+    });
+
+    var seiten = Math.max(1, Math.ceil(alle.length / UI.PAGE_RECIPES));
+    if (this.recipePage === undefined) this.recipePage = 0;
+    if (this.recipePage >= seiten) this.recipePage = seiten - 1;
+    if (this.recipePage < 0) this.recipePage = 0;
+    this.rLabel.textContent = 'Seite ' + (this.recipePage + 1) + ' / ' + seiten +
+                              '   ·   ' + alle.length + ' Rezepte';
+    this.rPrev.disabled = this.recipePage === 0;
+    this.rNext.disabled = this.recipePage >= seiten - 1;
+
+    alle.slice(this.recipePage * UI.PAGE_RECIPES, (this.recipePage + 1) * UI.PAGE_RECIPES)
+      .forEach(function (r) {
+        var karte = el('div', 'rcard', box);
+        var kopf = el('div', 'rhead', karte);
+        kopf.innerHTML = '<b>' + (I.title(r.out.id) || r.out.id) + '</b>' +
+                         (r.out.count > 1 ? ' ×' + r.out.count : '') +
+                         '<span class="rart">' + r.art + '</span>';
+        var zeile = el('div', 'rrow', karte);
+        var grid = el('div', 'rgrid', zeile);
+        for (var i = 0; i < 9; i++) {
+          var s = el('div', 'slot mini', grid);
+          if (r.grid[i]) self.renderSlot(s, { id: r.grid[i], count: 1 });
+        }
+        el('div', 'rarrow', zeile).textContent = '➜';
+        var res = el('div', 'slot', zeile);
+        self.renderSlot(res, { id: r.out.id, count: r.out.count });
+      });
+  };
+
+  // ============================================================
+  //  Erfolge
+  // ============================================================
+  UI.prototype.buildAchievements = function () {
+    var self = this, g = this.game;
+    var A = MC.Achievements;
+    this.slotList = [];
+    var win = el('div', 'window book', this.screen);
+    var head = el('div', 'wtitle', win);
+    var erreicht = 0;
+    A.LIST.forEach(function (e) { if (A.has(g, e[0])) erreicht++; });
+    head.textContent = 'Erfolge — ' + erreicht + ' von ' + A.LIST.length;
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var baum = el('div', 'achtree', win);
+
+    // Der Baum wird rekursiv eingerückt; die Linien links machen die
+    // Abhängigkeiten sichtbar, ohne dass man Kanten zeichnen muss.
+    function zweig(eltern, tiefe, behaelter) {
+      A.children(eltern).forEach(function (e) {
+        var offen = A.has(g, e.id);
+        // Erreichbar, sobald der Vorgänger steht – sonst bleibt es verdeckt
+        var frei = !e.parent || A.has(g, e.parent);
+        var row = el('div', 'achrow' + (offen ? ' done' : (frei ? '' : ' locked')), behaelter);
+        row.style.marginLeft = (tiefe * 26) + 'px';
+
+        var ico = el('div', 'slot mini achico', row);
+        if (offen || frei) self.renderSlot(ico, { id: e.icon, count: 1 });
+
+        var txt = el('div', 'achtxt', row);
+        var t = el('div', 'achname', txt);
+        t.textContent = (offen ? '✓ ' : '') + (frei ? e.title : '???');
+        var d = el('div', 'achdesc', txt);
+        d.textContent = frei ? e.desc : 'Erst den vorigen Erfolg holen.';
+
+        zweig(e.id, tiefe + 1, behaelter);
+      });
+    }
+    zweig(null, 0, baum);
+
+    var hinweis = el('div', 'whint', win);
+    hinweis.textContent = 'Der Baum folgt dem Weg durch die vier Welten. Wer einen Erfolg ' +
+                          'überspringt, bekommt die Vorgeschichte rückwirkend angerechnet.';
+
+    this.backButton(win);
+  };
+
+  // Auffälliger als ein normaler Toast: der Erfolg soll man merken
+  UI.prototype.achievementToast = function (e) {
+    var t = el('div', 'toast ach', this.toastEl);
+    t.innerHTML = '<span class="achtoastico" style="background-image:url(' +
+                  Icons.url(e.icon) + ')"></span>' +
+                  '<span><b>Erfolg</b><br>' + e.title + '</span>';
+    setTimeout(function () { t.classList.add('fade'); }, 3200);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 4000);
+    while (this.toastEl.children.length > 6) this.toastEl.removeChild(this.toastEl.firstChild);
   };
 
   UI.prototype.makeSlot = function (parent, getFn, setFn, opts) {
@@ -738,6 +960,8 @@
       })(hh);
     }
 
+    this.addBookButtons(win, craftSize === 3 ? 'crafting' : 'inventory');
+
     var hint = el('div', 'whint', win);
     hint.textContent = 'Linksklick: nehmen/ablegen · Rechtsklick: teilen/einzeln · Shift+Klick: schnell verschieben · E schließt';
 
@@ -753,6 +977,7 @@
   };
 
   UI.prototype.consumeCraft = function () {
+    var gemacht = this.craftResult ? this.craftResult.id : null;
     for (var i = 0; i < this.craftGrid.length; i++) {
       var s = this.craftGrid[i];
       if (!s) continue;
@@ -761,6 +986,7 @@
     }
     this.updateCraft();
     this.game.player.addXP(1);
+    if (MC.Achievements) MC.Achievements.onItem(this.game, gemacht);
   };
 
   // ---------- Ofen ----------
@@ -939,6 +1165,7 @@
     if (rest > 0) g.throwStack(I.newStack(offer.get[0], rest));
     offer.uses++;
     g.player.addXP(2);
+    MC.Achievements.grant(g, 'dorf');
     g.audio.play('trade');
     this.refreshTrade();
     this.refreshSlots();
@@ -1001,6 +1228,7 @@
         self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi });
       })(hh);
     }
+    this.addBookButtons(win, 'creative');
     this.fillCreative();
     this.refreshSlots();
   };

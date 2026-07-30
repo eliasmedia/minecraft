@@ -279,6 +279,9 @@
       var tk = x + ',' + y + ',' + z;
       if (this.tileEntities[tk] && !opts.keepTile) delete this.tileEntities[tk];
     }
+    // Redstone neu durchrechnen. Der Wächter in onChange verhindert, dass die
+    // Blöcke, die dabei selbst gesetzt werden, eine neue Runde auslösen.
+    if (MC.Redstone && !opts.noRedstone) MC.Redstone.onChange(this, x, y, z);
     return true;
   };
 
@@ -617,6 +620,23 @@
     if (id === 0) return;
     var b = B.byId[id];
     if (!b) return;
+
+    // Fackeln und Verstärker schalten verzögert – erst danach der Rest
+    if (MC.Redstone && MC.Redstone.tick(this, x, y, z)) return;
+
+    // Redstoneleitung, Hebel, Knopf und Platte brauchen einen Halt darunter
+    if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_REPEATER) {
+      if (!B.isSolid(this.getBlock(x, y - 1, z))) { this.breakBlockNatural(x, y, z); return; }
+    }
+    if (b.shape === B.SHAPE_LEVER || b.shape === B.SHAPE_BUTTON) {
+      var m = this.getMeta(x, y, z);
+      if (m & 4) {
+        if (!B.isSolid(this.getBlock(x, y - 1, z))) { this.breakBlockNatural(x, y, z); return; }
+      } else {
+        var sd = B.SIDE_DIRS[m & 3];
+        if (!B.isOpaque(this.getBlock(x + sd[0], y, z + sd[1]))) { this.breakBlockNatural(x, y, z); return; }
+      }
+    }
 
     // Schwerkraft
     if (b.gravity) {

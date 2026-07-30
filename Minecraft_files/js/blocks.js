@@ -26,6 +26,11 @@
   B.SHAPE_PORTAL = 15; // Portalfläche (dünne Ebene, Achse in Meta-Bit 0)
   B.SHAPE_PORTAL_FLAT = 16; // liegende Portalfläche (Endportal)
   B.SHAPE_EGG = 17;    // gestapelte Quader in Eiform (Drachenei)
+  B.SHAPE_WIRE = 18;   // Redstoneleitung: flach auf dem Boden, Meta = Stärke 0..15
+  B.SHAPE_PLATE = 19;  // Druckplatte
+  B.SHAPE_BUTTON = 20; // Knopf an Wand oder Boden
+  B.SHAPE_LEVER = 21;  // Hebel
+  B.SHAPE_REPEATER = 22; // Verstärker
 
   // Silhouette des Dracheneis in Sechzehnteln, von unten nach oben
   B.EGG_LAYERS = [
@@ -416,6 +421,54 @@
     light: 1, sound: 'stone', group: 'bau'
   });
 
+  // ============================================================
+  //  REDSTONE
+  // ============================================================
+  // Leitung: Meta ist die Signalstärke 0..15. Sie wird nicht als Item
+  // gehalten — man platziert Redstonestaub, der zu dieser Leitung wird.
+  define('redstone_wire', {
+    title: 'Redstoneleitung', shape: B.SHAPE_WIRE, solid: false, collide: false, opaque: false,
+    cutout: true, hardness: 0, drop: 'redstone', item: false, opacity: 0, sound: 'stone'
+  });
+  define('redstone_block', {
+    title: 'Redstoneblock', hardness: 5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau'
+  });
+  // Die Fackel leuchtet, solange ihr Trägerblock KEIN Signal bekommt – das ist
+  // das Nicht-Gatter, aus dem sich alles andere baut.
+  define('redstone_torch', {
+    title: 'Redstonefackel', shape: B.SHAPE_TORCH, solid: false, opaque: false, light: 7,
+    hardness: 0, cutout: true, sound: 'wood', opacity: 0, group: 'werkzeug', tex: 'redstone_torch'
+  });
+  define('redstone_torch_off', {
+    title: 'Redstonefackel (aus)', shape: B.SHAPE_TORCH, solid: false, opaque: false,
+    hardness: 0, cutout: true, sound: 'wood', opacity: 0, item: false,
+    drop: 'redstone_torch', tex: 'redstone_torch_off'
+  });
+  define('lever', {
+    title: 'Hebel', shape: B.SHAPE_LEVER, solid: false, collide: false, opaque: false,
+    cutout: true, hardness: 0.5, sound: 'wood', opacity: 0, group: 'werkzeug'
+  });
+  define('stone_button', {
+    title: 'Steinknopf', shape: B.SHAPE_BUTTON, solid: false, collide: false, opaque: false,
+    hardness: 0.5, tool: 'pickaxe', sound: 'stone', opacity: 0, tex: 'stone', group: 'werkzeug'
+  });
+  define('pressure_plate', {
+    title: 'Druckplatte', shape: B.SHAPE_PLATE, opaque: false, hardness: 0.5, tool: 'pickaxe',
+    sound: 'stone', opacity: 0, tex: 'stone', group: 'werkzeug'
+  });
+  define('redstone_lamp', {
+    title: 'Redstonelampe', hardness: 0.3, sound: 'glass', group: 'bau', tex: 'redstone_lamp'
+  });
+  define('redstone_lamp_lit', {
+    title: 'Redstonelampe (an)', hardness: 0.3, light: 15, sound: 'glass', item: false,
+    drop: 'redstone_lamp', tex: 'redstone_lamp_lit'
+  });
+  // Meta: Bits 0-1 Ausgangsrichtung, Bits 2-3 Verzögerung (1..4 Ticks), Bit 4 Ausgang an
+  define('repeater', {
+    title: 'Verstärker', shape: B.SHAPE_REPEATER, opaque: false, collide: true,
+    hardness: 0.5, sound: 'stone', opacity: 0, group: 'werkzeug'
+  });
+
   // ---------- Bett ----------
   define('bed', {
     title: 'Bett', shape: B.SHAPE_BED, opaque: false, hardness: 0.2, sound: 'cloth',
@@ -499,6 +552,27 @@
   };
   B.gateOpen = function (meta) { return (meta & 4) !== 0; };
 
+  // Knopf und Hebel: Meta-Bits 0-1 = Wandrichtung nach SIDE_DIRS, Bit 2 = Boden,
+  // Bit 3 = gedrückt bzw. umgelegt.
+  B.buttonBox = function (meta) {
+    if (meta & 4) return [0.3125, 0, 0.3125, 0.6875, 0.125, 0.6875];
+    var d = B.SIDE_DIRS[meta & 3];
+    // sitzt an der Wand, zu der d zeigt
+    if (d[0] === 1) return [0.875, 0.3125, 0.3125, 1, 0.6875, 0.6875];
+    if (d[0] === -1) return [0, 0.3125, 0.3125, 0.125, 0.6875, 0.6875];
+    if (d[1] === 1) return [0.3125, 0.3125, 0.875, 0.6875, 0.6875, 1];
+    return [0.3125, 0.3125, 0, 0.6875, 0.6875, 0.125];
+  };
+
+  B.leverBox = function (meta) {
+    if (meta & 4) return [0.3125, 0, 0.3125, 0.6875, 0.625, 0.6875];
+    var d = B.SIDE_DIRS[meta & 3];
+    if (d[0] === 1) return [0.625, 0.25, 0.25, 1, 0.75, 0.75];
+    if (d[0] === -1) return [0, 0.25, 0.25, 0.375, 0.75, 0.75];
+    if (d[1] === 1) return [0.25, 0.25, 0.625, 0.75, 0.75, 1];
+    return [0.25, 0.25, 0, 0.75, 0.75, 0.375];
+  };
+
   // Kollisionsboxen eines Blocks (relativ 0..1)
   B.boxes = function (id, meta) {
     var b = B.byId[id];
@@ -519,6 +593,10 @@
       case B.SHAPE_EGG:
         // eine Box reicht für die Kollision, die Feinform bleibt Optik
         return [[0.0625, 0, 0.0625, 0.9375, 1, 0.9375]];
+      case B.SHAPE_PLATE:
+        return [[0, 0, 0, 1, 0.0625, 1]];
+      case B.SHAPE_REPEATER:
+        return [[0, 0, 0, 1, 0.125, 1]];
       case B.SHAPE_FENCE:
         // etwas breiter als der Pfosten, damit man nicht durchschlüpft
         return [[0.25, 0, 0.25, 0.75, 1.5, 0.75]];
@@ -530,6 +608,9 @@
       case B.SHAPE_FIRE:
       case B.SHAPE_PORTAL:
       case B.SHAPE_PORTAL_FLAT:
+      case B.SHAPE_WIRE:
+      case B.SHAPE_BUTTON:
+      case B.SHAPE_LEVER:
         return null;
       default:
         return [[0, 0, 0, 1, 1, 1]];
@@ -557,6 +638,11 @@
       case B.SHAPE_PORTAL: return (meta & 1) ? [0.375, 0, 0, 0.625, 1, 1] : [0, 0, 0.375, 1, 1, 0.625];
       case B.SHAPE_PORTAL_FLAT: return [0, 0.6, 0, 1, 0.9, 1];
       case B.SHAPE_EGG: return [0.0625, 0, 0.0625, 0.9375, 1, 0.9375];
+      case B.SHAPE_WIRE: return [0, 0, 0, 1, 0.0625, 1];
+      case B.SHAPE_PLATE: return [0, 0, 0, 1, 0.0625, 1];
+      case B.SHAPE_REPEATER: return [0, 0, 0, 1, 0.125, 1];
+      case B.SHAPE_BUTTON: return B.buttonBox(meta);
+      case B.SHAPE_LEVER: return B.leverBox(meta);
       default: return [0, 0, 0, 1, 1, 1];
     }
   };

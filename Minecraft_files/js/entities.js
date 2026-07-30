@@ -173,12 +173,14 @@
         this.x += dx * pull; this.y += dy * pull; this.z += dz * pull;
       }
       if (d2 < 0.75 * 0.75) {
+        var aufgesammelt = this.stack.id;
         var left = p.inventory.add(this.stack);
         if (left === 0) {
           this.dead = true;
           game.audio.play('pop');
           game.ui.flashPickup(this.stack);
         } else this.stack.count = left;
+        if (MC.Achievements) MC.Achievements.onItem(game, aufgesammelt);
       }
     }
     // gleiche Items zusammenführen
@@ -290,6 +292,64 @@
       return;
     }
     this.x = nx; this.y = ny; this.z = nz;
+  };
+
+  // ============================================================
+  //  Enderperle
+  // ============================================================
+  // Fliegt in einem Bogen und setzt den Werfer dorthin, wo sie aufschlägt.
+  // Der Aufprall kostet wie im Original etwas Leben.
+  function EnderPearl(world, x, y, z, vx, vy, vz, owner) {
+    Entity.call(this, world, x, y, z);
+    this.width = 0.25; this.height = 0.25;
+    this.vx = vx; this.vy = vy; this.vz = vz;
+    this.owner = owner;
+    this.type = 'pearl';
+    this.gravity = 18;
+    this.life = 20;
+  }
+  EnderPearl.prototype = Object.create(Entity.prototype);
+  EnderPearl.prototype.constructor = EnderPearl;
+  MC.EnderPearl = EnderPearl;
+
+  EnderPearl.prototype.update = function (dt, game) {
+    this.age += dt;
+    this.life -= dt;
+    if (this.life <= 0 || this.y < -8) { this.dead = true; return; }
+    this.vy -= this.gravity * dt;
+    var nx = this.x + this.vx * dt, ny = this.y + this.vy * dt, nz = this.z + this.vz * dt;
+
+    var dx = nx - this.x, dy = ny - this.y, dz = nz - this.z;
+    var len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (len > 0.0001) {
+      var hit = this.world.raycast(this.x, this.y, this.z, dx / len, dy / len, dz / len, len + 0.05, false);
+      if (hit) { this.land(game, hit.hx, hit.hy, hit.hz); return; }
+    }
+    this.x = nx; this.y = ny; this.z = nz;
+    if ((game.tickCount & 1) === 0) game.particles.crit(this.x, this.y, this.z);
+  };
+
+  EnderPearl.prototype.land = function (game, x, y, z) {
+    this.dead = true;
+    var p = game.player;
+    if (this.owner !== p || p.dead) return;
+
+    // Vom Aufprallpunkt aus die erste Stelle mit zwei Blöcken Luft suchen
+    var bx = Math.floor(x), bz = Math.floor(z), by = -1;
+    for (var d = 0; d <= 3 && by < 0; d++) {
+      var ty = Math.floor(y) + d;
+      if (this.world.getBlock(bx, ty, bz) === 0 && this.world.getBlock(bx, ty + 1, bz) === 0) by = ty;
+    }
+    if (by < 0) { game.ui.toast('Dort ist kein Platz zum Landen.'); return; }
+
+    game.particles.crit(p.x, p.eyeY(), p.z);
+    p.x = bx + 0.5; p.y = by; p.z = bz + 0.5;
+    p.vx = p.vy = p.vz = 0;
+    p.fallStart = null;
+    game.particles.crit(p.x, p.eyeY(), p.z);
+    game.audio.play('enderman');
+    game.ensureChunksAround(p.x, p.z, 1);
+    if (game.mode !== 'creative') p.hurt(5, null, game);
   };
 
   // ============================================================
