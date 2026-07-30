@@ -67,7 +67,7 @@ der Drache.
 Band mit den Himmelsrichtungen ein, darunter die eigenen Koordinaten. Norden
 liegt wie im Original auf −Z.
 
-**Redstone** — Redstonestaub wird direkt als Leitung gelegt und trägt ein Signal
+**Redstone** — eigener Reiter im Kreativmenü. Redstonestaub wird direkt als Leitung gelegt und trägt ein Signal
 15 Blöcke weit, wobei es pro Block eine Stufe verliert. Geschaltet wird mit
 **Hebel**, **Knopf** (springt nach einer Sekunde zurück) und **Druckplatte** (reagiert
 auf Spieler und Mobs); der **Redstoneblock** ist eine Dauerquelle. Der **Verstärker**
@@ -209,7 +209,7 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 * klassische `<script>`-Tags statt ES-Module
 * eigener WebGL2-Renderer statt three.js
-* alle Texturen zur Laufzeit per Canvas erzeugt (362 Stück) statt Bilddateien
+* alle Texturen zur Laufzeit per Canvas erzeugt (365 Stück) statt Bilddateien
 * alle Klänge per WebAudio synthetisiert statt Audiodateien
 * Chunk-Meshing zeitbudgetiert im Main-Thread statt in Workern
 

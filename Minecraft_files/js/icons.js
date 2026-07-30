@@ -65,7 +65,30 @@
       case B.SHAPE_TORCH:
       case B.SHAPE_LADDER:
       case B.SHAPE_FIRE:
+      case B.SHAPE_LEVER:
+        // Formen, die kein Würfel sind, zeigen ihr Item-Bild flach
         flatIcon(ctx, typeof block.tex === 'string' ? block.tex : (block.tex.side || block.tex.top));
+        return c;
+
+      case B.SHAPE_WIRE:
+        flatIcon(ctx, 'redstone_dust');
+        return c;
+
+      case B.SHAPE_PLATE:
+        isoBox(ctx, [0.0625, 0, 0.0625, 0.9375, 0.0625, 0.9375], block, 0);
+        return c;
+
+      case B.SHAPE_REPEATER:
+        isoBox(ctx, [0, 0, 0, 1, 0.125, 1], block, 0);
+        // die beiden Fackelstummel obendrauf
+        isoBox(ctx, [0.44, 0.125, 0.18, 0.56, 0.4, 0.3],
+               { tex: 'redstone_torch_off', shape: B.SHAPE_CUBE, name: 'x' }, 0);
+        isoBox(ctx, [0.44, 0.125, 0.62, 0.56, 0.4, 0.74],
+               { tex: 'redstone_torch', shape: B.SHAPE_CUBE, name: 'x' }, 0);
+        return c;
+
+      case B.SHAPE_BUTTON:
+        isoBox(ctx, [0.3125, 0, 0.3125, 0.6875, 0.125, 0.6875], block, 4);
         return c;
 
       case B.SHAPE_SLAB:

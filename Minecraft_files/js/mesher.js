@@ -219,7 +219,7 @@
             }
 
             case B.SHAPE_TORCH: {
-              emitTorch(buf, x, y, z, meta, gl(x, y, z));
+              emitTorch(buf, x, y, z, meta, gl(x, y, z), block);
               break;
             }
 
@@ -329,7 +329,7 @@
               emitShapedBox(buf, x, y, z,
                 [gx - 0.06 + neig, lb[4], gz - 0.06],
                 [gx + 0.06 + neig, lb[4] + 0.36, gz + 0.06],
-                B.byName['lever'], 0);
+                { name: 'lever_handle', tex: 'lever_handle', shape: B.SHAPE_CUBE }, 0);
               break;
             }
 
@@ -472,8 +472,10 @@
     // Fackel: 2x10x2-Pixel-Stiel. Die UVs greifen genau den Ausschnitt der Textur ab,
     // damit nicht das Item-Bild auf alle Seiten geklebt wird. Wandfackeln (meta 1..4)
     // sitzen am Wandrand und lehnen sich um ~25° zur Blockmitte.
-    function emitTorch(buf, x, y, z, meta, lightRaw) {
-      var layer = T.layer('torch');
+    function emitTorch(buf, x, y, z, meta, lightRaw, block) {
+      // Die Textur kommt vom Block – sonst sähe die Redstonefackel aus wie eine
+      // gewöhnliche Fackel.
+      var layer = T.layer(block && typeof block.tex === 'string' ? block.tex : 'torch');
       var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
       var U16 = 1 / 16;
       var uvSide = [7 * U16, 6 * U16, 9 * U16, 1];

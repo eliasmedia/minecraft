@@ -1184,7 +1184,8 @@
     close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
 
     var tabs = el('div', 'tabs', win);
-    var groups = [['bau', 'Baublöcke'], ['natur', 'Natur'], ['werkzeug', 'Werkzeug'], ['material', 'Material'],
+    var groups = [['bau', 'Baublöcke'], ['natur', 'Natur'], ['werkzeug', 'Werkzeug'],
+                  ['redstone', 'Redstone'], ['material', 'Material'],
                   ['nahrung', 'Nahrung'], ['ruestung', 'Rüstung']];
     groups.forEach(function (g) {
       var t = el('div', 'tab' + (self.creativeTab === g[0] ? ' active' : ''), tabs);

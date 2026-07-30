@@ -291,7 +291,7 @@
     { id: 'coal_ore', tries: 22, size: 9, min: 6, max: 96 },
     { id: 'iron_ore', tries: 16, size: 7, min: 6, max: 68 },
     { id: 'gold_ore', tries: 3, size: 6, min: 6, max: 34 },
-    { id: 'redstone_ore', tries: 5, size: 7, min: 5, max: 18 },
+    { id: 'redstone_ore', tries: 12, size: 9, min: 5, max: 26 },
     { id: 'lapis_ore', tries: 2, size: 6, min: 12, max: 36 },
     { id: 'diamond_ore', tries: 2, size: 5, min: 5, max: 16 },
     { id: 'emerald_ore', tries: 1, size: 2, min: 6, max: 30 },

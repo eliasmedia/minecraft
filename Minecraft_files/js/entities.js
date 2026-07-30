@@ -773,6 +773,7 @@
     if (this.attackCd > 0) this.attackCd -= dt;
     if (this.jumpCd > 0) this.jumpCd -= dt;
     if (this.panic > 0) this.panic -= dt;
+    if (this.knockCd > 0) this.knockCd -= dt;
 
     var world = this.world, p = game.player;
     var dist = p && !p.dead ? this.distTo(p) : 9999;
@@ -801,9 +802,23 @@
     var wantYaw = this.yaw;
 
     // Beute wählen: der Spieler, sonst der nächste Dorfbewohner in Reichweite
+    // Ein Mob nimmt den Spieler erst auf, wenn er ihn wirklich sehen kann oder
+    // dicht dran ist. Ohne das rennt in einer Höhle die halbe Karte durch die
+    // Wände auf einen zu.
     var foe = null, foeDist = 9999;
     if (this.hostile) {
-      if (p && !p.dead && dist < 22 && game.mode !== 'creative') { foe = p; foeDist = dist; }
+      if (p && !p.dead && dist < 16 && game.mode !== 'creative') {
+        this.seeCd = (this.seeCd === undefined ? 0 : this.seeCd) - dt;
+        if (this.seeCd <= 0) {
+          this.seeCd = 0.35;                        // Sichtprüfung ist ein Raycast
+          this.sawPlayer = dist < 5 || this.canSee(p);
+          if (this.sawPlayer) this.forgetCd = 5;    // kurz dranbleiben, wenn er weg ist
+        }
+        this.forgetCd = (this.forgetCd || 0) - dt;
+        if (this.sawPlayer || this.forgetCd > 0) { foe = p; foeDist = dist; }
+      } else {
+        this.sawPlayer = false;
+      }
       var vFoe = this.nearestVillager(16);
       if (vFoe && vFoe.d < foeDist) { foe = vFoe.e; foeDist = vFoe.d; }
     }
@@ -887,7 +902,7 @@
     P.moveWithStep(world, this, this.vx * dt, this.vz * dt, 0.6);
     P.move(world, this, 0, this.vy * dt, 0);
     if (this.onGround) this.vy = 0;
-    var fr = Math.pow(this.onGround ? 0.02 : 0.75, dt);
+    var fr = Math.pow(this.knockCd > 0 ? 0.55 : (this.onGround ? 0.02 : 0.75), dt);
     this.vx *= fr; this.vz *= fr;
 
     // Fallschaden
@@ -902,10 +917,12 @@
     if (this.moving) this.walkTime += dt * 9;
     if (this.y < -10) this.dead = true;
 
-    // Despawn. Bewohner halten länger durch – ihre Angebote hängen ohnehin an
-    // Dorf und Platznummer, sie kommen also unverändert zurück.
-    if (this.hostile && dist > 62) this.dead = true;
-    if (!this.hostile && dist > (this.mobType === 'villager' ? 170 : 110)) this.dead = true;
+    // Despawn nach Entfernung. Solange der Spieler tot ist, gibt es keine
+    // sinnvolle Entfernung – sonst löst sich beim Tod die ganze Umgebung auf.
+    if (p && !p.dead) {
+      if (this.hostile && dist > 62) this.dead = true;
+      if (!this.hostile && dist > (this.mobType === 'villager' ? 170 : 110)) this.dead = true;
+    }
   };
 
   // Wen greift dieser Mob gerade an? Spieler, sonst nächster Dorfbewohner.
@@ -915,7 +932,7 @@
     var best = null, bestD = 9999;
     if (p && !p.dead && game.mode !== 'creative') {
       var d = mob.distTo(p);
-      if (d < 40) { best = p; bestD = d; }
+      if (d < 28 && (d < 8 || mob.canSee(p))) { best = p; bestD = d; }
     }
     var v = mob.nearestVillager(20);
     if (v && v.d < bestD) best = v.e;
@@ -973,7 +990,7 @@
     this.walkTime += dt * 3;
 
     var p = game.player;
-    if (p && this.distTo(p) > 90) this.dead = true;
+    if (p && !p.dead && this.distTo(p) > 90) this.dead = true;
   };
 
   // Ghast wirft Feuerbälle, die Lohe kleine Flammen, der Zephyr Schneebälle:
@@ -1159,25 +1176,38 @@
       this.teleportNear(game, 16);
     } else this.wetTimer = 0;
 
-    // Blickkontakt: Fadenkreuz auf dem Kopf, Sichtlinie frei
+    // Blickkontakt: Fadenkreuz auf dem Kopf, Sichtlinie frei. Ein kurzer Blick
+    // stört ihn nicht – erst wer knapp eine Sekunde hinsieht, macht ihn wütend.
+    this.stareTime = this.stareTime || 0;
     if (!this.hostile && p && !p.dead && game.mode !== 'creative') {
       var dx = p.x - this.x, dy = p.eyeY() - (this.y + this.height * 0.9), dz = p.z - this.z;
       var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (d > 1 && d < 32) {
+      var angestarrt = false;
+      if (d > 1 && d < 24) {
         var look = p.lookDir();
         var dot = -(look.x * dx + look.y * dy + look.z * dz) / d;
-        if (dot > 0.985 && this.canSee(p)) {
-          this.hostile = true;
-          this.attackCd = 0.8;
-          game.audio.play3d('enderman', this.x, this.y, this.z, p);
-          game.ui.toast('Der Enderman starrt zurück.');
+        angestarrt = dot > 0.99 && this.canSee(p);
+      }
+      if (angestarrt) {
+        this.stareTime += dt;
+        // Er merkt es: erst zuckt er, dann wird er wütend
+        if (this.stareTime > 0.35 && Math.random() < dt * 8) {
+          game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
         }
+        if (this.stareTime > 0.9) {
+          this.hostile = true;
+          this.attackCd = 1.2;
+          game.audio.play3d('enderman', this.x, this.y, this.z, p);
+          game.ui.toast('Du hast zu lange hingesehen.');
+        }
+      } else {
+        this.stareTime = Math.max(0, this.stareTime - dt * 1.5);
       }
     }
 
-    this.tpCd = (this.tpCd === undefined) ? 2 + Math.random() * 4 : this.tpCd - dt;
+    this.tpCd = (this.tpCd === undefined) ? 8 + Math.random() * 10 : this.tpCd - dt;
     if (this.tpCd <= 0) {
-      this.tpCd = this.hostile ? 3 + Math.random() * 4 : 6 + Math.random() * 8;
+      this.tpCd = this.hostile ? 4 + Math.random() * 5 : 14 + Math.random() * 16;
       if (this.hostile && p && !p.dead && this.distTo(p) > 6) this.teleportTo(game, p.x, p.z, 3);
       else if (!this.hostile) this.teleportNear(game, 14);
     }
@@ -1228,6 +1258,8 @@
 
   Mob.prototype.moveToward = function (dt, yaw, mult) {
     this.yaw = approachAngle(this.yaw, yaw, dt * 7);
+    // Während des Rückstoßes fliegt er, statt zu laufen
+    if (this.knockCd > 0) { this.moving = true; return; }
     // Magmawürfel laufen nicht, sie hüpfen
     if (this.spec.hop) {
       if (this.onGround && this.jumpCd <= 0) {
@@ -1284,7 +1316,10 @@
     if (source) {
       var dx = this.x - source.x, dz = this.z - source.z;
       var d = Math.sqrt(dx * dx + dz * dz) || 1;
-      this.vx += dx / d * 7; this.vz += dz / d * 7; this.vy = 5.5;
+      this.vx = dx / d * 10; this.vz = dz / d * 10; this.vy = 7;
+      // Solange der Stoß läuft, steuert der Mob nicht gegen. Ohne das würde
+      // moveToward die Geschwindigkeit sofort wieder auf Laufwerte begrenzen.
+      this.knockCd = 0.32;
       this.targetYaw = Math.atan2(dx, dz);
     }
     game.particles.blood(this.x, this.y + this.height * 0.6, this.z);
@@ -1331,7 +1366,7 @@
     var world = game.world, p = game.player;
     if (!p || game.mode === 'creative') { }
     Spawner.timer = (Spawner.timer || 0) + dt;
-    if (Spawner.timer < 2.5) return;
+    if (Spawner.timer < 4) return;
     Spawner.timer = 0;
 
     var mobs = 0, hostiles = 0, passives = 0;
@@ -1340,8 +1375,8 @@
       if (e.type === 'mob' && !e.dead) { mobs++; if (e.hostile) hostiles++; else passives++; }
     }
     var night = world.isNight();
-    var maxHostile = game.difficulty === 'peaceful' ? 0 : (night ? 22 : 10);
-    var maxPassive = 16;
+    var maxHostile = game.difficulty === 'peaceful' ? 0 : (night ? 12 : 4);
+    var maxPassive = 12;
 
     if (world.dim !== 'overworld') {
       if (world.dim === 'nether') Spawner.blazes(game);
@@ -1351,9 +1386,9 @@
 
     Spawner.villagers(game);
 
-    for (var t = 0; t < 8; t++) {
+    for (var t = 0; t < 4; t++) {
       var ang = Math.random() * Math.PI * 2;
-      var r = 16 + Math.random() * 34;
+      var r = 20 + Math.random() * 30;
       var x = Math.floor(p.x + Math.cos(ang) * r);
       var z = Math.floor(p.z + Math.sin(ang) * r);
       if (!world.isLoaded(x, 64, z)) continue;
@@ -1380,10 +1415,11 @@
         var y = pickDarkSpot(world, x, z, p);
         if (y < 0) continue;
         // Endermen sind seltener als das übrige Nachtvolk
-        var kinds2 = ['zombie', 'zombie', 'skeleton', 'skeleton', 'creeper', 'creeper', 'enderman'];
+        var kinds2 = ['zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'skeleton',
+                      'creeper', 'creeper', 'creeper', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
         var mm = new Mob(world, kind2, x + 0.5, y, z + 0.5);
-        if (mm.distTo(p) < 14) continue;
+        if (mm.distTo(p) < 18) continue;
         // Endermen sind fast drei Blöcke hoch und brauchen entsprechend Platz
         if (mm.height > 2 && world.getBlock(x, y + 2, z) !== 0) continue;
         world.entities.push(mm);
@@ -1408,10 +1444,10 @@
     // Eigene Obergrenze je Dimension – im Ende soll der Drache die Bühne haben
     if (table.max !== undefined) maxHostile = Math.min(maxHostile, table.max);
 
-    for (var t = 0; t < 8; t++) {
+    for (var t = 0; t < 4; t++) {
       if (table.rate !== undefined && Math.random() > table.rate) continue;
       var ang = Math.random() * Math.PI * 2;
-      var r = 18 + Math.random() * 34;
+      var r = 22 + Math.random() * 30;
       var x = Math.floor(p.x + Math.cos(ang) * r);
       var z = Math.floor(p.z + Math.sin(ang) * r);
       var col = world.chunkAt(x, z);
@@ -1439,7 +1475,7 @@
       // Fliegende Mobs erscheinen weiter oben in der Luft
       var sy2 = spec.flying ? y + 6 + Math.random() * 8 : y + 0.1;
       var m = new Mob(world, kind, x + 0.5, sy2, z + 0.5);
-      if (m.distTo(p) < 14) continue;
+      if (m.distTo(p) < 18) continue;
       if (m.height > 2 && world.getBlock(x, y + 2, z) !== 0) continue;
       world.entities.push(m);
       if (wantHostile) hostiles++; else passives++;

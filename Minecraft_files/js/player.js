@@ -258,7 +258,14 @@
 
       // Springen / Schwimmen
       if (input.key('Space')) {
-        if (this.inWater) this.vy = 4.4;
+        // Im Wasser gibt es keinen Sprung, sondern Auftrieb mit Deckel. Mit
+        // einem harten Impuls konnte man sich über die Oberfläche hinaus
+        // hochtippen und trockenen Fußes über einen See laufen.
+        if (this.inWater) {
+          // An einer Kante darf man sich herausziehen, sonst nicht
+          var maxAuf = this.collidedH ? 4.6 : 2.8;
+          this.vy = Math.min(this.vy + 24 * dt, maxAuf);
+        }
         else if (this.onGround) {
           // Brustpanzer aus Gravitit hebt einen deutlich höher
           this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
@@ -476,7 +483,7 @@
     if (source) {
       var dx = this.x - source.x, dz = this.z - source.z;
       var d = Math.sqrt(dx * dx + dz * dz) || 1;
-      this.vx += dx / d * 6; this.vz += dz / d * 6; this.vy = Math.max(this.vy, 5);
+      this.vx += dx / d * 8; this.vz += dz / d * 8; this.vy = Math.max(this.vy, 6);
     }
     if (this.health <= 0) this.die(game);
   };

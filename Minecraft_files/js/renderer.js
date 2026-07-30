@@ -929,6 +929,11 @@
   // durchsichtigen Nachbarn. Genau so löst es das Original.
   var ITEM_DEPTH = 2 / 16;      // zwei Pixel dick
   var ITEM_PX = 1 / 16;
+  // Blockformen, die in der Hand kein Würfel sind
+  var FLAT_IN_HAND = [
+    B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_TORCH, B.SHAPE_LADDER, B.SHAPE_FIRE,
+    B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_BUTTON, B.SHAPE_PLATE, B.SHAPE_DOOR
+  ];
 
   Renderer.prototype.itemMesh = function (texName) {
     var cache = this._itemMeshes || (this._itemMeshes = {});
@@ -1032,7 +1037,12 @@
     var d = this.dynData, n = 0;
 
     var it = stack ? MC.Items.get(stack.id) : null;
-    if (it && it.block) {
+    // Nur echte Würfel werden in der Hand als Würfel gezeigt. Fackel, Hebel,
+    // Leitung, Pflanze und so weiter sähen als Kiste mit aufgeklebtem Bild
+    // falsch aus – die kommen wie Items als extrudiertes Pixelmodell.
+    var alsWuerfel = it && it.block && B.byName[it.block] &&
+                     FLAT_IN_HAND.indexOf(B.byName[it.block].shape) < 0;
+    if (alsWuerfel) {
       var blk = B.byName[it.block];
       var meta = 0;
       for (var f = 0; f < 6; f++) {
@@ -1048,6 +1058,11 @@
     } else if (it) {
       // Item als extrudiertes Pixelmodell – hat Dicke, keine Pappscheibe
       var texName = it.tex;
+      if (it.block && B.byName[it.block]) {
+        var bt = B.byName[it.block].tex;
+        if (T.has(it.name)) texName = it.name;
+        else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);
+      }
       if (it.name === 'bow' && charge > 0) {
         texName = 'bow_pull_' + (charge > 0.75 ? 2 : (charge > 0.4 ? 1 : 0));
       }

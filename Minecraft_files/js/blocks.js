@@ -431,13 +431,13 @@
     cutout: true, hardness: 0, drop: 'redstone', item: false, opacity: 0, sound: 'stone'
   });
   define('redstone_block', {
-    title: 'Redstoneblock', hardness: 5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau'
+    title: 'Redstoneblock', hardness: 5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'redstone'
   });
   // Die Fackel leuchtet, solange ihr Trägerblock KEIN Signal bekommt – das ist
   // das Nicht-Gatter, aus dem sich alles andere baut.
   define('redstone_torch', {
     title: 'Redstonefackel', shape: B.SHAPE_TORCH, solid: false, opaque: false, light: 7,
-    hardness: 0, cutout: true, sound: 'wood', opacity: 0, group: 'werkzeug', tex: 'redstone_torch'
+    hardness: 0, cutout: true, sound: 'wood', opacity: 0, group: 'redstone', tex: 'redstone_torch'
   });
   define('redstone_torch_off', {
     title: 'Redstonefackel (aus)', shape: B.SHAPE_TORCH, solid: false, opaque: false,
@@ -446,18 +446,18 @@
   });
   define('lever', {
     title: 'Hebel', shape: B.SHAPE_LEVER, solid: false, collide: false, opaque: false,
-    cutout: true, hardness: 0.5, sound: 'wood', opacity: 0, group: 'werkzeug'
+    cutout: true, hardness: 0.5, sound: 'wood', opacity: 0, group: 'redstone'
   });
   define('stone_button', {
     title: 'Steinknopf', shape: B.SHAPE_BUTTON, solid: false, collide: false, opaque: false,
-    hardness: 0.5, tool: 'pickaxe', sound: 'stone', opacity: 0, tex: 'stone', group: 'werkzeug'
+    hardness: 0.5, tool: 'pickaxe', sound: 'stone', opacity: 0, tex: 'stone', group: 'redstone'
   });
   define('pressure_plate', {
     title: 'Druckplatte', shape: B.SHAPE_PLATE, opaque: false, hardness: 0.5, tool: 'pickaxe',
-    sound: 'stone', opacity: 0, tex: 'stone', group: 'werkzeug'
+    sound: 'stone', opacity: 0, tex: 'stone', group: 'redstone'
   });
   define('redstone_lamp', {
-    title: 'Redstonelampe', hardness: 0.3, sound: 'glass', group: 'bau', tex: 'redstone_lamp'
+    title: 'Redstonelampe', hardness: 0.3, sound: 'glass', group: 'redstone', tex: 'redstone_lamp'
   });
   define('redstone_lamp_lit', {
     title: 'Redstonelampe (an)', hardness: 0.3, light: 15, sound: 'glass', item: false,
@@ -466,7 +466,8 @@
   // Meta: Bits 0-1 Ausgangsrichtung, Bits 2-3 Verzögerung (1..4 Ticks), Bit 4 Ausgang an
   define('repeater', {
     title: 'Verstärker', shape: B.SHAPE_REPEATER, opaque: false, collide: true,
-    hardness: 0.5, sound: 'stone', opacity: 0, group: 'werkzeug'
+    hardness: 0.5, sound: 'stone', opacity: 0, group: 'redstone',
+    tex: { top: 'repeater_top', bottom: 'stone', side: 'repeater_side' }
   });
 
   // ---------- Bett ----------

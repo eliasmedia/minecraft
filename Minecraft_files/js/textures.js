@@ -846,9 +846,13 @@
   // ============================================================
   function itemTex(name, fn) { tex(name, function (g) { g.fill([0, 0, 0], 0); fn(g); }); }
 
-  itemTex('stick', function (g) {
-    for (var i = 0; i < 9; i++) { g.set(4 + i, 12 - i, [140, 104, 60]); g.set(5 + i, 12 - i, [116, 84, 46]); g.set(4 + i, 13 - i, [116, 84, 46]); }
-  });
+  var STICK_ART = [
+    '................', '...........OO...', '..........OWwO..', '.........OWwO...',
+    '........OWwO....', '.......OWwO.....', '......OWwO......', '.....OWwO.......',
+    '....OWwO........', '...OWwO.........', '..OWwO..........', '..OvO...........',
+    '...O............', '................', '................', '................'
+  ];
+  itemTex('stick', function (g) { drawArt(g, STICK_ART, artPal([169, 129, 77])); });
   function nugget(name, col) {
     itemTex(name, function (g) {
       g.blob(8, 8, 4, col);
@@ -866,28 +870,27 @@
   nugget('lapis', [45, 70, 190]);
   nugget('glowstone_dust', [250, 235, 160]);
 
+  var INGOT_ART = [
+    '................', '................', '................', '................',
+    '....OOOOOOOO....', '...OHHHHHHHHO...', '..OHHMMMMMMHHO..', '..OMMMMMMMMMMO..',
+    '..OMMMMMMMMMMO..', '..OhMMMMMMMMhO..', '...OhhhhhhhhO...', '....OOOOOOOO....',
+    '................', '................', '................', '................'
+  ];
   function ingot(name, col) {
-    itemTex(name, function (g) {
-      for (var y = 6; y < 11; y++) {
-        var pad = y === 6 ? 4 : (y === 10 ? 4 : 3);
-        for (var x = pad; x < 16 - pad; x++) g.set(x, y, y < 8 ? mix(col, [255, 255, 255], 0.25) : col);
-      }
-      for (var x2 = 4; x2 < 12; x2++) g.set(x2, 11, dark(col, 0.7));
-    });
+    itemTex(name, function (g) { drawArt(g, INGOT_ART, artPal(col)); });
   }
   ingot('iron_ingot', [216, 216, 216]);
   ingot('gold_ingot', [250, 210, 60]);
   ingot('brick', [150, 84, 68]);
 
+  var GEM_ART = [
+    '................', '................', '......OOOO......', '.....OHHHHO.....',
+    '....OHHHHHHO....', '...OHMMMMMMHO...', '..OHMMMMMMMMHO..', '.OMMMMMMMMMMMMO.',
+    '.OMMMMMMMMMMMMO.', '..OhMMMMMMMMhO..', '...OhMMMMMMhO...', '....OhMMMMhO....',
+    '.....OhhhhO.....', '......OOOO......', '................', '................'
+  ];
   function gem(name, col) {
-    itemTex(name, function (g) {
-      var pts = [[7, 3], [8, 3], [5, 5], [10, 5], [4, 7], [11, 7], [5, 10], [10, 10], [7, 12], [8, 12]];
-      for (var y = 4; y < 12; y++) for (var x = 4; x < 12; x++) {
-        var d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
-        if (d < 4.5) g.set(x, y, d < 2 ? mix(col, [255, 255, 255], 0.45) : col);
-      }
-      for (var i = 0; i < pts.length; i++) g.set(pts[i][0], pts[i][1], dark(col, 0.75));
-    });
+    itemTex(name, function (g) { drawArt(g, GEM_ART, artPal(col)); });
   }
   gem('diamond', [110, 235, 225]);
   gem('emerald', [45, 210, 105]);
@@ -983,100 +986,18 @@
     gold: [250, 210, 60], diamond: [110, 235, 225],
     holystone: [206, 202, 190], zanite: [138, 96, 206], gravitite: [104, 206, 182]
   };
-  // Werkzeuge als Pixel-Vorlagen (16x16). H = Kopf, h = Kopfschatten,
-  // S/s = Stiel, G/g = Griff. Kopf oben, Stiel diagonal nach unten links.
-  var TOOL_ART = {
-    pickaxe: [
-      '................',
-      '....hhh...hhh...',
-      '...hHHHhhhHHHh..',
-      '...hHHHHHHHHHh..',
-      '....hhHHHHHhh...',
-      '......SSSS......',
-      '.....SSSs.......',
-      '....SSSs........',
-      '...SSSs.........',
-      '..SSSs..........',
-      '..SSs...........',
-      '.SSs............',
-      '.Ss.............',
-      '................',
-      '................',
-      '................'
-    ],
-    axe: [
-      '................',
-      '....hhhh........',
-      '...hHHHHh.......',
-      '..hHHHHHHh......',
-      '..hHHHHHHHh.....',
-      '..hHHHHHSSS.....',
-      '..hHHHHSSSs.....',
-      '...hHHSSSs......',
-      '....hhSSs.......',
-      '.....SSs........',
-      '....SSs.........',
-      '...SSs..........',
-      '..SSs...........',
-      '..Ss............',
-      '................',
-      '................'
-    ],
-    shovel: [
-      '................',
-      '........hhhh....',
-      '.......hHHHHh...',
-      '.......hHHHHh...',
-      '.......hHHHHh...',
-      '........hHHh....',
-      '.........SS.....',
-      '........SSs.....',
-      '.......SSs......',
-      '......SSs.......',
-      '.....SSs........',
-      '....SSs.........',
-      '...SSs..........',
-      '..SSs...........',
-      '..Ss............',
-      '................'
-    ],
-    sword: [
-      '................',
-      '............hHh.',
-      '...........hHHh.',
-      '..........hHHHh.',
-      '.........hHHHh..',
-      '........hHHHh...',
-      '.......hHHHh....',
-      '......hHHHh.....',
-      '.....hHHHh......',
-      '....gHHHg.......',
-      '...ggGgg........',
-      '....gGg.........',
-      '...gGg..........',
-      '..gGg...........',
-      '..gg............',
-      '................'
-    ],
-    hoe: [
-      '................',
-      '.......hhhhhh...',
-      '......hHHHHHHh..',
-      '......hHHhhhh...',
-      '......hHHh......',
-      '......SSS.......',
-      '.....SSs........',
-      '....SSs.........',
-      '...SSs..........',
-      '..SSs...........',
-      '..Ss............',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................'
-    ]
-  };
+  // Werkzeuge und Rüstung als Pixel-Vorlagen (16x16), eine Zeile je Reihe.
+  // O = Kontur, H/M/h = Material hell/mittel/dunkel, W/w/v = Holz hell/mittel/dunkel,
+  // G/g = Griffwickel, K = Feuerstein, N = Sehne, R = rot, Y = Funke.
+  function artPal(col) {
+    return {
+      O: [27, 26, 32],
+      H: mix(col, [255, 255, 255], 0.38), M: col, h: dark(col, 0.62),
+      W: [169, 129, 77], w: [133, 98, 57], v: [95, 68, 38],
+      G: [146, 109, 60], g: [93, 68, 37],
+      K: [58, 53, 56], N: [239, 239, 239], R: [226, 58, 58], Y: [255, 212, 71]
+    };
+  }
 
   function drawArt(g, art, pal) {
     for (var y = 0; y < 16; y++) {
@@ -1089,100 +1010,149 @@
     }
   }
 
+  var TOOL_ART = {
+    pickaxe: [
+      '................', '...OOO....OOO...', '..OHHMOOOOMHHO..', '..OMMMMMMMMMMO..',
+      '...OOMMMMMMOO...', '.....OMMMMO.....', '......OWwO......', '......OWwO......',
+      '.....OWwO.......', '....OWwO........', '....OWwO........', '...OWwO.........',
+      '..OWwO..........', '..OWwO..........', '..OvvO..........', '...OO...........'
+    ],
+    axe: [
+      '................', '..OOOO..........', '.OHHHHO.........', 'OHHMMMMOO.......',
+      'OHMMMMMWwO......', 'OMMMMMMWwO......', 'OMMMMMOWwO......', '.OMMMO.OWwO.....',
+      '..OOO..OWwO.....', '.......OWwO.....', '........OWwO....', '........OWwO....',
+      '.........OWwO...', '.........OWwO...', '..........OvvO..', '...........OO...'
+    ],
+    shovel: [
+      '................', '.......OOOO.....', '......OHHHMO....', '......OMMMMO....',
+      '......OMMMMO....', '......OMMMMO....', '.......OMMO.....', '.......OWwO.....',
+      '......OWwO......', '.....OWwO.......', '....OWwO........', '...OWwO.........',
+      '..OWwO..........', '..OWwO..........', '..OvvO..........', '...OO...........'
+    ],
+    sword: [
+      '................', '............OOO.', '...........OHMO.', '..........OHMMO.',
+      '.........OHMMO..', '........OHMMO...', '.......OHMMO....', '......OHMMO.....',
+      '.....OHMMO......', '...OOHHMOO......', '..OGGGMOO.......', '..OOGGGO........',
+      '....OGGO........', '...OGvGO........', '...OGvO.........', '....OO..........'
+    ],
+    hoe: [
+      '................', '......OOOOOO....', '.....OHHHHHMO...', '.....OMOOOOO....',
+      '.....OMO........', '.....OWwO.......', '....OWwO........', '...OWwO.........',
+      '..OWwO..........', '..OWwO..........', '..OvvO..........', '...OO...........',
+      '................', '................', '................', '................'
+    ]
+  };
+
   Object.keys(tierCol).forEach(function (t) {
-    var col = tierCol[t];
-    var pal = {
-      H: col, h: dark(col, 0.62),
-      S: [154, 116, 68], s: [110, 80, 44],
-      G: [146, 110, 62], g: [88, 63, 34]
-    };
+    var pal = artPal(tierCol[t]);
     Object.keys(TOOL_ART).forEach(function (tp) {
-      itemTex(t + '_' + tp, function (g) {
-        drawArt(g, TOOL_ART[tp], pal);
-        // dezenter Glanz auf dem Kopf
-        for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
-          if (TOOL_ART[tp][y] && TOOL_ART[tp][y].charAt(x) === 'H' &&
-              TOOL_ART[tp][y - 1] && TOOL_ART[tp][y - 1].charAt(x) !== 'H') {
-            g.set(x, y, mix(col, [255, 255, 255], 0.32));
-          }
-        }
-      });
+      itemTex(t + '_' + tp, function (g) { drawArt(g, TOOL_ART[tp], pal); });
     });
   });
 
-  itemTex('shears', function (g) {
-    g.rect(4, 3, 2, 6, [200, 200, 205]); g.rect(10, 3, 2, 6, [200, 200, 205]);
-    g.rect(5, 9, 2, 4, [120, 120, 125]); g.rect(9, 9, 2, 4, [120, 120, 125]);
-    g.set(7, 8, [80, 80, 85]); g.set(8, 8, [80, 80, 85]);
+  var SHEARS_ART = [
+    '................', '..OO........OO..', '.OMMO......OMMO.', '.OMMO......OMMO.',
+    '..OMMO....OMMO..', '..OMMO....OMMO..', '...OMMO..OMMO...', '....OMMOOMMO....',
+    '.....OMMMMO.....', '......OKKO......', '.....OKOOKO.....', '....OKO..OKO....',
+    '....OKO..OKO....', '....OKO..OKO....', '....OOO..OOO....', '................'
+  ];
+  itemTex('shears', function (g) { drawArt(g, SHEARS_ART, artPal([206, 206, 212])); });
+
+  // Bogen: der Rücken wölbt sich nach rechts, die Sehne läuft links senkrecht.
+  // Beim Spannen wandert die Sehne zum Bogen und ein Pfeil liegt auf.
+  function bowArt(pull) {
+    // Bauchtiefe je Spannstufe und Spalte der Sehne
+    var bauch = [5, 4, 3, 2][pull];
+    var sehne = [1, 2, 3, 4][pull];
+    var rows = [];
+    for (var y = 0; y < 16; y++) {
+      var r = '................'.split('');
+      // Bogenrücken: an den Enden dicht am Rand, in der Mitte weit rechts
+      var t = Math.abs(y - 7.5) / 7.5;              // 0 Mitte, 1 Ende
+      var bx = 3 + Math.round(bauch * (1 - t * t));
+      if (y === 0 || y === 15) {
+        r[bx] = 'O'; r[bx + 1] = 'O'; r[bx + 2] = 'O';
+      } else {
+        r[bx] = 'O'; r[bx + 1] = 'W'; r[bx + 2] = 'w'; r[bx + 3] = 'O';
+      }
+      if (y > 0 && y < 15) r[sehne] = 'N';
+      rows.push(r.join('').slice(0, 16));
+    }
+    if (pull > 0) {
+      // aufgelegter Pfeil, waagerecht durch die Mitte
+      var mid = rows[8].split('');
+      for (var x = 1; x < 14; x++) if (mid[x] === '.') mid[x] = 'w';
+      mid[14] = 'M'; mid[13] = 'H';
+      rows[8] = mid.join('').slice(0, 16);
+    }
+    return rows;
+  }
+  ['bow', 'bow_pull_0', 'bow_pull_1', 'bow_pull_2'].forEach(function (name, i) {
+    var art = bowArt(i);
+    itemTex(name, function (g) { drawArt(g, art, artPal([206, 206, 212])); });
   });
-  // Bogen: Bogenrücken rechts, Sehne links. pull = 0..3 (0 = entspannt)
-  function bowTex(name, pull) {
+
+  var BUCKET_ART = [
+    '................', '................', '..O..........O..', '..OO........OO..',
+    '...OOOOOOOOOO...', '..OHHHHHHHHHHO..', '..OMMMMMMMMMMO..', '..OMMMMMMMMMMO..',
+    '...OMMMMMMMMO...', '...OMMMMMMMMO...', '...OMMMMMMMMO...', '....OMMMMMMO....',
+    '....OMMMMMMO....', '....OOOOOOOO....', '................', '................'
+  ];
+  itemTex('bucket', function (g) { drawArt(g, BUCKET_ART, artPal([190, 190, 196])); });
+  function filledBucket(name, col) {
     itemTex(name, function (g) {
-      var bend = 8 - pull * 1.6;          // Bogen wird beim Spannen flacher
-      var stringX = 3 + pull * 1.6;       // Sehne wandert nach hinten
-      for (var i = 0; i <= 14; i++) {
-        var a = (i / 14) * Math.PI;
-        var x = Math.round(3 + Math.sin(a) * bend);
-        var y = 1 + i;
-        g.set(x, y, [138, 100, 52]);
-        g.set(x + 1, y, [104, 74, 38]);
-      }
-      // Sehne
-      for (var k = 1; k <= 15; k++) g.set(Math.round(stringX), k, [238, 238, 238]);
-      if (pull > 0) {
-        // eingelegter Pfeil
-        for (var xx = 1; xx < 14; xx++) { g.set(xx, 8, [150, 112, 66]); }
-        g.set(14, 8, [225, 225, 230]); g.set(13, 8, [200, 200, 205]);
-        g.set(2, 7, [240, 240, 240]); g.set(2, 9, [240, 240, 240]); g.set(3, 8, [240, 240, 240]);
-      }
+      g.d.set(datas[index['bucket']]);
+      g.rect(4, 7, 8, 5, col);
+      g.rect(4, 7, 8, 1, mix(col, [255, 255, 255], 0.3));
     });
   }
-  bowTex('bow', 0);
-  bowTex('bow_pull_0', 1);
-  bowTex('bow_pull_1', 2);
-  bowTex('bow_pull_2', 3);
-  itemTex('bucket', function (g) {
-    for (var y = 5; y < 14; y++) { var pad = 3 + ((y - 5) * 0.15) | 0; for (var x = pad; x < 16 - pad; x++) g.set(x, y, [190, 190, 195]); }
-    g.rect(3, 5, 10, 1, [225, 225, 230]);
-    g.rect(5, 7, 6, 5, [160, 160, 165]);
-  });
-  itemTex('water_bucket', function (g) {
-    var src = datas[index['bucket']]; g.d.set(src);
-    g.rect(5, 7, 6, 5, [58, 106, 200]);
-  });
-  itemTex('lava_bucket', function (g) {
-    var src = datas[index['bucket']]; g.d.set(src);
-    g.rect(5, 7, 6, 5, [214, 94, 18]);
-  });
-  itemTex('flint_and_steel', function (g) {
-    g.rect(3, 6, 6, 5, [190, 190, 195]);
-    g.blob(11, 9, 3, [60, 55, 55]);
-  });
+  filledBucket('water_bucket', [58, 106, 200]);
+  filledBucket('lava_bucket', [214, 94, 18]);
+
+  var FAS_ART = [
+    '................', '................', '....OOO.........', '...OMMMO........',
+    '...OMMMO....OO..', '...OMMMO...OKKO.', '....OMMMO.OKKKO.', '.....OMMMOKKKKO.',
+    '......OMMMKKKO..', '.......OMMOKO...', '........OMMO....', '.........OMO....',
+    '..........O.....', '................', '................', '................'
+  ];
+  itemTex('flint_and_steel', function (g) { drawArt(g, FAS_ART, artPal([196, 196, 202])); });
 
   // Rüstung
   var armorCol = {
     leather: [140, 96, 62], gold: [250, 210, 60], iron: [216, 216, 216], diamond: [110, 235, 225],
     zanite: [138, 96, 206], gravitite: [104, 206, 182]
   };
+  var ARMOR_ART = {
+    helmet: [
+      '................', '................', '...OOOOOOOOOO...', '..OHHHHHHHHHHO..',
+      '..OMMMMMMMMMMO..', '..OMMMMMMMMMMO..', '..OMOOOOOOOOMO..', '..OMO......OMO..',
+      '..OMO......OMO..', '..OMMO....OMMO..', '..OMMO....OMMO..', '..OMMO....OMMO..',
+      '..OOOO....OOOO..', '................', '................', '................'
+    ],
+    chestplate: [
+      '................', '..OO........OO..', '.OHHO......OHHO.', '.OMMOOOOOOOOMMO.',
+      '.OMMMMMMMMMMMMO.', '.OMMMMMMMMMMMMO.', '..OMMMMMMMMMMO..', '..OMMMMMMMMMMO..',
+      '..OMMMMMMMMMMO..', '..OMMMMMMMMMMO..', '..OMMMMMMMMMMO..', '..OMMOOOOOOMMO..',
+      '..OOO......OOO..', '................', '................', '................'
+    ],
+    leggings: [
+      '................', '..OOOOOOOOOOOO..', '.OHHHHHHHHHHHHO.', '.OMMMMMMMMMMMMO.',
+      '.OMMMMMMMMMMMMO.', '.OMMMMOOOOMMMMO.', '.OMMMO....OMMMO.', '.OMMMO....OMMMO.',
+      '.OMMMO....OMMMO.', '.OMMMO....OMMMO.', '.OMMMO....OMMMO.', '.OMMMO....OMMMO.',
+      '.OOOOO....OOOOO.', '................', '................', '................'
+    ],
+    boots: [
+      '................', '................', '................', '..OOOO....OOOO..',
+      '.OHHHHO..OHHHHO.', '.OMMMMO..OMMMMO.', '.OMMMMO..OMMMMO.', '.OMMMMO..OMMMMO.',
+      '.OMMMMOOOMMMMMO.', 'OMMMMMMOOMMMMMMO', 'OMMMMMMOOMMMMMMO', 'OhhhhhhOOhhhhhhO',
+      'OOOOOOO..OOOOOOO', '................', '................', '................'
+    ]
+  };
+
   Object.keys(armorCol).forEach(function (m) {
-    var c = armorCol[m];
-    itemTex(m + '_helmet', function (g) {
-      g.rect(3, 3, 10, 7, c); g.rect(3, 10, 3, 3, c); g.rect(10, 10, 3, 3, c);
-      g.rect(5, 6, 6, 3, [0, 0, 0], 0);
-      g.rect(4, 4, 8, 1, mix(c, [255, 255, 255], 0.3));
-    });
-    itemTex(m + '_chestplate', function (g) {
-      g.rect(3, 3, 10, 3, c); g.rect(2, 4, 2, 6, c); g.rect(12, 4, 2, 6, c);
-      g.rect(4, 5, 8, 8, c); g.rect(6, 6, 4, 4, mix(c, [255, 255, 255], 0.22));
-    });
-    itemTex(m + '_leggings', function (g) {
-      g.rect(3, 2, 10, 4, c); g.rect(3, 6, 4, 8, c); g.rect(9, 6, 4, 8, c);
-      g.rect(4, 3, 8, 1, mix(c, [255, 255, 255], 0.25));
-    });
-    itemTex(m + '_boots', function (g) {
-      g.rect(3, 6, 4, 6, c); g.rect(9, 6, 4, 6, c);
-      g.rect(2, 11, 6, 3, c); g.rect(8, 11, 6, 3, c);
-      g.rect(3, 7, 3, 1, mix(c, [255, 255, 255], 0.25));
+    var pal = artPal(armorCol[m]);
+    Object.keys(ARMOR_ART).forEach(function (teil) {
+      itemTex(m + '_' + teil, function (g) { drawArt(g, ARMOR_ART[teil], pal); });
     });
   });
 
@@ -1472,24 +1442,45 @@
     for (var i = 0; i < 26; i++) g.blob((g.r() * 16) | 0, (g.r() * 16) | 0, 1.4, [206, 40, 36]);
     g.speck(14, [255, 110, 100]);
   });
+  // Der Mesher zeigt von einer Fackel nur die Spalten 7-8 und die Zeilen 6-15;
+  // die Glut muss deshalb in Zeile 6/7 sitzen, nicht darüber.
   function rsTorch(name, an) {
     tex(name, function (g) {
       g.fill([0, 0, 0], 0);
-      for (var y = 5; y < 16; y++) { g.set(7, y, [138, 100, 52]); g.set(8, y, [104, 74, 38]); }
-      if (an) {
-        g.blob(8, 4, 2.2, [255, 92, 76]);
-        g.set(7, 3, [255, 190, 170]); g.set(8, 3, [255, 210, 190]);
-      } else {
-        g.rect(7, 3, 2, 2, [96, 30, 28]);
-      }
+      var glut = an ? [255, 74, 60] : [104, 34, 30];
+      g.set(7, 6, glut); g.set(8, 6, an ? [255, 150, 130] : [124, 44, 38]);
+      g.set(7, 7, an ? [226, 48, 40] : [88, 26, 24]); g.set(8, 7, glut);
+      for (var y = 8; y < 16; y++) { g.set(7, y, [138, 100, 52]); g.set(8, y, [104, 74, 38]); }
     });
   }
   rsTorch('redstone_torch', true);
   rsTorch('redstone_torch_off', false);
-  tex('lever', function (g) {
-    g.fill([0, 0, 0], 0);
-    for (var y = 0; y < 16; y++) { g.set(7, y, [150, 112, 66]); g.set(8, y, [112, 82, 46]); }
-    g.rect(6, 0, 4, 3, [168, 128, 76]);
+  // Der Griff bekommt eine eigene Holztextur; der Sockel im Mesher ist Bruchstein.
+  tex('lever_handle', function (g) {
+    g.fill([150, 112, 66]); g.noise(0.10);
+    for (var y = 0; y < 16; y += 4) for (var x = 0; x < 16; x++) g.set(x, y, [116, 84, 46]);
+  });
+  // Hebel als Item und Symbol: Sockel mit schräg stehendem Griff im Profil
+  var LEVER_ART = [
+    '................', '..........OO....', '.........OWwO...', '........OWwO....',
+    '.......OWwO.....', '......OWwO......', '.....OWwO.......', '.....OWwO.......',
+    '....OWwO........', '....OvvO........', '...OOOOOO.......', '..OhMMMMhO......',
+    '..OMMMMMMO......', '..OhhhhhhO......', '..OOOOOOOO......', '................'
+  ];
+  itemTex('lever', function (g) { drawArt(g, LEVER_ART, artPal([128, 128, 132])); });
+
+  // Verstärker: Steinplatte von oben mit Nut, von der Seite ein flacher Rand
+  tex('repeater_top', function (g) {
+    g.fill([158, 158, 158]); g.noise(0.07);
+    g.speck(18, [134, 134, 134]);
+    for (var x = 2; x < 14; x++) { g.set(x, 7, [112, 112, 112]); g.set(x, 8, [128, 128, 128]); }
+    g.frame(0, 0, 16, 16, [124, 124, 124]);
+  });
+  // Die Seite wird über die flache Box gestreckt, also deckend füllen
+  tex('repeater_side', function (g) {
+    g.fill([140, 140, 140]); g.noise(0.07);
+    g.rect(0, 0, 16, 4, [170, 170, 170]);
+    g.rect(0, 12, 16, 4, [112, 112, 112]);
   });
   function lampTex(name, an) {
     tex(name, function (g) {
@@ -1505,14 +1496,13 @@
   lampTex('redstone_lamp_lit', true);
 
   // ---------- Kompass ----------
-  itemTex('compass', function (g) {
-    g.blob(8, 8, 6.6, [78, 78, 86]);
-    g.blob(8, 8, 5.4, [188, 190, 198]);
-    g.blob(8, 8, 4.2, [24, 26, 38]);
-    for (var y = 4; y <= 7; y++) g.rect(7, y, 2, 1, [226, 58, 58]);
-    for (var y2 = 9; y2 <= 12; y2++) g.rect(7, y2, 2, 1, [232, 232, 238]);
-    g.rect(7, 7, 2, 2, [250, 250, 255]);
-  });
+  var COMPASS_ART = [
+    '................', '.....OOOOOO.....', '...OOHHHHHHOO...', '..OHMMMMMMMMHO..',
+    '.OHMMOOOOOOMMHO.', '.OHMOOKKKKOOMHO.', '.OMMOKKRKKKOMMO.', '.OMMOKKRKKKOMMO.',
+    '.OMMOKKKRKKOMMO.', '.OMMOKKKRKKOMMO.', '.OHMOOKKKKOOMHO.', '.OHMMOOOOOOMMHO.',
+    '..OHMMMMMMMMHO..', '...OOHHHHHHOO...', '.....OOOOOO.....', '................'
+  ];
+  itemTex('compass', function (g) { drawArt(g, COMPASS_ART, artPal([188, 190, 198])); });
 
   // ============================================================
   //  Zugriff
