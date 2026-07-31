@@ -268,6 +268,105 @@
   };
 
   // ============================================================
+  //  Verzögerte Bauteile: Sollzustand und eigene Schaltplanung
+  // ============================================================
+  // Zeigt eine stromführende Leitung waagerecht in diesen Block hinein?
+  function leitungZeigtAuf(w, x, y, z) {
+    var d = ids();
+    for (var i = 0; i < 4; i++) {
+      var h = HOR[i];
+      if (w.getBlock(x + h[0], y, z + h[1]) === d.wire && w.getMeta(x + h[0], y, z + h[1]) > 0) return true;
+    }
+    return false;
+  }
+
+  // Eine Fackel brennt, solange ihr Trägerblock nicht aufgeladen ist. Stark oder
+  // schwach macht hier keinen Unterschied – gerade das Nicht-Gatter lebt davon,
+  // dass eine Leitung, die nur seitlich in den Block zeigt, die Fackel abschaltet.
+  function torchSoll(w, x, y, z) {
+    var att = B.torchAttach(w.getMeta(x, y, z));
+    var bx = att ? x + att[0] : x, by = att ? y : y - 1, bz = att ? z + att[1] : z;
+    return R.strong(w, bx, by, bz) <= 0 && !leitungZeigtAuf(w, bx, by, bz);
+  }
+
+  // Der Verstärker hört nur auf das, was hinten anliegt.
+  function repInput(w, x, y, z, m) {
+    var d = ids();
+    var rd = R.repDir(m);
+    var ix = x - rd[0], iz = z - rd[1];
+    return feedsDust(w, ix, y, iz, x, y, z) > 0 ||
+           (w.getBlock(ix, y, iz) === d.wire && w.getMeta(ix, y, iz) > 0) ||
+           (leitet(w.getBlock(ix, y, iz)) && R.strong(w, ix, y, iz) > 0);
+  }
+
+  // Fackeln und Verstärker schalten nicht sofort, sondern nach ihrer eigenen
+  // Verzögerung. Die Weltuhr taugt dafür nicht: sie plant jeden Nachbarn eines
+  // gesetzten Blocks sofort ein und lässt pro Feld nur einen Eintrag zu, ein
+  // fälliges Update würde also die gerade erst begonnene Verzögerung
+  // überspringen. Darum führt Redstone eine eigene Liste – erst dadurch laufen
+  // Taktgeber mit der Periode, die man am Verstärker eingestellt hat.
+  function plane(w, x, y, z, an, delay) {
+    var p = w._rsPlan || (w._rsPlan = {});
+    var k = x + ',' + y + ',' + z;
+    // Steht derselbe Wechsel schon an, bleibt sein Termin stehen
+    if (p[k] && p[k].an === an) return;
+    p[k] = { x: x, y: y, z: z, t: w.ticks + delay, an: an };
+  }
+
+  // Gespeicherte Chunkänderungen landen direkt in den Blockfeldern, ohne setBlock
+  // und damit ohne onChange. Fackeln und Verstärker müssen darum einmal neu
+  // bewertet werden – sonst steht ein Taktgeber still, sobald man den Spielstand
+  // lädt oder auch nur weit genug weggelaufen ist.
+  R.weckeGeladene = function (w, c, saved) {
+    var d = ids(), liste = w._rsWecken || (w._rsWecken = []);
+    for (var k in saved) {
+      var id = (saved[k] >> 8) & 255;
+      if (id !== d.torch && id !== d.torchOff && id !== d.repeater) continue;
+      var i = k | 0;
+      liste.push([(c.cx << 4) + (i & 15), (i >> 8) & 255, (c.cz << 4) + ((i >> 4) & 15)]);
+    }
+  };
+
+  R.tickPlan = function (w) {
+    // Erst die frisch geladenen Bauteile, dann die geplanten Wechsel
+    var wecken = w._rsWecken;
+    if (wecken && wecken.length) {
+      w._rsWecken = null;
+      for (var i = 0; i < wecken.length; i++) applyConsumer(w, wecken[i][0], wecken[i][1], wecken[i][2]);
+    }
+    var p = w._rsPlan;
+    if (!p) return;
+    var faellig = null, k;
+    for (k in p) { if (p[k].t <= w.ticks) (faellig || (faellig = [])).push(p[k]); }
+    if (!faellig) return;
+    for (var i = 0; i < faellig.length; i++) {
+      var q = faellig[i];
+      delete p[q.x + ',' + q.y + ',' + q.z];
+      R.schalte(w, q.x, q.y, q.z, q.an);
+    }
+  };
+
+  // Der eigentliche Umschaltvorgang, wenn die Verzögerung abgelaufen ist
+  R.schalte = function (w, x, y, z, an) {
+    var d = ids();
+    var id = w.getBlock(x, y, z);
+
+    if (id === d.torch || id === d.torchOff) {
+      // Zwischenzeitlich kann sich die Lage geändert haben
+      if (torchSoll(w, x, y, z) !== an || an === (id === d.torch)) return;
+      w.setBlock(x, y, z, an ? d.torch : d.torchOff, w.getMeta(x, y, z), { noUpdate: true, noRedstone: true });
+      R.onChange(w, x, y, z);
+      return;
+    }
+    if (id === d.repeater) {
+      var m = w.getMeta(x, y, z);
+      if (repInput(w, x, y, z, m) !== an || an === R.repOn(m)) return;
+      w.setMetaOnly(x, y, z, an ? (m | 16) : (m & ~16));
+      R.onChange(w, x, y, z);
+    }
+  };
+
+  // ============================================================
   //  Verbraucher schalten
   // ============================================================
   function applyConsumer(w, x, y, z) {
@@ -279,11 +378,14 @@
 
     // Fackel und Verstärker schalten verzögert und regeln sich selbst
     if (id === d.torch || id === d.torchOff) {
-      w.scheduleUpdate(x, y, z, 2);
+      var soll = torchSoll(w, x, y, z);
+      if (soll !== (id === d.torch)) plane(w, x, y, z, soll, 2);
       return;
     }
     if (id === d.repeater) {
-      w.scheduleUpdate(x, y, z, R.repDelay(w.getMeta(x, y, z)) * 2);
+      var rm = w.getMeta(x, y, z);
+      var rein = repInput(w, x, y, z, rm);
+      if (rein !== R.repOn(rm)) plane(w, x, y, z, rein, R.repDelay(rm) * 2);
       return;
     }
 
@@ -361,43 +463,6 @@
         applyConsumer(w, q[0], q[1], q[2]);
       }
     } finally { R.busy = false; }
-  };
-
-  // ============================================================
-  //  Verzögerte Schaltvorgänge (aus World.doUpdate)
-  // ============================================================
-  R.tick = function (w, x, y, z) {
-    var d = ids();
-    var id = w.getBlock(x, y, z);
-
-    // ---- Fackel: an, solange ihr Trägerblock nicht STARK aufgeladen ist ----
-    if (id === d.torch || id === d.torchOff) {
-      var m = w.getMeta(x, y, z);
-      var att = B.torchAttach(m);
-      var bx = att ? x + att[0] : x, by = att ? y : y - 1, bz = att ? z + att[1] : z;
-      var willAn = R.strong(w, bx, by, bz) <= 0;
-      if (willAn !== (id === d.torch)) {
-        w.setBlock(x, y, z, willAn ? d.torch : d.torchOff, m, { noUpdate: true });
-        R.onChange(w, x, y, z);
-      }
-      return true;
-    }
-
-    // ---- Verstärker: Eingang hinten, Ausgang vorne, mit Verzögerung ----
-    if (id === d.repeater) {
-      var rm = w.getMeta(x, y, z);
-      var rd = R.repDir(rm);
-      var ix = x - rd[0], iz = z - rd[1];
-      var ein = feedsDust(w, ix, y, iz, x, y, z) > 0 ||
-                (w.getBlock(ix, y, iz) === d.wire && w.getMeta(ix, y, iz) > 0) ||
-                (leitet(w.getBlock(ix, y, iz)) && R.strong(w, ix, y, iz) > 0);
-      if (ein !== R.repOn(rm)) {
-        w.setMetaOnly(x, y, z, ein ? (rm | 16) : (rm & ~16));
-        R.onChange(w, x, y, z);
-      }
-      return true;
-    }
-    return false;
   };
 
   // ============================================================

@@ -395,15 +395,24 @@
       if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4 * (1 - hitzeSchutz), null, game); }
     }
 
-    // Blöcke, die beim Berühren wehtun: Kaktus sticht, Feuer und Magma brennen
-    var cactusId = B.id('cactus');
+    // Blöcke, die beim Berühren wehtun: Kaktus sticht, Feuer und Magma brennen.
+    // Der Suchkasten ist knapp die Spielerbreite und reicht vom Fuß- bis zum
+    // Kopfblock. Ein größerer Kasten würde Schaden austeilen, während man
+    // daneben oder eine Stufe darüber steht – Lava kollidiert nicht, man kann
+    // also direkt an ihrer Kante stehen.
+    var cactusId = B.id('cactus'), lavaId = B.id('lava');
     var stich = 0, brand = 0;
-    var cx0 = Math.floor(this.x - 0.35), cx1 = Math.floor(this.x + 0.35);
-    var cz0 = Math.floor(this.z - 0.35), cz1 = Math.floor(this.z + 0.35);
-    for (var cy = Math.floor(this.y - 0.05); cy <= Math.floor(this.y + this.height); cy++) {
+    var halb = this.width / 2 - 0.02;
+    var cx0 = Math.floor(this.x - halb), cx1 = Math.floor(this.x + halb);
+    var cz0 = Math.floor(this.z - halb), cz1 = Math.floor(this.z + halb);
+    var cy0 = Math.floor(this.y + 0.02), cy1 = Math.floor(this.y + this.height - 0.02);
+    for (var cy = cy0; cy <= cy1; cy++) {
       for (var czz = cz0; czz <= cz1; czz++) {
         for (var cxx = cx0; cxx <= cx1; cxx++) {
-          var tb = B.byId[world.getBlock(cxx, cy, czz)];
+          var tid = world.getBlock(cxx, cy, czz);
+          // Lava rechnet oben über inLava ab, sonst zählte ihr Schaden doppelt
+          if (tid === lavaId) continue;
+          var tb = B.byId[tid];
           if (!tb || !tb.damage) continue;
           if (tb.id === cactusId) stich = Math.max(stich, tb.damage);
           else brand = Math.max(brand, tb.damage);

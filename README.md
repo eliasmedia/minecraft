@@ -84,9 +84,19 @@ sich und eine Leitung mit dem Block, auf dem sie liegt. *Schwach* aufgeladen sch
 ein Block nur Mechanismen, die ihn berühren — und schwach lädt eine Leitung die
 Blöcke auf, in die sie waagerecht zeigt. Daraus folgt beides, was man erwartet: ein
 Hebel an einer Wand speist die Leitung auf der anderen Seite, eine Lampe hinter einem
-Block geht an — aber ein Signal läuft nicht endlos von Block zu Block weiter. Und
-eine Leitung auf einem Block schaltet die **Redstonefackel** an dessen Seite ab; das
-ist das Nicht-Gatter, aus dem sich Und, Oder und Taktgeber bauen lassen.
+Block geht an — aber ein Signal läuft nicht endlos von Block zu Block weiter. Eine
+**Redstonefackel** erlischt, sobald ihr Trägerblock aufgeladen ist, stark oder
+schwach; eine Leitung, die auf dem Block liegt oder nur seitlich in ihn hineinzeigt,
+schaltet sie also ab. Das ist das Nicht-Gatter, aus dem sich Und, Oder und Taktgeber
+bauen lassen.
+
+**Taktgeber** — die Verzögerung des Verstärkers ist ein echter Zeitgeber, kein
+Zufallswert, und darum lässt sich der klassische Fackeltaktgeber bauen: ein
+Trägerblock, eine Redstonefackel an seiner Seite, und eine Staubschleife, die von der
+Fackel über einen Verstärker zurück in den Trägerblock führt. Die Fackel schaltet sich
+darüber selbst ab und wieder an; die Periode ist 2 × (2 + 2 × Stufe) Ticks, also 0,4 s
+bis 1,0 s. Wichtig ist nur, dass die Schleife dem Trägerblock nicht zu nahe kommt —
+liegt Staub direkt neben ihm, hält sich das Signal selbst und der Takt bleibt stehen.
 
 **Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 187
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
@@ -199,9 +209,14 @@ Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
 Piglin, Ghast, Magmawürfel und die Lohe an den Bastionen, im Aether Moa, Phyg,
 Sheepuff, Cockatrice und Zephyr, im Ende der Enderdrache samt Enderkristallen.
-Der **Enderman** läuft in allen Welten herum: friedlich, bis das Fadenkreuz auf
-seinem Kopf liegt, springt kurze Strecken, meidet Wasser. Spawn nach Lichtlevel
-und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß, Drops, XP-Kugeln.
+Der **Enderman** läuft in allen Welten herum, friedlich, bis man ihn wirklich
+anvisiert: gewertet wird, wie weit der Blickstrahl an seinem Kopf vorbeigeht, und
+nach anderthalb Sekunden wird er wütend. Solange er das nicht ist, springt er nur
+umher und macht dabei einen weiten Bogen um den Spieler. Wütend setzt er über
+größere Entfernung nach, aber nur mit freier Sicht und nie näher als acht Blöcke —
+und wer ihn zwanzig Sekunden aus den Augen hält, ist ihn los. Er meidet Wasser.
+Spawn nach Lichtlevel und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß,
+Drops, XP-Kugeln.
 
 **Physik & Simulation** — fließendes Wasser und Lava mit 8 Fließstufen,
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,

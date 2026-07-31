@@ -1183,20 +1183,25 @@
       var dx = p.x - this.x, dy = p.eyeY() - (this.y + this.height * 0.9), dz = p.z - this.z;
       var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       var angestarrt = false;
-      if (d > 1 && d < 24) {
+      if (d > 1 && d < 20) {
         var look = p.lookDir();
         var dot = -(look.x * dx + look.y * dy + look.z * dz) / d;
-        angestarrt = dot > 0.99 && this.canSee(p);
+        // Nicht der Winkel entscheidet, sondern wie weit der Blickstrahl am Kopf
+        // vorbeigeht. Ein fester Winkel wäre aus der Nähe viel zu großzügig – da
+        // füllt der Enderman das halbe Bild, und man starrt ihn versehentlich an.
+        var seitlich = dot > 0 ? Math.sqrt(Math.max(0, 1 - dot * dot)) * d : 99;
+        angestarrt = seitlich < 0.45 && this.canSee(p);
       }
       if (angestarrt) {
         this.stareTime += dt;
         // Er merkt es: erst zuckt er, dann wird er wütend
-        if (this.stareTime > 0.35 && Math.random() < dt * 8) {
+        if (this.stareTime > 0.5 && Math.random() < dt * 8) {
           game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
         }
-        if (this.stareTime > 0.9) {
+        if (this.stareTime > 1.4) {
           this.hostile = true;
           this.attackCd = 1.2;
+          this.wutCd = 20;
           game.audio.play3d('enderman', this.x, this.y, this.z, p);
           game.ui.toast('Du hast zu lange hingesehen.');
         }
@@ -1205,25 +1210,62 @@
       }
     }
 
+    // Wut hält nicht ewig: wer ihn abhängt, ist ihn los. Maßstab ist der
+    // Sichtkontakt, nicht der Abstand – sonst hält er sich mit seinen eigenen
+    // Sprüngen ewig in Reichweite und verfolgt einen über die halbe Karte.
+    if (this.hostile) {
+      if (this.wutCd === undefined) this.wutCd = 20;   // auch bei Wut durch einen Treffer
+      this.sichtCd = (this.sichtCd === undefined ? 0 : this.sichtCd) - dt;
+      if (this.sichtCd <= 0) {                         // Raycast nicht jeden Bild
+        this.sichtCd = 0.4;
+        this.siehtZiel = !!(p && !p.dead && this.distTo(p) < 26 && this.canSee(p));
+      }
+      this.wutCd = this.siehtZiel ? 20 : this.wutCd - dt;
+      if (this.wutCd <= 0) {
+        this.hostile = false; this.stareTime = 0; this.target = null;
+        this.wutCd = undefined; this.siehtZiel = false;
+      }
+    }
+
     this.tpCd = (this.tpCd === undefined) ? 8 + Math.random() * 10 : this.tpCd - dt;
     if (this.tpCd <= 0) {
-      this.tpCd = this.hostile ? 4 + Math.random() * 5 : 14 + Math.random() * 16;
-      if (this.hostile && p && !p.dead && this.distTo(p) > 6) this.teleportTo(game, p.x, p.z, 3);
-      else if (!this.hostile) this.teleportNear(game, 14);
+      if (this.hostile) {
+        this.tpCd = 7 + Math.random() * 8;
+        // Nachsetzen nur über größere Entfernung, nur mit freier Sicht, und dann
+        // in Sichtweite statt direkt vor die Nase – sonst steht er ohne
+        // Vorwarnung im Gesicht.
+        if (p && !p.dead && this.distTo(p) > 14 && this.siehtZiel) this.teleportRing(game, p.x, p.z, 8, 12);
+      } else {
+        this.tpCd = 14 + Math.random() * 16;
+        // Ein friedlicher Enderman wandert nur herum. Beim Spieler landen darf er
+        // dabei nicht – genau das wirkte wie ein Angriff aus dem Nichts.
+        this.teleportNear(game, 14, p, 12);
+      }
     }
   };
 
-  Mob.prototype.teleportNear = function (game, r) {
+  // Zufälliger Sprung in der Umgebung; meide/meideR halten einen Bogen um jemanden
+  Mob.prototype.teleportNear = function (game, r, meide, meideR) {
     var a = Math.random() * Math.PI * 2, d = 4 + Math.random() * r;
-    return this.teleportTo(game, this.x + Math.cos(a) * d, this.z + Math.sin(a) * d, 0);
+    return this.teleportTo(game, this.x + Math.cos(a) * d, this.z + Math.sin(a) * d, 0, meide, meideR);
   };
 
-  Mob.prototype.teleportTo = function (game, wx, wz, spread) {
+  // Sprung in einen Ring um einen Punkt – zwischen min und max Blöcken Abstand
+  Mob.prototype.teleportRing = function (game, cx, cz, min, max) {
+    var a = Math.random() * Math.PI * 2, d = min + Math.random() * (max - min);
+    return this.teleportTo(game, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 2);
+  };
+
+  Mob.prototype.teleportTo = function (game, wx, wz, spread, meide, meideR) {
     var w = this.world;
     for (var t = 0; t < 8; t++) {
       var x = Math.floor(wx + (Math.random() - 0.5) * spread * 2);
       var z = Math.floor(wz + (Math.random() - 0.5) * spread * 2);
       if (!w.isLoaded(x, 64, z)) continue;
+      if (meide && !meide.dead) {
+        var mdx = x + 0.5 - meide.x, mdz = z + 0.5 - meide.z;
+        if (mdx * mdx + mdz * mdz < meideR * meideR) continue;
+      }
       var y = MC.Dim.findGround(w, x, z, Math.round(this.y));
       if (y < 0) continue;
       // knapp drei Blöcke hoch – ohne Kopffreiheit steckt er in der Decke
@@ -1415,8 +1457,9 @@
         var y = pickDarkSpot(world, x, z, p);
         if (y < 0) continue;
         // Endermen sind seltener als das übrige Nachtvolk
-        var kinds2 = ['zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'skeleton',
-                      'creeper', 'creeper', 'creeper', 'enderman'];
+        var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie',
+                      'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
+                      'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
         var mm = new Mob(world, kind2, x + 0.5, y, z + 0.5);
         if (mm.distTo(p) < 18) continue;

@@ -678,6 +678,11 @@
 
     function liquidHeight(bx, by, bz, id) {
       if (gb(bx, by + 1, bz) === id) return 1.0;
+      // Unter einem undurchsichtigen Block steht die Flüssigkeit randvoll. Sonst
+      // bliebe zwischen ihrer Oberfläche und der Blockdecke ein Spalt – und weil
+      // die Oberseite dort weggelassen wird (der Block darüber verdeckt sie ja),
+      // sähe man von der Seite durch die Flüssigkeit ins Leere.
+      if (B.isOpaque(gb(bx, by + 1, bz))) return 1.0;
       var m = gm(bx, by, bz);
       if (m === 0 || m === 8) return 0.875;
       return 0.875 - (m / 8) * 0.75;
@@ -687,7 +692,7 @@
       var id = block.id;
       var lay = T.layer(typeof block.tex === 'string' ? block.tex : block.tex.side);
       var hC = liquidHeight(x, y, z, id);
-      var aboveSame = gb(x, y + 1, z) === id;
+      var aboveSame = gb(x, y + 1, z) === id || B.isOpaque(gb(x, y + 1, z));
       // Eckhöhen für ein "fließendes" Aussehen
       function cornerH(dx, dz) {
         if (aboveSame) return 1.0;

@@ -145,6 +145,7 @@
         c.meta[k] = v & 255;
         c.modified[k] = v;
       }
+      if (MC.Redstone) MC.Redstone.weckeGeladene(this, c, saved);
     }
     c.recalcAllHeights();
     c.state = 1;
@@ -620,9 +621,6 @@
     if (id === 0) return;
     var b = B.byId[id];
     if (!b) return;
-
-    // Fackeln und Verstärker schalten verzögert – erst danach der Rest
-    if (MC.Redstone && MC.Redstone.tick(this, x, y, z)) return;
 
     // Redstoneleitung, Hebel, Knopf und Platte brauchen einen Halt darunter
     if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_REPEATER) {
@@ -1118,6 +1116,7 @@
       maxTicks++;
       this.processFluids(140);
       this.processUpdates(220);
+      if (MC.Redstone) MC.Redstone.tickPlan(this);
       if ((this.ticks & 3) === 0) this.randomTick(px | 0, pz | 0, 8);
     }
     this.processLight(6);

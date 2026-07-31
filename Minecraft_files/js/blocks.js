@@ -407,9 +407,10 @@
   define('end_stone', { title: 'Endstein', hardness: 3, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
   define('end_stone_bricks', { title: 'Endsteinziegel', hardness: 3, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
   // Der Rahmen ist so unzerstörbar wie im Original – wer ihn abbauen könnte,
-  // könnte das einzige Endportal der Welt versehentlich zerlegen.
+  // könnte das einzige Endportal der Welt versehentlich zerlegen. Im
+  // Kreativmenü liegt er trotzdem, damit man sich ein eigenes Portal bauen kann.
   define('end_portal_frame', {
-    title: 'Endportalrahmen', hardness: -1, drop: null, item: false, light: 1, sound: 'stone',
+    title: 'Endportalrahmen', hardness: -1, drop: null, light: 1, sound: 'stone', group: 'bau',
     tex: { top: 'end_portal_frame_top', bottom: 'end_stone', side: 'end_portal_frame_side' }
   });
   define('portal_end', {
