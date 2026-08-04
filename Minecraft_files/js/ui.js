@@ -449,8 +449,23 @@
     this.overlay.style.opacity = g.damageFlash > 0 ? Math.min(0.55, g.damageFlash * 0.55) : (ov ? 1 : 0);
     if (g.damageFlash > 0) this.overlay.className = 'damage';
 
+    this.updateDetector(p);
     this.updateCompass();
     this.updateBossBar();
+  };
+
+  // Der Puls des Detektorhelms: kurz aufleuchten und wieder abklingen. Wie hell,
+  // hängt am Abstand zum Fund – ganz nah leuchtet er kräftig, am Rand der
+  // Reichweite bleibt es ein Hauch.
+  UI.prototype.updateDetector = function (p) {
+    if (!this.detectorEl) this.detectorEl = document.getElementById('detector');
+    if (!this.detectorEl) return;
+    var t = p.detektorPuls || 0;
+    if (t <= 0) { this.detectorEl.style.opacity = 0; return; }
+    // Zwei Schwünge über die 1,6 s, damit es als Signal lesbar ist und nicht als Blende
+    var welle = Math.sin((1.6 - t) / 1.6 * Math.PI * 2) * 0.5 + 0.5;
+    var huelle = Math.min(1, t / 0.4);
+    this.detectorEl.style.opacity = (welle * huelle * (p.detektorStaerke || 0.5)).toFixed(3);
   };
 
   UI.prototype.flashPickup = function (stack) {

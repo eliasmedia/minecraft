@@ -24,6 +24,10 @@
 
     window.addEventListener('keydown', function (e) {
       if (e.code === 'F3' || e.code === 'Tab') e.preventDefault();
+      // Die Leertaste scrollt sonst die Seite oder drückt einen Knopf, der noch
+      // den Fokus hat – der Sprung geht dann verloren. Dasselbe gilt für die
+      // Pfeiltasten. Nur solange gespielt wird, damit Eingabefelder frei bleiben.
+      if (self.locked && (e.code === 'Space' || e.code.indexOf('Arrow') === 0)) e.preventDefault();
       if (self.keys[e.code]) return;
       self.keys[e.code] = true;
       // Doppeltipp auf W schaltet den Sprint ein – hält bis W losgelassen wird
@@ -66,7 +70,7 @@
 
     document.addEventListener('pointerlockchange', function () {
       self.locked = (document.pointerLockElement === canvas);
-      if (self.locked) { game.showClickHint(false); return; }
+      if (self.locked) { self.lockedAt = performance.now(); game.showClickHint(false); return; }
       game._lastUnlock = performance.now();
       if (game.ui.isOpen() || game.paused || !game.started || !game.player || game.player.dead) return;
       // Haben wir selbst gerade entsperrt (Fenster geöffnet/geschlossen)? Dann nicht pausieren.
@@ -76,10 +80,19 @@
     document.addEventListener('pointerlockerror', function () {
       if (game.started && !game.paused && !game.ui.isOpen()) game.showClickHint(true);
     });
+    // Der Zeiger springt gelegentlich: der Browser liefert dann für ein einzelnes
+    // Bild einen absurd großen Ausschlag, und man schaut plötzlich nach hinten.
+    // Solche Werte sind keine Bewegung, die jemand mit der Hand macht – sie werden
+    // verworfen. Dieselbe Sperre gilt kurz nach dem Zurückholen des Zeigers, wo
+    // der erste Ausschlag die Strecke seit dem Freigeben nachträgt.
+    var SPRUNG_MAX = 260;
     document.addEventListener('mousemove', function (e) {
       if (!self.locked) return;
-      self.dx += e.movementX || 0;
-      self.dy += e.movementY || 0;
+      var mx = e.movementX || 0, my = e.movementY || 0;
+      if (performance.now() < (self.lockedAt || 0) + 120) return;
+      if (Math.abs(mx) > SPRUNG_MAX || Math.abs(my) > SPRUNG_MAX) { self.verworfen = (self.verworfen || 0) + 1; return; }
+      self.dx += mx;
+      self.dy += my;
     });
   }
   Input.prototype.key = function (c) { return !!this.keys[c]; };
@@ -1096,7 +1109,10 @@
   Game.prototype.onKeyDown = function (e) {
     var code = e.code;
     if (!this.started) return;
-    if (code === 'Escape') {
+    // M tut dasselbe wie Escape. Nötig, weil der Browser Escape vorher abfängt:
+    // es gibt den Mauszeiger frei und verlässt am Mac zusätzlich das Vollbild –
+    // beim Spiel kommt die Taste dann gar nicht mehr an.
+    if (code === 'Escape' || code === 'KeyM') {
       if (this.ui.isOpen()) this.ui.close();
       else this.pause(!this.paused);
       return;
@@ -1132,7 +1148,8 @@
         this.input.lastSpace = now;
         break;
       case 'KeyF': this.ui.toast('Sichtweite: ' + this.cycleRenderDistance()); break;
-      case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.ui.toast('Musik ' + (this.audio.musicOn ? 'an' : 'aus')); break;
+      // M öffnet jetzt das Menü; die Musik schaltet J um und steht weiter im Pausenmenü
+      case 'KeyJ': this.audio.musicOn = !this.audio.musicOn; this.ui.toast('Musik ' + (this.audio.musicOn ? 'an' : 'aus')); break;
       case 'KeyR': this.saveWorld(); break;
     }
     if (code.indexOf('Digit') === 0) {
@@ -1190,6 +1207,16 @@
     this._lastUnlock = performance.now();
     this.suppressPauseUntil = performance.now() + 900;
     if (document.exitPointerLock) document.exitPointerLock();
+  };
+
+  Game.prototype.toggleFullscreen = function () {
+    var el = document.documentElement;
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen();
+    } else if (el.requestFullscreen) {
+      var p = el.requestFullscreen();
+      if (p && p.catch) p.catch(function () { });
+    }
   };
 
   Game.prototype.showClickHint = function (on) {
@@ -1262,6 +1289,9 @@
       h('Pause', 'mtitle');
       btn('Weiterspielen', function () { self.pause(false); });
       btn('Speichern', function () { self.saveWorld(); });
+      btn('Vollbild: ' + (document.fullscreenElement ? 'an' : 'aus'), function () {
+        self.toggleFullscreen(); setTimeout(function () { self.showMenu('pause'); }, 120);
+      });
       btn('Sichtweite: ' + this.renderer.renderDistance, function () { self.cycleRenderDistance(); self.showMenu('pause'); });
       btn('Musik: ' + (this.audio.musicOn ? 'an' : 'aus'), function () { self.audio.musicOn = !self.audio.musicOn; self.showMenu('pause'); });
       btn('Lautstärke: ' + Math.round(this.audio.volume * 100) + '%', function () {
@@ -1287,8 +1317,9 @@
         '<b>Links</b> Abbauen/Angreifen &nbsp; <b>Rechts</b> Platzieren/Benutzen/Handeln',
         '<b>Mausrad-Klick</b> Block aufnehmen &nbsp; <b>1–9 / Mausrad</b> Hotbar &nbsp; <b>E</b> Inventar',
         '<b>Q</b> oder <b>Klick neben das Inventar</b> Item wegwerfen',
-        '<b>F3</b> Debug &nbsp; <b>F</b> Sichtweite &nbsp; <b>P</b> Spielmodus &nbsp; <b>M</b> Musik &nbsp; <b>R</b> Speichern',
-        '<b>Doppel-Leertaste</b> Fliegen (Kreativ) &nbsp; <b>Esc</b> Pause',
+        '<b>F3</b> Debug &nbsp; <b>F</b> Sichtweite &nbsp; <b>P</b> Spielmodus &nbsp; <b>J</b> Musik &nbsp; <b>R</b> Speichern',
+        '<b>Doppel-Leertaste</b> Fliegen (Kreativ) &nbsp; <b>M</b> oder <b>Esc</b> Pausenmenü',
+        'Am Mac fängt der Browser <b>Esc</b> oft selbst ab — dann <b>M</b> nehmen.',
         '<hr>',
         '<b>Ziel:</b> Holz schlagen → Bretter → Werkbank → Werkzeuge → Stein → Erze →',
         'Ofen bauen, Essen braten, Rüstung schmieden, Nacht überleben, bauen.',

@@ -105,6 +105,9 @@
     shaped(['M M', 'M M'], { M: M }, m + '_boots', 1);
   });
 
+  // Zanithelm, rundum mit Diamanten belegt – der Detektorhelm
+  shaped(['DDD', 'DHD', 'DDD'], { D: 'diamond', H: 'zanite_helmet' }, 'detector_helmet', 1);
+
   // ---------------- Diverse Werkzeuge ----------------
   shaped([' I', 'I '], { I: 'iron_ingot' }, 'shears', 1);
   shaped([' SF', 'S F', ' SF'], { S: 'stick', F: 'string' }, 'bow', 1);

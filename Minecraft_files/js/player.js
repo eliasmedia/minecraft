@@ -109,6 +109,56 @@
     return d;
   };
 
+  // ============================================================
+  //  Detektorhelm
+  // ============================================================
+  // Wonach der Helm sucht. Bewusst nur das, wofür sich das Graben lohnt – Kohle
+  // und Eisen liegen überall herum und würden den Puls entwerten.
+  var DETEKTOR_ERZE = ['diamond_ore', 'emerald_ore', 'gold_ore', 'lapis_ore', 'redstone_ore',
+                       'ambrosium_ore', 'zanite_ore', 'gravitite_ore', 'quartz_ore'];
+  var DETEKTOR_TAKT = 30;      // Sekunden zwischen zwei Peilungen
+  var DETEKTOR_R = 20;         // Blöcke Reichweite
+  var detektorIds = null;
+
+  // Nächstes lohnendes Erz im Umkreis; liefert den Abstand oder -1
+  function detektorSuche(world, px, py, pz) {
+    if (!detektorIds) {
+      detektorIds = {};
+      for (var i = 0; i < DETEKTOR_ERZE.length; i++) {
+        var id = B.id(DETEKTOR_ERZE[i]);
+        if (id) detektorIds[id] = true;
+      }
+    }
+    var best = -1, r = DETEKTOR_R, r2 = r * r;
+    var x0 = Math.floor(px), y0 = Math.floor(py), z0 = Math.floor(pz);
+    for (var dy = -r; dy <= r; dy++) {
+      var wy = y0 + dy;
+      if (wy < 0 || wy >= MC.WORLD_HEIGHT) continue;
+      for (var dz = -r; dz <= r; dz++) {
+        for (var dx = -r; dx <= r; dx++) {
+          var d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 > r2) continue;
+          if (best >= 0 && d2 >= best) continue;
+          if (detektorIds[world.getBlock(x0 + dx, wy, z0 + dz)]) best = d2;
+        }
+      }
+    }
+    return best < 0 ? -1 : Math.sqrt(best);
+  }
+
+  function tickDetektor(p, game, dt) {
+    p.detektorCd = (p.detektorCd === undefined) ? 2 : p.detektorCd - dt;
+    p.detektorPuls = Math.max(0, (p.detektorPuls || 0) - dt);
+    if (p.detektorCd > 0) return;
+    p.detektorCd = DETEKTOR_TAKT;
+    var d = detektorSuche(p.world, p.x, p.y + 0.5, p.z);
+    if (d < 0) return;
+    // Je näher, desto kräftiger der Impuls – ganz nah volle Stärke, am Rand kaum
+    p.detektorStaerke = Math.max(0.15, 1 - d / DETEKTOR_R);
+    p.detektorPuls = 1.6;
+    game.audio.play('click');
+  }
+
   // Trägt der Spieler dieses Rüstungsteil? slot 0=Helm 1=Brust 2=Hose 3=Schuhe
   Inventory.prototype.wears = function (mat, slot) {
     var a = this.armor[slot];
@@ -178,6 +228,7 @@
     this.portalTime = 0;
   }
   MC.Player = Player;
+  Player.detektorSuche = detektorSuche;   // für Tests und die Anzeige greifbar
 
   Player.prototype.eyeY = function () {
     return this.y + (this.sneaking ? this.eyeHeight - 0.18 : this.eyeHeight);
@@ -223,6 +274,11 @@
     this.gravBoots = inv.wears('gravitite', 3);
     this.gravFull = this.gravHelm && this.gravChest && this.gravLegs && this.gravBoots;
 
+    // Detektorhelm: peilt in festem Takt die Umgebung an
+    var helm = inv.armor[0];
+    this.detektor = !!(helm && helm.id === 'detector_helmet');
+    if (this.detektor) tickDetektor(this, game, dt); else this.detektorPuls = 0;
+
     var speed = 4.317;
     if (this.sprinting) speed = 5.6;
     if (this.sneaking && !this.flying) speed = 1.45;
@@ -256,22 +312,34 @@
       var hv = Math.sqrt(this.vx * this.vx + this.vz * this.vz);
       if (hv > speed) { this.vx = this.vx / hv * speed; this.vz = this.vz / hv * speed; }
 
+      // Ein Sprung darf nicht daran scheitern, dass der Tastendruck einen Sekunden-
+      // bruchteil zu früh oder der Bodenkontakt einen einzigen Frame zu kurz kam.
+      // Darum zählt der Boden kurz nach der Kante noch, und ein Druck kurz vor der
+      // Landung wird nachgeholt. Genau diese beiden Fälle fühlen sich sonst an, als
+      // hätte das Spiel den Sprung verschluckt.
+      this.coyote = this.onGround ? 0.12 : Math.max(0, (this.coyote || 0) - dt);
+      this.jumpBuffer = input.key('Space') ? 0.16 : Math.max(0, (this.jumpBuffer || 0) - dt);
+
       // Springen / Schwimmen
-      if (input.key('Space')) {
+      if (input.key('Space') || this.jumpBuffer > 0) {
         // Im Wasser gibt es keinen Sprung, sondern Auftrieb mit Deckel. Mit
         // einem harten Impuls konnte man sich über die Oberfläche hinaus
         // hochtippen und trockenen Fußes über einen See laufen.
         if (this.inWater) {
           // An einer Kante darf man sich herausziehen, sonst nicht
-          var maxAuf = this.collidedH ? 4.6 : 2.8;
-          this.vy = Math.min(this.vy + 24 * dt, maxAuf);
+          if (!input.key('Space')) { /* nur der echte Tastendruck treibt auf */ }
+          else {
+            var maxAuf = this.collidedH ? 4.6 : 2.8;
+            this.vy = Math.min(this.vy + 24 * dt, maxAuf);
+          }
         }
-        else if (this.onGround) {
+        else if (this.onGround || this.coyote > 0) {
           // Brustpanzer aus Gravitit hebt einen deutlich höher
           this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
+          this.coyote = 0; this.jumpBuffer = 0;
           this.exhaust(this.sprinting ? 0.2 : 0.05);
           if (this.gravChest) game.particles.crit(this.x, this.y + 0.2, this.z);
-        } else if (this.gravFull && this.vy < 0 && !this.doubleJumped) {
+        } else if (input.key('Space') && this.gravFull && this.vy < 0 && !this.doubleJumped) {
           // Voller Satz: ein einziger Sprung mitten in der Luft
           this.doubleJumped = true;
           this.vy = 10.5;

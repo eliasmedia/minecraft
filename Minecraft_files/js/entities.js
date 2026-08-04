@@ -801,17 +801,18 @@
     this.moving = false;
     var wantYaw = this.yaw;
 
-    // Beute wählen: der Spieler, sonst der nächste Dorfbewohner in Reichweite
-    // Ein Mob nimmt den Spieler erst auf, wenn er ihn wirklich sehen kann oder
-    // dicht dran ist. Ohne das rennt in einer Höhle die halbe Karte durch die
-    // Wände auf einen zu.
+    // Beute wählen: der Spieler, sonst der nächste Dorfbewohner in Reichweite.
+    // Ein Mob nimmt den Spieler nur auf, wenn er ihn wirklich sehen kann. Eine
+    // Freigabe für den Nahbereich gab es hier einmal, damit niemand direkt vor
+    // der Nase unbemerkt bleibt – die hat aber genau das Gegenteil bewirkt: durch
+    // eine Wand hindurch wurde jeder aggro, der zufällig nah genug stand.
     var foe = null, foeDist = 9999;
     if (this.hostile) {
       if (p && !p.dead && dist < 16 && game.mode !== 'creative') {
         this.seeCd = (this.seeCd === undefined ? 0 : this.seeCd) - dt;
         if (this.seeCd <= 0) {
           this.seeCd = 0.35;                        // Sichtprüfung ist ein Raycast
-          this.sawPlayer = dist < 5 || this.canSee(p);
+          this.sawPlayer = this.canSee(p);
           if (this.sawPlayer) this.forgetCd = 5;    // kurz dranbleiben, wenn er weg ist
         }
         this.forgetCd = (this.forgetCd || 0) - dt;
@@ -1194,9 +1195,15 @@
       }
       if (angestarrt) {
         this.stareTime += dt;
-        // Er merkt es: erst zuckt er, dann wird er wütend
-        if (this.stareTime > 0.5 && Math.random() < dt * 8) {
+        // Er merkt es: erst zuckt er, dann wird er wütend. Die Vorwarnung muss
+        // deutlich sein – wer sie übersieht, wird ohne Vorankündigung angegriffen.
+        if (this.stareTime > 0.45 && Math.random() < dt * 10) {
           game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+        }
+        if (this.stareTime > 0.45 && !this.zuckLaut) {
+          this.zuckLaut = true;
+          game.audio.play3d('pop', this.x, this.y, this.z, p);
+          game.ui.toast('Der Enderman starrt zurück.');
         }
         if (this.stareTime > 1.4) {
           this.hostile = true;
@@ -1207,6 +1214,7 @@
         }
       } else {
         this.stareTime = Math.max(0, this.stareTime - dt * 1.5);
+        if (this.stareTime <= 0) this.zuckLaut = false;
       }
     }
 
@@ -1290,12 +1298,22 @@
     return null;
   };
 
+  // Sichtlinie vom Kopf des Mobs zum Kopf des Ziels. Geprüft wird nur auf
+  // undurchsichtige Blöcke: Gras, Blumen, Fackeln und Glas halten keinen Blick
+  // auf, der allgemeine Strahl wäre aber an ihren Auswahlboxen hängengeblieben
+  // und hätte die Mobs mitten auf der Wiese blind gemacht.
   Mob.prototype.canSee = function (t) {
-    var dx = t.x - this.x, dy = (t.y + 1.5) - (this.y + this.height * 0.85), dz = t.z - this.z;
+    var ox = this.x, oy = this.y + this.height * 0.85, oz = this.z;
+    var dx = t.x - ox, dy = (t.y + 1.5) - oy, dz = t.z - oz;
     var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (d < 0.001) return true;
-    var hit = this.world.raycast(this.x, this.y + this.height * 0.85, this.z, dx / d, dy / d, dz / d, d, false);
-    return !hit;
+    var w = this.world;
+    var n = Math.ceil(d * 3);          // drei Abtastungen je Block, so rutscht keine Wand durch
+    for (var i = 1; i < n; i++) {
+      var f = i / n;
+      if (B.isOpaque(w.getBlock(Math.floor(ox + dx * f), Math.floor(oy + dy * f), Math.floor(oz + dz * f)))) return false;
+    }
+    return true;
   };
 
   Mob.prototype.moveToward = function (dt, yaw, mult) {
@@ -1456,11 +1474,20 @@
         // Feindlich: dunkel, fester Boden
         var y = pickDarkSpot(world, x, z, p);
         if (y < 0) continue;
-        // Endermen sind seltener als das übrige Nachtvolk
-        var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie',
-                      'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
-                      'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'enderman'];
+        // Endermen sind eine Seltenheit, kein Nachtvolk: eine von vierundzwanzig
+        // Erscheinungen, und nie mehr als zwei gleichzeitig in der Umgebung.
+        var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie',
+                      'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
+                      'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
+        if (kind2 === 'enderman') {
+          var anzahlE = 0;
+          for (var ie = 0; ie < world.entities.length; ie++) {
+            var ee = world.entities[ie];
+            if (!ee.dead && ee.mobType === 'enderman') anzahlE++;
+          }
+          if (anzahlE >= 2) continue;
+        }
         var mm = new Mob(world, kind2, x + 0.5, y, z + 0.5);
         if (mm.distTo(p) < 18) continue;
         // Endermen sind fast drei Blöcke hoch und brauchen entsprechend Platz
@@ -1474,7 +1501,11 @@
   // Nether und Aether haben eigene Bewohner. Im Nether ist es überall dunkel,
   // also spawnen Monster unabhängig von der Tageszeit; im Aether ist es umgekehrt.
   var DIM_MOBS = {
-    nether: { hostile: ['piglin', 'piglin', 'zombie', 'magma_cube', 'ghast', 'enderman'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
+    // Im Nether gehören nur die Bewohner des Nether hin: überwiegend Piglins,
+    // dazu Ghasts und Magmawürfel. Zombies und Endermen haben hier nichts
+    // verloren. Die Lohe steht bewusst nicht in dieser Liste – sie spawnt
+    // ausschließlich an den Festungen, damit sie ein Fund bleibt.
+    nether: { hostile: ['piglin', 'piglin', 'piglin', 'piglin', 'ghast', 'ghast', 'magma_cube'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
     aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'], ground: ['aether_grass', 'quicksoil', 'holystone'] },
     // Im Ende soll der Drache die Hauptrolle behalten – Endermen bleiben selten
     the_end: { hostile: ['enderman'], passive: [], ground: ['end_stone'], rate: 0.25, max: 5 }

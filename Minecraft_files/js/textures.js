@@ -1171,6 +1171,15 @@
     });
   });
 
+  // Detektorhelm: Zanithelm mit eingelassener Diamantlinse über der Stirn
+  itemTex('detector_helmet', function (g) {
+    drawArt(g, ARMOR_ART.helmet, artPal(armorCol.zanite));
+    g.rect(6, 4, 4, 3, [86, 214, 208]);
+    g.rect(7, 5, 2, 1, [186, 252, 248]);
+    g.set(6, 4, [222, 255, 252]);
+    g.set(9, 6, [46, 150, 148]);
+  });
+
   // ============================================================
   //  Nachträge: Mob-Körperteile ohne Gesicht, Entities, neue Blöcke
   // ============================================================

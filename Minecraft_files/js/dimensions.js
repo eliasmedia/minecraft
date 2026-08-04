@@ -70,10 +70,14 @@
             id = ID.lava;
           }
 
-          // Schwebende Netherrackbrocken in der Halle
+          // Netherrackbänke und -pfeiler in der Halle. Entscheidend ist, dass hier
+          // ein Volumen genommen wird und nicht ein schmaler Schnitt durchs
+          // Rauschfeld: eine Isofläche ergibt immer nur eine Schale von ein, zwei
+          // Blöcken, und genau darum waren die Wände hauchdünn und die Böden, auf
+          // denen man steht, brachen beim Darüberlaufen durch.
           if (id === 0 && y > floor && y < roof) {
-            var blob = gen.nCave.fbm3(wx / 26, y / 20, wz / 26, 3);
-            if (Math.abs(blob) < 0.055) id = ID.rock;
+            var blob = gen.nCave.fbm3(wx / 34, y / 26, wz / 34, 3);
+            if (blob > 0.15) id = ID.rock;
           }
 
           if (id === ID.rock) {

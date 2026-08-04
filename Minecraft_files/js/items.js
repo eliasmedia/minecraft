@@ -186,6 +186,14 @@
     });
   });
 
+  // Der Detektorhelm entsteht aus einem Zanithelm, der in der Werkbank rundum
+  // mit Diamanten belegt wird. Er schützt wie sein Vorgänger und meldet alle
+  // halbe Minute, wenn in der Nähe etwas Wertvolles im Gestein steckt.
+  define('detector_helmet', {
+    title: 'Detektorhelm', stack: 1, durability: 352,
+    armor: { slot: 0, defense: 2 }, group: 'ruestung'
+  });
+
   I.get = function (name) { return I.byName[name] || null; };
 
   I.isTool = function (name) { var it = I.byName[name]; return !!(it && it.tool); };

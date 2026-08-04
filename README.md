@@ -32,9 +32,20 @@ Minecraft_files/
 | `Leertaste` | Springen / Auftauchen | `F3` | Debug-Overlay |
 | `Shift` | Schleichen (kantensicher) | `F` | Sichtweite |
 | `Strg` / `Doppel-W` | Sprinten | `P` | Spielmodus wechseln |
-| | | `M` | Musik an/aus |
+| | | `J` | Musik an/aus |
 | `Doppel-Leertaste` | Fliegen (Kreativ) | `R` | Speichern |
-| `Esc` | Pause / Menü | | |
+| `M` / `Esc` | Pause / Menü | | |
+
+`Esc` fängt der Browser oft selbst ab — es gibt den Mauszeiger frei und verlässt
+am Mac zusätzlich das Vollbild, sodass die Taste beim Spiel gar nicht ankommt.
+Darum tut **`M`** dasselbe und funktioniert überall. Das Vollbild schaltet ein
+eigener Knopf im Pausenmenü, damit man nicht auf die Tastenkombination des
+Browsers angewiesen ist.
+
+Beim Zeiger springt der Browser gelegentlich: für ein einzelnes Bild kommt ein
+absurd großer Ausschlag, und man schaut plötzlich nach hinten. Solche Werte
+werden verworfen, ebenso die ersten Millisekunden nach dem Zurückholen des
+Zeigers — normale Bewegung bleibt unverändert.
 
 ## Was drin ist
 
@@ -112,9 +123,12 @@ angerechnet.
 **Nether** — Portal aus einem Obsidianrahmen (4×5, zehn Blöcke), gezündet mit dem
 Feuerzeug. Dahinter liegt eine geschlossene Höhlenwelt zwischen zwei
 Grundgesteinsdecken: Netherrack, Seelensand (bremst), Magmablöcke (die brennen),
-Netherquarz und Zaniterz in Adern, Lavaseen im Untergeschoss. Kein Tageslicht,
-roter Dunst, kurze Sicht. Bewohnt von Piglins, Magmawürfeln und Ghasts, die
-Feuerbälle werfen — Lava macht ihnen nichts aus. Ein Block im Nether entspricht
+Netherquarz und Zaniterz in Adern, Lavaseen im Untergeschoss. Die Bänke und
+Pfeiler in der Halle sind massiver Fels — im Mittel ein halbes Dutzend Blöcke
+dick, damit man darauf gehen und darin graben kann, ohne durchzubrechen. Kein
+Tageslicht, roter Dunst, kurze Sicht. Bewohnt ausschließlich von den Kreaturen
+der Dimension: überwiegend Piglins, dazu Ghasts, die Feuerbälle werfen, und
+Magmawürfel — Lava macht ihnen allen nichts aus. Ein Block im Nether entspricht
 acht in der Oberwelt, ein Portal dort spart also Wege.
 
 **Lohen** — schwebende Köpfe, umkreist von zwei gegenläufigen Ringen brennender
@@ -132,6 +146,15 @@ Aetherrahmen; die Truhe im Inneren ist der Puffer.
 Jedes getragene Teil nimmt ein Viertel des Hitzeschadens weg, alle vier machen
 gegen Lava, Feuer und Magma vollständig immun. Gegen einen Kaktus hilft sie
 nicht.
+
+**Detektorhelm** — ein Zanithelm, in der Werkbank rundum mit acht Diamanten
+belegt. Er schützt wie sein Vorgänger und meldet alle dreißig Sekunden, wenn im
+Umkreis von zwanzig Blöcken etwas Lohnendes im Gestein steckt: Diamant, Smaragd,
+Gold, Lapis, Redstone, Netherquarz, Ambrosium, Zanit oder Gravitit. Kohle und
+Eisen zählen nicht — die liegen ohnehin überall. Das Signal ist ein kurzer
+Schimmer am Rand des Sichtfelds, kräftiger je näher der Fund; in der Bildmitte
+bleibt es frei, damit es beim Graben nicht stört. Er sagt nur, dass etwas da ist,
+nicht wo — die Richtung muss man selbst suchen.
 
 **Aether** — dieselbe Rahmenform, aber aus Glowstone und mit einem Eimer Wasser
 geflutet statt angezündet. Dahinter schweben Inseln über der Leere: Aethergras
@@ -209,12 +232,18 @@ Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
 Piglin, Ghast, Magmawürfel und die Lohe an den Bastionen, im Aether Moa, Phyg,
 Sheepuff, Cockatrice und Zephyr, im Ende der Enderdrache samt Enderkristallen.
+Jeder Mob braucht **freie Sicht**, um jemanden aufzunehmen: durch eine Wand wird
+niemand wütend, egal wie nah man steht. Undurchsichtige Blöcke halten den Blick
+auf, Gras, Fackeln und Glas nicht.
 Der **Enderman** läuft in allen Welten herum, friedlich, bis man ihn wirklich
 anvisiert: gewertet wird, wie weit der Blickstrahl an seinem Kopf vorbeigeht, und
-nach anderthalb Sekunden wird er wütend. Solange er das nicht ist, springt er nur
+nach anderthalb Sekunden wird er wütend — auf halbem Weg dorthin zuckt er
+sichtbar und hörbar, das ist die Vorwarnung. Solange er ruhig ist, springt er nur
 umher und macht dabei einen weiten Bogen um den Spieler. Wütend setzt er über
 größere Entfernung nach, aber nur mit freier Sicht und nie näher als acht Blöcke —
 und wer ihn zwanzig Sekunden aus den Augen hält, ist ihn los. Er meidet Wasser.
+In der Oberwelt ist er eine Seltenheit: eine von vierundzwanzig nächtlichen
+Erscheinungen, höchstens zwei gleichzeitig.
 Spawn nach Lichtlevel und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß,
 Drops, XP-Kugeln.
 
