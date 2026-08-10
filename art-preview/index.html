@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stilblatt — Kunstrichtung Voxel-Sandbox</title>
+<link rel="stylesheet" href="css/preview.css">
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap">
+    <span class="kicker">Freigabevorlage · Kunstrichtung</span>
+    <h1>Stilblatt<span>Voxel-Sandbox, HTML-Fassung</span></h1>
+    <p class="lede">
+      Kein Umbau des Spiels. Diese Seite zeigt ausschließlich, wie die Welt aussehen
+      <em>könnte</em> — erzeugt mit derselben Technik, die das Spiel bereits benutzt:
+      prozedurale 16×16-Kacheln in einem WebGL2-<code>TEXTURE_2D_ARRAY</code>.
+      Alles hier ist unverändert ins Spiel übertragbar.
+    </p>
+    <nav>
+      <a href="#szene">Testszene</a>
+      <a href="#messung">Messung</a>
+      <a href="#technik">Technik</a>
+      <a href="#palette">Palette</a>
+      <a href="#bloecke">Blöcke</a>
+      <a href="#natur">Natur</a>
+      <a href="#items">Gegenstände</a>
+      <a href="#wesen">Kreaturen</a>
+      <a href="#effekte">Effekte</a>
+      <a href="#gegen">Vorher / Nachher</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============================================================ -->
+<section id="szene">
+  <div class="shead">
+    <h2>Testszene</h2>
+    <p>
+      Dieselbe Renderpipeline wie im Spiel: gleiches Vertexformat (9 Floats),
+      gleiche Beleuchtungsformel, gleiche Flächenschattierung, gleicher Alphatest.
+      Ziehen zum Drehen, Rad zum Zoomen. Die Schalter rechts trennen
+      <strong>Technik</strong> von <strong>Kunst</strong>.
+    </p>
+  </div>
+
+  <div class="sceneblock">
+    <div class="scenewrap">
+      <canvas id="scene"></canvas>
+      <div id="scenefail" class="fail" hidden></div>
+    </div>
+
+    <aside class="controls">
+      <div class="ctlgroup">
+        <h3>Grafik</h3>
+        <label class="seg">
+          <span>Texturen</span>
+          <span class="segbtns">
+            <button data-atlas="alt">jetzt</button>
+            <button data-atlas="neu" class="on">Vorschlag</button>
+          </span>
+        </label>
+      </div>
+
+      <div class="ctlgroup">
+        <h3>Technik <em>— Ursachen der Unschärfe</em></h3>
+        <label class="chk"><input type="checkbox" id="c-mipmap" checked>
+          <span>Mipmaps <small>NEAREST_MIPMAP_LINEAR — wie derzeit</small></span></label>
+        <label class="chk"><input type="checkbox" id="c-caplod">
+          <span>Mipkette bei LOD 2 kappen <small>unter 4×4 bleibt nur Matsch</small></span></label>
+        <label class="chk"><input type="checkbox" id="c-srgb" checked>
+          <span>sRGB-Beleuchtung <small>fehlt derzeit — macht Schatten schlammig</small></span></label>
+        <label class="chk"><input type="checkbox" id="c-dir" checked>
+          <span>Lichtrichtung <small>derzeit symmetrisch, also richtungslos</small></span></label>
+        <label class="rng"><span>LOD-Verschiebung <b id="v-lod">0,0</b></span>
+          <input type="range" id="c-lod" min="-2" max="1" step="0.25" value="0"></label>
+        <label class="rng"><span>Anisotropie <b id="v-aniso">16</b>×</span>
+          <input type="range" id="c-aniso" min="1" max="16" step="1" value="16"></label>
+      </div>
+
+      <div class="ctlgroup">
+        <h3>Kamera</h3>
+        <label class="chk"><input type="checkbox" id="c-rot" checked><span>Drehen</span></label>
+        <button class="ghost" id="c-reset">Ansicht zurücksetzen</button>
+      </div>
+
+      <p class="hint">
+        Probe: Texturen auf <em>jetzt</em>, dann Mipmaps aus. Was sich ändert,
+        ist Technik. Was gleich bleibt, ist Kunst.
+      </p>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="messung">
+  <div class="shead">
+    <h2>Messung statt Meinung</h2>
+    <p>
+      Die erste Fassung lag falsch — Ihr Eindruck stimmte. Statt weiter zu behaupten,
+      habe ich das <strong>Vanilla-Resource-Pack (Bedrock)</strong> heruntergeladen und
+      die Kacheln vermessen: Farbanzahl, Kontrastumfang, Sättigung, Tonverteilung.
+      Die Zahlen haben die Regeln umgeschrieben.
+    </p>
+  </div>
+
+  <div class="korrektur">
+    <h3>Was Fassung 1 falsch hatte</h3>
+    <div class="korrgrid">
+      <div class="korr bad">
+        <span class="klabel">Behauptung</span>
+        <p>„Struktur muss bei 2–5 px liegen. Rauschen je Pixel ist der Fehler."</p>
+      </div>
+      <div class="korr good">
+        <span class="klabel">Messung</span>
+        <p>
+          Falsch. Vanilla rauscht sehr wohl je Pixel — <code>grass_top</code> hat
+          66 Graustufen, <code>dirt</code> ist reines Pixelrauschen. Der Fehler des
+          Bestands ist nicht die Frequenz, sondern dass das Rauschen
+          <strong>stufenlos</strong> ist. Vanilla quantisiert hart auf
+          <strong>4–7 Töne</strong>. Meine Klumpen waren dadurch flauer als der Bestand.
+        </p>
+      </div>
+
+      <div class="korr bad">
+        <span class="klabel">Behauptung</span>
+        <p>„Schatten wandern im Farbton ins Kühle. Stein ist blaugrau."</p>
+      </div>
+      <div class="korr good">
+        <span class="klabel">Messung</span>
+        <p>
+          Falsch. <code>stone.png</code> ist exakt <strong>neutralgrau</strong>:
+          104, 116, 127, 143 bei Sättigung 0,00. <code>dirt</code> hält den Farbton
+          über die ganze Rampe konstant bei 25°. Vanilla-Rampen sind
+          <strong>rein multiplikativ</strong>. Die Farbtonverschiebung hat meine
+          Texturen vergraut.
+        </p>
+      </div>
+
+      <div class="korr bad">
+        <span class="klabel">Behauptung</span>
+        <p>„Sand braucht Dünenkräusel, Bruchstein saubere Fasen."</p>
+      </div>
+      <div class="korr good">
+        <span class="klabel">Messung</span>
+        <p>
+          Falsch. <code>sand</code> hat Kontrast <strong>21</strong> — bewusst fast
+          flach, ohne jedes Muster. <code>cobblestone</code> bildet seine Zellen durch
+          <strong>Ballungen</strong> heller und dunkler Töne, nicht durch gezeichnete
+          Fasen. Struktur gibt es nur dort, wo das Material welche hat: Brettfugen,
+          Ziegelfugen, Erznester.
+        </p>
+      </div>
+
+      <div class="korr bad">
+        <span class="klabel">Behauptung</span>
+        <p>„Laub braucht gestaltete Lücken statt Zufall."</p>
+      </div>
+      <div class="korr good">
+        <span class="klabel">Messung</span>
+        <p>
+          Halb falsch. <code>leaves_oak</code> hat nur <strong>4 Graustufen</strong> bei
+          Kontrast <strong>87</strong> und wird zur Laufzeit eingefärbt. Nicht die
+          Lückenverteilung machte den Unterschied, sondern wenige Töne, hoher Kontrast
+          und die Tönung. Dasselbe gilt für Gras und hohes Gras.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="subhead">
+    <h3>Kennzahlen im Vergleich</h3>
+    <p>Farben = verschiedene Töne · Kontrast = Leuchtdichte p10→p90 · Sättigung = Mittelwert</p>
+  </div>
+  <div id="messtabelle" class="messtabelle"></div>
+
+  <p class="lizenz">
+    <strong>Zur Herkunft:</strong> Das Pack sagt selbst „All assets belong to Mojang &amp; Microsoft"
+    und hat keine Lizenzdatei. Die Bilddateien werden deshalb <strong>nicht</strong> ins Projekt
+    übernommen — das wäre Weiterverbreitung fremder Grafik in einem anderen Spiel.
+    Übernommen sind <em>Regeln und Messwerte</em>: Tonanzahl, Kontrastziele, neutrale
+    Steinfamilie, multiplikative Rampen, Graustufe-plus-Tönung beim Bewuchs.
+    Die Pixel selbst erzeugt <code>art.js</code> prozedural neu.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="technik">
+  <div class="shead">
+    <h2>Warum es unscharf wirkt</h2>
+    <p>Drei technische Ursachen. Sie liegen neben der Kunst und verbessern auch den heutigen Bestand.</p>
+  </div>
+
+  <div class="findings">
+    <article class="finding sev1">
+      <span class="sev">1</span>
+      <h3>Rauschen ist stufenlos statt quantisiert</h3>
+      <p>
+        <code>noise(amt)</code> multipliziert jeden Pixel mit einem zufälligen
+        Faktor. Das erzeugt hunderte verschiedener Töne je Kachel. Vanilla kommt bei
+        denselben Blöcken mit 4 bis 7 aus. Viele dicht beieinander liegende Töne
+        mitteln sich beim Verkleinern zu einer Fläche — wenige weit auseinander
+        liegende Töne behalten ihren Kontrast.
+      </p>
+      <p class="fix"><b>Lösung:</b> <code>qnoise(töne, gewichte)</code> — dasselbe
+        Rauschen, aber hart auf eine kurze Tonliste gerastert, mit unsymmetrischer
+        Verteilung wie im Original (Stein: 7 / 28 / 46 / 20 %).</p>
+    </article>
+
+    <article class="finding sev1">
+      <span class="sev">2</span>
+      <h3>Mipmapkette läuft bis 1×1</h3>
+      <p>
+        <code>generateMipmap</code> auf 16×16-Kacheln erzeugt die Stufen 8², 4², 2², 1².
+        Mit <code>NEAREST_MIPMAP_LINEAR</code> wird zwischen zwei dieser Stufen überblendet.
+        Ab etwa zehn Blöcken Entfernung sieht man eine Mischung aus 4²- und 2²-Matsch.
+      </p>
+      <p class="fix"><b>Lösung:</b> <code>TEXTURE_MAX_LOD = 2</code>, Anisotropie auf Maximum
+        statt 4, und im Shader <code>texture(uTex, vUVW, −0.5)</code> als LOD-Verschiebung.</p>
+      <div class="mipdemo" id="mipdemo"></div>
+    </article>
+
+    <article class="finding sev2">
+      <span class="sev">3</span>
+      <h3>Beleuchtung rechnet im Gammaraum</h3>
+      <p>
+        Der Fragmentshader multipliziert die Texturfarbe direkt mit dem Lichtwert
+        (<code>c.rgb *= vLight * vShade</code>), ohne sRGB-Umwandlung. Dadurch
+        rutschen alle abgeschatteten Flächen in ein entsättigtes Braungrau —
+        genau der „billige“ Eindruck. Zusätzlich ist die Flächenschattierung
+        symmetrisch (+X und −X beide 0,62), die Welt hat also gar keine Lichtrichtung.
+      </p>
+      <p class="fix"><b>Lösung:</b> Atlas als <code>SRGB8_ALPHA8</code> hochladen oder im
+        Shader linearisieren, beleuchten, zurück gammakodieren. Flächenwerte
+        asymmetrisch aus einer festen Sonnenrichtung ableiten.</p>
+    </article>
+
+    <article class="finding sev2">
+      <span class="sev">4</span>
+      <h3>Inventarsymbole werden krumm skaliert</h3>
+      <p>
+        <code>icons.js</code> rendert mit Maßstab 64⁄36 = 1,777 und CSS zeigt das
+        64-px-Bild dann mit <code>background-size: 88 %</code> in einem 46-px-Feld,
+        also bei 40,5 px. Beide Schritte sind nicht ganzzahlig: Pixel werden
+        unterschiedlich breit, Kanten fransen.
+      </p>
+      <p class="fix"><b>Lösung:</b> Maßstab 2 (Kachel 72 px, Texel exakt 2×1 px im
+        2:1-Isometrieraster), Anzeige bei exakt 36 px. Ziel auf Dauer: Symbole im
+        3D-Renderer in ein Offscreen-Ziel rendern und ganzzahlig herunterrechnen.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="palette">
+  <div class="shead">
+    <h2>Palette</h2>
+    <p>
+      Feste Tonlisten je Material statt frei erfundener Farben. Steinfamilie strikt
+      neutralgrau, Erde und Holz mit konstantem Farbton, Bewuchs als Graustufe plus
+      Tönung. Alles direkt aus der Messung abgeleitet.
+    </p>
+  </div>
+  <div class="rule">
+    <h3>Die Rampenregel — korrigiert</h3>
+    <p>
+      Vanilla-Rampen sind <strong>rein multiplikativ bei konstantem Farbton</strong>.
+      <code>dirt</code> läuft über 89,61,41 → 121,85,58 → 150,108,74 → 185,133,92 und
+      bleibt dabei durchgehend bei Farbton 25° und gleicher Sättigung. Genau das, was
+      <code>dark(c, f)</code> im Bestand bereits tut — der Ansatz war richtig, nur die
+      Anzahl der Stufen war es nicht.
+    </p>
+    <div class="rampcmp" id="rampcmp"></div>
+  </div>
+
+  <div class="subhead"><h3>Materialtöne</h3><p>Die tatsächlich verwendeten Listen, dunkel nach hell</p></div>
+  <div id="palgrid" class="palgrid"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="bloecke">
+  <div class="shead">
+    <h2>Weltblöcke</h2>
+    <p>Deckfläche, Seitenfläche, Würfel im Licht, tatsächliche Farbanzahl, Motiv.</p>
+  </div>
+  <div id="blockgrid" class="grid"></div>
+
+  <div class="subhead"><h3>Kachelprobe</h3><p>Vier mal vier Wiederholungen. Kein sichtbarer Rasteranker, keine Naht.</p></div>
+  <div id="tilegrid" class="tilegrid"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="natur">
+  <div class="shead">
+    <h2>Bewuchs und Umgebung</h2>
+    <p>Kreuzflächen brauchen eine Silhouette, die vor jedem Untergrund liest — also Kontur und klare Form statt Streusel.</p>
+  </div>
+  <div id="naturgrid" class="grid small"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="items">
+  <div class="shead">
+    <h2>Gegenstände</h2>
+    <p>
+      1 px dunkle Kontur, drei Materialtöne, Licht von oben links, Diagonale 45°,
+      1 px Rand frei. Werkzeuge teilen sich eine Vorlage je Typ und werden nur
+      über die Materialrampe eingefärbt — daher sieht eine Diamantspitzhacke
+      zwangsläufig wie die eiserne Schwester aus.
+    </p>
+  </div>
+  <div class="subhead"><h3>Werkzeugstufen</h3><p>Eine Vorlage, fünf Rampen. Silhouette bleibt gleich, Material ist sofort ablesbar.</p></div>
+  <div id="toolgrid" class="toolgrid"></div>
+  <div class="subhead"><h3>Material, Nahrung, Gerät</h3></div>
+  <div id="itemgrid" class="grid small"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="wesen">
+  <div class="shead">
+    <h2>Kreaturen</h2>
+    <p>
+      Kein Körperteil bleibt einfarbig. Alle Gesichter folgen derselben Grammatik:
+      Auge 3×3 mit festem Glanzpunkt oben rechts, Mund als 1-px-Linie,
+      eingebackener Bodenschatten an der Unterkante jedes Quaders.
+    </p>
+  </div>
+  <div id="mobgrid" class="grid small"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="effekte">
+  <div class="shead">
+    <h2>Effekte</h2>
+    <p>
+      Bruchstadien als wachsende Sternfraktur aus der Blockmitte — der Fortschritt
+      ist damit tatsächlich ablesbar, anders als bei zufällig gestreuten Strichen.
+    </p>
+  </div>
+  <div class="subhead"><h3>Bruchstadien 0 – 9</h3></div>
+  <div id="crackgrid" class="crackgrid"></div>
+  <div class="subhead"><h3>Partikel und Interaktion</h3></div>
+  <div id="fxgrid" class="grid small"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="gegen">
+  <div class="shead">
+    <h2>Vorher / Nachher</h2>
+    <p>Links der heutige Stand aus <code>Minecraft_files/js/textures.js</code>, rechts der Vorschlag. Gleiche Auflösung, gleiche Technik.</p>
+  </div>
+  <div id="vsgrid" class="vsgrid"></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Nichts am Spiel wurde verändert.</strong>
+      Diese Seite lädt <code>../Minecraft_files/js/textures.js</code> nur lesend, um den
+      Vergleich zu zeigen.</p>
+    <p class="dim">Regelwerk: <code>docs/ART-DIRECTION.md</code> · Umsetzungsplan: <code>docs/ART-REDESIGN-PLAN.md</code></p>
+  </div>
+</footer>
+
+</main>
+
+<!-- Bestand: nur zum Vergleich, wird nicht verändert -->
+<script src="../Minecraft_files/js/util.js"></script>
+<script src="../Minecraft_files/js/textures.js"></script>
+
+<!-- Vorschlag -->
+<script src="js/art.js"></script>
+<script src="js/board.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -9,8 +9,12 @@
   MC.Icons = Icons;
 
   var cache = {};
-  var SIZE = 64;
-  var S = SIZE / 36;          // Maßstab: Würfel belegt 32 Einheiten
+  // Maßstab GANZZAHLIG. Vorher: 64/36 = 1,777 - dabei wird ein Texel mal
+  // 2 px breit und mal 1 px, die Kanten fransen aus. Mit S = 2 ist ein
+  // Texel auf der Deckfläche exakt 2 px waagerecht und 1 px senkrecht,
+  // also das klassische 2:1-Raster der Pixel-Isometrie.
+  var S = 2;
+  var SIZE = 72;              // 36 Einheiten * 2
   var OX = SIZE / 2, OY = SIZE / 2;
 
   // Isometrische Projektion eines Punktes im Einheitswürfel (y = oben)
@@ -50,7 +54,8 @@
   function flatIcon(ctx, texName) {
     var tile = T.tileCanvas(texName, 1.0);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(tile, 0, 0, 16, 16, 2, 2, SIZE - 4, SIZE - 4);
+    // Ganzzahlig vergrößern: 16 -> 64 ist genau Faktor 4, Rand 4 px.
+    ctx.drawImage(tile, 0, 0, 16, 16, 4, 4, 64, 64);
   }
 
   function blockIcon(block, meta) {

@@ -51,11 +51,18 @@
     'uniform sampler2DArray uTex; uniform vec3 uFogColor; uniform vec4 uTint; uniform float uAlphaTest;',
     'out vec4 outColor;',
     'void main(){',
-    '  vec4 c = texture(uTex, vUVW);',
+    // Leichte LOD-Verschiebung: waehlt die schaerfere Mipmapstufe,
+    // solange sie noch vertretbar ist. Zusammen mit TEXTURE_MAX_LOD
+    // und voller Anisotropie ist das der Schaerfegewinn in der Ferne.
+    '  vec4 c = texture(uTex, vUVW, -0.5);',
     '  if (c.a < uAlphaTest) discard;',
     '  c.rgb *= vLight * vShade;',
     '  c *= uTint;',
-    '  c.rgb = mix(c.rgb, uFogColor, vFog);',
+    // Der Nebel wird linear ueberblendet - im Gammaraum kippt ein
+    // Farbverlauf ueber die Entfernung sonst ins Graue.
+    '  vec3 lin = pow(c.rgb, vec3(2.2));',
+    '  vec3 fogLin = pow(uFogColor, vec3(2.2));',
+    '  c.rgb = pow(mix(lin, fogLin, vFog), vec3(1.0/2.2));',
     '  outColor = c;',
     '}'
   ].join('\n');
@@ -122,8 +129,10 @@
   // ============================================================
   function Renderer(canvas) {
     this.canvas = canvas;
+    // Kantenglaettung an: ein Voxelspiel besteht aus harten Kanten, ohne
+    // Mehrfachabtastung kriechen sie bei jeder Bewegung.
     var gl = canvas.getContext('webgl2', {
-      antialias: false, alpha: false, depth: true, stencil: false,
+      antialias: true, alpha: false, depth: true, stencil: false,
       powerPreference: 'high-performance', preserveDrawingBuffer: false
     });
     if (!gl) throw new Error('WebGL2 wird von diesem Browser nicht unterstützt.');
@@ -193,8 +202,15 @@
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
     gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+    // Die Mipmapkette einer 16x16-Kachel laeuft ueber 8², 4², 2² bis 1².
+    // Ab Stufe 3 ist von der Textur nichts mehr uebrig als eine Mischfarbe.
+    // Kappen bei Stufe 2 haelt die Ferne scharf, ohne Flimmern zuzulassen.
+    gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LOD, 2.0);
     var ext = gl.getExtension('EXT_texture_filter_anisotropic');
-    if (ext) gl.texParameterf(gl.TEXTURE_2D_ARRAY, ext.TEXTURE_MAX_ANISOTROPY_EXT, 4);
+    if (ext) {
+      var maxAniso = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+      gl.texParameterf(gl.TEXTURE_2D_ARRAY, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(16, maxAniso));
+    }
     this.texArray = tex;
   };
 

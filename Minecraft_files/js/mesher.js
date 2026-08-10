@@ -14,13 +14,19 @@
   M.FLOATS_PER_VERTEX = 9;
 
   // Flächen: 0=+X 1=-X 2=+Y 3=-Y 4=+Z 5=-Z
+  //
+  // Die Werte sind bewusst ASYMMETRISCH: +X ist heller als -X, +Z heller
+  // als -Z. Damit bekommt die Welt eine feste Sonnenrichtung (hoch, leicht
+  // von vorne rechts) und Würfel werden zu Körpern. Vorher waren +X/-X
+  // beide 0,62 und +Z/-Z beide 0,80 - ein Block sah von jeder Seite gleich
+  // aus, Gebäude und Gelände wirkten dadurch flach.
   var FACES = [
-    { n: [1, 0, 0], v: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], shade: 0.62 },
-    { n: [-1, 0, 0], v: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], shade: 0.62 },
+    { n: [1, 0, 0], v: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], shade: 0.86 },
+    { n: [-1, 0, 0], v: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], shade: 0.58 },
     { n: [0, 1, 0], v: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], shade: 1.0 },
-    { n: [0, -1, 0], v: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], shade: 0.5 },
-    { n: [0, 0, 1], v: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], shade: 0.8 },
-    { n: [0, 0, -1], v: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], shade: 0.8 }
+    { n: [0, -1, 0], v: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], shade: 0.46 },
+    { n: [0, 0, 1], v: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], shade: 0.74 },
+    { n: [0, 0, -1], v: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], shade: 0.64 }
   ];
   var UVS = [[0, 1], [1, 1], [1, 0], [0, 0]];
   M.FACES = FACES;
@@ -45,7 +51,7 @@
     }
   })();
 
-  var AO_SHADE = [0.60, 0.74, 0.88, 1.0];
+  var AO_SHADE = [0.58, 0.74, 0.88, 1.0];
 
   // Wiederverwendete Zwischenspeicher (keine Allokation pro Fläche)
   var tvx = new Float32Array(4), tvy = new Float32Array(4), tvz = new Float32Array(4);

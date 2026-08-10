@@ -3,6 +3,9 @@
    ============================================================ */
 :root {
   --slot: 46px;
+  /* Symbol-Canvas ist 72 px. Anzeige nur in ganzzahligen Teilern
+     (36 = 72/2, 24 = 72/3), sonst werden die Pixel ungleich breit. */
+  --icon: 36px;
   --panel: #c6c6c6;
   --panel-dark: #8b8b8b;
   --panel-light: #ffffff;
@@ -26,7 +29,9 @@ canvas#gl {
   position: fixed; inset: 0;
   width: 100%; height: 100%;
   display: block;
-  image-rendering: pixelated;
+  /* Die Zeichenflaeche wird in Geraetepixeln gerendert. Greift die
+     Begrenzung auf dpr 2, waere 'pixelated' eine ungleiche Verdopplung. */
+  image-rendering: auto;
   cursor: crosshair;
 }
 
@@ -105,7 +110,7 @@ canvas#gl {
 .slot {
   width: var(--slot); height: var(--slot);
   background-color: rgba(139,139,139,.55);
-  background-size: 88% 88%; background-position: center; background-repeat: no-repeat;
+  background-size: var(--icon) var(--icon); background-position: center; background-repeat: no-repeat;
   border: 2px solid;
   border-color: #373737 #ffffff88 #ffffff88 #373737;
   position: relative;
@@ -232,7 +237,7 @@ canvas#gl {
 .cursor-item {
   position: fixed; width: var(--slot); height: var(--slot);
   transform: translate(-50%, -50%);
-  background-size: 88% 88%; background-position: center; background-repeat: no-repeat;
+  background-size: var(--icon) var(--icon); background-position: center; background-repeat: no-repeat;
   pointer-events: none; z-index: 99; image-rendering: pixelated;
 }
 .cursor-item .count {
@@ -272,7 +277,7 @@ canvas#gl {
 .rhead .rart { margin-left: auto; font-size: 10.5px; color: #666; letter-spacing: .06em; }
 .rrow { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
 .rgrid { display: grid; grid-template-columns: repeat(3, 26px); gap: 2px; }
-.slot.mini { width: 26px; height: 26px; border-width: 1px; background-size: 90% 90%; }
+.slot.mini { width: 26px; height: 26px; border-width: 1px; background-size: 24px 24px; }
 .rarrow { font-size: 18px; color: #555; }
 
 .achtree { display: flex; flex-direction: column; gap: 3px; max-height: 52vh; overflow-y: auto; }
@@ -467,5 +472,5 @@ canvas#gl {
 .err h2 { color: #f66; }
 
 /* Schmale Bildschirme */
-@media (max-width: 900px) { :root { --slot: 38px; } }
-@media (max-width: 700px) { :root { --slot: 32px; } }
+@media (max-width: 900px) { :root { --slot: 38px; --icon: 24px; } }
+@media (max-width: 700px) { :root { --slot: 32px; --icon: 24px; } }
