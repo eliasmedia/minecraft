@@ -253,6 +253,25 @@
     hardness: 1.5, sound: 'stone', drop: null, item: false
   });
 
+  // Braustand. Wie der Amboss aus gestapelten Quadern: Fuß, Stange, Ausleger.
+  B.SHAPE_STAND = 24;
+  B.STAND_LAYERS = [
+    [2, 0, 2, 14, 2, 14],
+    [7, 2, 7, 9, 14, 9],
+    [3, 5, 6, 13, 7, 10],
+    [6, 5, 3, 10, 7, 13]
+  ].map(function (b) { return b.map(function (v) { return v / 16; }); });
+  define('brewing_stand', {
+    title: 'Braustand', shape: B.SHAPE_STAND, opaque: false, light: 1,
+    tex: { top: 'brewing_stand_top', bottom: 'brewing_stand_base', side: 'brewing_stand_side' },
+    hardness: 0.5, tool: 'pickaxe', sound: 'stone', group: 'werkzeug'
+  });
+  // Nethergewächs wächst nur auf Seelensand, dafür ohne Licht
+  define('nether_wart', {
+    title: 'Nethergewächs', shape: B.SHAPE_CROP, solid: false, opaque: false, cutout: true, collide: false,
+    hardness: 0, sound: 'grass', drop: 'special_wart', item: false, group: 'natur'
+  });
+
   // Beobachter: merkt sich, was vor ihm liegt, und gibt einen kurzen Impuls
   // nach hinten ab, sobald sich das ändert. Damit lässt sich automatisieren,
   // ohne einen Fackeltaktgeber danebenzustellen.
@@ -684,6 +703,8 @@
         return [[0.0625, 0, 0.0625, 0.9375, 1, 0.9375]];
       case B.SHAPE_ANVIL:
         return [[0.125, 0, 0.0625, 0.875, 1, 0.9375]];
+      case B.SHAPE_STAND:
+        return [[0.125, 0, 0.125, 0.875, 0.875, 0.875]];
       case B.SHAPE_PLATE:
         return [[0, 0, 0, 1, 0.0625, 1]];
       case B.SHAPE_REPEATER:
@@ -720,6 +741,7 @@
       case B.SHAPE_BED: return [0, 0, 0, 1, 0.5625, 1];
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
+      case B.SHAPE_STAND: return [0.125, 0, 0.125, 0.875, 0.875, 0.875];
       case B.SHAPE_LIQUID: return null;
       case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_FENCE: return [0.375, 0, 0.375, 0.625, 1.5, 0.625];
@@ -759,6 +781,7 @@
     if (!g) return false;
     if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB || g.shape === B.SHAPE_FENCE;
     if (b.name === 'wheat') return groundId === B.id('farmland');
+    if (b.name === 'nether_wart') return groundId === B.id('soul_sand');
     if (b.name === 'sugar_cane') return groundId === B.id('sand') || groundId === B.id('dirt') || groundId === B.id('grass') || groundId === B.id('sugar_cane');
     if (b.name === 'cactus') return groundId === B.id('sand') || groundId === B.id('cactus');
     if (b.name === 'dead_bush') return groundId === B.id('sand') || groundId === B.id('dirt');

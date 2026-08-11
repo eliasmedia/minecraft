@@ -704,7 +704,7 @@
     villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
     // ---- Nether ----
     piglin: { hp: 20, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
-    ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, projectile: 'fireball', drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'ghast', fireproof: true },
+    ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, projectile: 'fireball', drops: [{ id: 'gunpowder', min: 0, max: 2 }, { id: 'ghast_tear', min: 0, max: 1 }], xp: 5, sound: 'ghast', fireproof: true },
     magma_cube: { hp: 12, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }, { id: 'slimeball', min: 0, max: 2 }], xp: 4, sound: 'thud', fireproof: true },
     // Lohe: einzige Quelle für Lohenruten, darum nur bei den Bastionen
     blaze: { hp: 20, hostile: true, speed: 1.5, damage: 5, ranged: true, flying: true, projectile: 'flame', drops: [{ id: 'blaze_rod', min: 1, max: 2 }], xp: 10, sound: 'fizz', fireproof: true },

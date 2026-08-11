@@ -169,6 +169,20 @@
   // Verzauberungsbuch: trägt seine Verzauberung, bis der Amboss sie weitergibt
   define('enchanted_book', { title: 'Verzaubertes Buch', stack: 1, tex: 'book', group: 'material' });
 
+  // ---------- Brauen ----------
+  define('glass_bottle', { title: 'Glasflasche', stack: 16, group: 'nahrung' });
+  define('water_bottle', { title: 'Wasserflasche', stack: 1, tex: 'potion_water', group: 'nahrung' });
+  define('nether_wart_item', { title: 'Nethergewächs', tex: 'nether_wart_item', group: 'natur', place: 'nether_wart' });
+  define('ghast_tear', { title: 'Ghastträne', group: 'material' });
+  // Für jeden Trank ein Item, dazu die gestreckte und die verstärkte Fassung
+  MC.Effekte.TRAENKE && Object.keys(MC.Effekte.TRAENKE).forEach(function (k) {
+    var t = MC.Effekte.TRAENKE[k];
+    define('potion_' + k, { title: t.titel, stack: 1, tex: 'potion_' + k, group: 'nahrung' });
+    if (!t.effekt) return;
+    if (t.dauer) define('potion_' + k + '_lang', { title: t.titel + ' (gestreckt)', stack: 1, tex: 'potion_' + k, group: 'nahrung' });
+    define('potion_' + k + '_stark', { title: t.titel + ' II', stack: 1, tex: 'potion_' + k, group: 'nahrung' });
+  });
+
   // ---------- Rüstung ----------
   I.ARMOR = {
     leather: { def: [1, 3, 2, 1], dur: [55, 80, 75, 65], mat: 'leather', title: 'Leder' },

@@ -229,6 +229,23 @@ canvas#gl {
 .progress { width: 90px; height: 14px; background: #555; position: relative; overflow: hidden; }
 .progress i { position: absolute; left: 0; top: 0; bottom: 0; background: #dedede; width: 0%; }
 
+#effects {
+  position: fixed; right: 8px; top: 8px;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-end;
+  pointer-events: none;
+}
+#effects .eff {
+  display: flex; align-items: center; gap: 5px;
+  background: #0009; padding: 3px 7px; font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+#effects .eff i { width: 8px; height: 8px; display: block; }
+
+.brewbox { display: flex; align-items: center; gap: 14px; justify-content: center; padding: 6px 0 10px; }
+.brewglass { display: flex; gap: 6px; align-items: flex-end; }
+.progress.tall { width: 14px; height: 44px; }
+.progress.tall i { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 0%; background: #b06cff; }
+
 /* ---- Amboss ---- */
 .anvilname {
   display: block; width: calc(100% - 16px); margin: 0 auto 4px; padding: 5px 6px;

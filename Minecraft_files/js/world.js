@@ -939,6 +939,7 @@
   // ---------- Zufalls-Ticks (Pflanzenwachstum, Gras) ----------
   World.prototype.randomTick = function (px, pz, count) {
     var grassId = B.id('grass'), dirtId = B.id('dirt'), farm = B.id('farmland'), wheat = B.id('wheat');
+    var wartId = B.id('nether_wart'), soulId = B.id('soul_sand');
     for (var n = 0; n < count; n++) {
       var cx = (px >> 4) + ((Math.random() * 7) | 0) - 3;
       var cz = (pz >> 4) + ((Math.random() * 7) | 0) - 3;
@@ -964,6 +965,12 @@
         } else if (id === wheat) {
           var m = c.meta[i];
           if (m < 7 && this.getSky(wx, y, wz) >= 9) this.setMetaOnly(wx, y, wz, m + 1);
+        } else if (id === wartId) {
+          // Nethergewächs braucht kein Licht, nur Seelensand darunter
+          var wm = c.meta[i];
+          if (wm < 3 && this.getBlock(wx, y - 1, wz) === soulId && Math.random() < 0.35) {
+            this.setMetaOnly(wx, y, wz, wm + 1);
+          }
         } else if (id === farm) {
           // trocknet ohne Wasser
           if (!this.waterNear(wx, y, wz, 4) && Math.random() < 0.2) this.setBlock(wx, y, wz, dirtId, 0);

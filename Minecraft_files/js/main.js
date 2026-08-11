@@ -446,6 +446,8 @@
     } else if (d === 'special_grass') {
       if (toolName === 'shears') drops.push({ id: 'tall_grass', n: 1 });
       else if (Math.random() < 0.16) drops.push({ id: 'seeds', n: 1 });
+    } else if (d === 'special_wart') {
+      drops.push({ id: 'nether_wart_item', n: meta >= 3 ? 2 + ((Math.random() * 3) | 0) : 1 });
     } else if (d === 'special_wheat') {
       if (meta >= 7) { drops.push({ id: 'wheat_item', n: 1 }); drops.push({ id: 'seeds', n: 1 + ((Math.random() * 3) | 0) }); }
       else drops.push({ id: 'seeds', n: 1 });
@@ -597,6 +599,7 @@
     var dmg = it ? it.damage : 1;
     if (!p.onGround && p.vy < 0) { dmg *= 1.5; this.particles.crit(e.x, e.y + e.height * 0.7, e.z); }
     if (st) dmg += MC.Ench.schadenBonus(st, e);
+    if (MC.Effekte) dmg += 3 * MC.Effekte.stufe(p, 'staerke');
     var vorher = e.health;
     e.hurt(dmg, p, this);
     // Rückstoß und Verbrennung greifen erst nach dem Treffer
@@ -721,6 +724,14 @@
                                       name: '', pos: { x: t.x, y: t.y, z: t.z } });
         return;
       }
+      if (b.name === 'brewing_stand') {
+        var bt = w.tileEntity(t.x, t.y, t.z, function () {
+          return { type: 'brew', zutat: null, fuel: null, glas: [null, null, null],
+                   fortschritt: 0, brennstoff: 0 };
+        });
+        this.ui.openScreen('brew', bt);
+        return;
+      }
       if (b.name === 'enchanting_table') {
         // Die Regale werden bei jedem Öffnen neu gezählt – wer nachrüstet,
         // sieht den Unterschied sofort. Die Saat hängt am Tisch, damit das
@@ -760,6 +771,24 @@
 
     if (!it) return;
 
+    // Trinken
+    if (MC.Effekte && MC.Effekte.zerlegen(it.name)) {
+      MC.Effekte.trinken(this, p.inventory.selectedStack());
+      this.particles.crit(p.x, p.eyeY() - 0.3, p.z);
+      return;
+    }
+    // Glasflasche an Wasser fuellen
+    if (it.name === 'glass_bottle') {
+      var tw = this.rayLiquid ? this.rayLiquid('water') : null;
+      var bw = this.target ? B.byId[w.getBlock(this.target.x, this.target.y, this.target.z)] : null;
+      if (bw && bw.name === 'water') {
+        p.inventory.consumeSelected(1);
+        var restW = p.inventory.add(I.newStack('water_bottle', 1));
+        if (restW > 0) this.throwStack(I.newStack('water_bottle', restW));
+        this.audio.play('splash');
+        return;
+      }
+    }
     // Essen
     if (it.food) { this.eating = true; p.eatTime = 1.4; return; }
     // Bogen
@@ -1699,6 +1728,7 @@
       this.particles.update(dt);
       this.world.update(dt, p.x, p.y, p.z);
       if ((this.tickCount % 4) === 0) this.tickFurnaces();
+      if (MC.Effekte) MC.Effekte.tickStand(this);
       // Druckplatten und gedrückte Knöpfe
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
       if (MC.Caves) MC.Caves.tick(this, dt);
@@ -1732,6 +1762,7 @@
     this.ui.updateHUD();
     this.ui.updateDebug();
     if (this.ui.open === 'furnace') this.refreshFurnaceUI();
+    if (this.ui.open === 'brew') { this.ui.refreshBrewUI(); this.ui.refreshSlots(); }
   };
 
   // Steht der Spieler im Portal? Nach kurzem Verweilen geht es hinüber.

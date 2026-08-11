@@ -704,6 +704,74 @@
   });
   tex('tnt_bottom', function (g) { g.qn(TNT, [46, 38, 16]); });
 
+  // ---- Brauen ----
+  function hex(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
+
+  // Eine Flasche, gefüllt mit der Farbe des Tranks. Alles aus einer Quelle,
+  // damit die neun Tränke nicht auseinanderlaufen.
+  function flasche(g, farbe) {
+    g.fill([0, 0, 0], 0);
+    var GLAS = [[196, 208, 214], [156, 170, 178], [116, 130, 140]];
+    // Bauch
+    for (var y = 7; y < 15; y++) {
+      for (var x = 3; x < 13; x++) {
+        var dx = x - 8, dy = y - 11;
+        if (dx * dx * 1.1 + dy * dy > 22) continue;
+        g.set(x, y, farbe ? (g.r() < 0.25 ? mul(farbe, 1.25) : farbe) : GLAS[1]);
+      }
+    }
+    // Glasrand und Hals
+    for (var y2 = 7; y2 < 15; y2++) {
+      for (var x2 = 3; x2 < 13; x2++) {
+        var ddx = x2 - 8, ddy = y2 - 11;
+        var d = ddx * ddx * 1.1 + ddy * ddy;
+        if (d > 22 || d < 15) continue;
+        g.set(x2, y2, GLAS[2]);
+      }
+    }
+    g.rect(6, 3, 4, 4, GLAS[1]);
+    g.rect(6, 3, 1, 4, GLAS[2]); g.rect(9, 3, 1, 4, GLAS[2]);
+    g.rect(5, 1, 6, 2, GLAS[0]);
+    g.set(5, 9, GLAS[0]); g.set(5, 10, GLAS[0]);
+  }
+  tex('glass_bottle', function (g) { flasche(g, null); });
+  tex('potion_water', function (g) { flasche(g, [56, 92, 180]); });
+  Object.keys(MC.Effekte.TRAENKE).forEach(function (k) {
+    tex('potion_' + k, function (g) { flasche(g, hex(MC.Effekte.TRAENKE[k].farbe)); });
+  });
+
+  tex('nether_wart_item', function (g) {
+    g.fill([0, 0, 0], 0);
+    var W = [[122, 24, 30], [156, 34, 40], [92, 18, 24]];
+    for (var i = 0; i < 46; i++) {
+      var x = 4 + ((g.r() * 8) | 0), y = 4 + ((g.r() * 9) | 0);
+      g.set(x, y, W[(g.r() * 3) | 0]);
+    }
+    g.rect(7, 12, 2, 3, [70, 44, 30]);
+  });
+  tex('ghast_tear', function (g) {
+    g.fill([0, 0, 0], 0);
+    var T2 = [[196, 226, 220], [230, 246, 244], [150, 186, 184]];
+    for (var y = 4; y < 14; y++) {
+      var br = Math.round((y - 3) * 0.55);
+      for (var x = 8 - br; x <= 8 + br; x++) g.set(x, y, T2[(g.r() * 3) | 0]);
+    }
+    g.set(7, 9, T2[1]); g.set(8, 3, T2[2]);
+  });
+
+  var STAND = [[112, 100, 88], [138, 124, 108], [92, 82, 72]];
+  tex('brewing_stand_base', function (g) { g.qn(STAND, [26, 40, 30]); });
+  tex('brewing_stand_side', function (g) {
+    g.qn(STAND, [26, 40, 30]);
+    g.rect(6, 0, 4, 16, [86, 86, 92]);
+    g.rect(0, 12, 16, 4, STAND[2]);
+  });
+  tex('brewing_stand_top', function (g) {
+    g.qn(STAND, [24, 42, 30]);
+    g.rect(6, 6, 4, 4, [214, 168, 74]);
+    g.frame(6, 6, 4, 4, [140, 106, 44]);
+  });
+
   tex('slimeball', function (g) {
     g.fill([0, 0, 0], 0);
     var S = [[104, 168, 92], [130, 196, 114], [86, 142, 78], [160, 214, 140]];

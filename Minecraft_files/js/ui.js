@@ -48,6 +48,7 @@
     this.hotbarEl = document.getElementById('hotbar');
     this.statsEl = document.getElementById('stats');
     this.itemNameEl = document.getElementById('itemname');
+    this.effectsEl = document.getElementById('effects');
 
     // Hotbar aufbauen
     this.hotbarSlots = [];
@@ -392,6 +393,27 @@
     }
   };
 
+  // Laufende Statuseffekte am rechten Rand, mit Restzeit
+  UI.prototype.updateEffects = function (p) {
+    if (!this.effectsEl || !MC.Effekte) return;
+    var liste = p.effekte || [];
+    var sig = liste.map(function (e) { return e.key + e.stufe + Math.ceil(e.rest); }).join('|');
+    if (sig === this._effSig) return;
+    this._effSig = sig;
+    this.effectsEl.innerHTML = '';
+    for (var i = 0; i < liste.length; i++) {
+      var e = liste[i], spec = MC.Effekte.LISTE[e.key];
+      if (!spec) continue;
+      var row = el('div', 'eff', this.effectsEl);
+      var punkt = el('i', '', row);
+      punkt.style.background = spec.farbe;
+      var m = Math.floor(e.rest / 60), sek = Math.floor(e.rest % 60);
+      row.appendChild(document.createTextNode(
+        spec.titel + (e.stufe > 1 ? ' ' + MC.Ench.roemisch(e.stufe) : '') +
+        '  ' + m + ':' + (sek < 10 ? '0' : '') + sek));
+    }
+  };
+
   UI.prototype.renderSlot = function (dom, stack) {
     if (!stack || stack.count <= 0) {
       dom.style.backgroundImage = '';
@@ -423,6 +445,7 @@
   UI.prototype.updateHUD = function () {
     if (!this.game.player) return;
     var p = this.game.player, g = this.game;
+    this.updateEffects(p);
     var creative = g.mode === 'creative';
     document.getElementById('survivalhud').style.display = creative ? 'none' : '';
 
@@ -535,6 +558,10 @@
       this.enchTable = null;
       this.enchRows = null;
     }
+    if (this.brew) {
+      // Der Braustand behaelt seinen Inhalt - er ist ein Geraet, kein Tisch
+      this.brew = null; this.brewProg = null; this.brewFuel = null;
+    }
     if (this.anvil) {
       if (this.anvil.a) { this.game.player.inventory.add(this.anvil.a); this.anvil.a = null; }
       if (this.anvil.b) { this.game.player.inventory.add(this.anvil.b); this.anvil.b = null; }
@@ -565,6 +592,7 @@
     else if (type === 'furnace') this.buildFurnace(data);
     else if (type === 'enchant') this.buildEnchant(data);
     else if (type === 'anvil') this.buildAnvil(data);
+    else if (type === 'brew') this.buildBrew(data);
     else if (type === 'chest') this.buildChest(data);
     else if (type === 'creative') this.buildCreative();
     else if (type === 'trade') this.buildTrade(data);
@@ -1184,6 +1212,53 @@
     this.refreshEnchant();
     this.refreshSlots();
     this.game.ui.updateHUD();
+  };
+
+  // ---------- Braustand ----------
+  UI.prototype.buildBrew = function (te) {
+    var self = this, inv = this.game.player.inventory;
+    this.slotList = [];
+    this.brew = te;
+    var win = el('div', 'window', this.screen);
+    var head = el('div', 'wtitle', win); head.textContent = 'Braustand';
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var box = el('div', 'brewbox', win);
+    var oben = el('div', 'fcol', box);
+    this.makeSlot(oben, function () { return te.zutat; }, function (v) { te.zutat = v; }, { area: 'ext' });
+    el('div', 'enchhint', oben).textContent = 'Zutat';
+    this.brewProg = el('div', 'progress tall', box);
+    el('i', '', this.brewProg);
+    var glaeser = el('div', 'brewglass', box);
+    for (var b = 0; b < 3; b++) {
+      (function (bi) {
+        self.makeSlot(glaeser, function () { return te.glas[bi]; }, function (v) { te.glas[bi] = v; }, { area: 'ext' });
+      })(b);
+    }
+    var brenn = el('div', 'fcol', box);
+    this.makeSlot(brenn, function () { return te.fuel; }, function (v) { te.fuel = v; }, { area: 'ext' });
+    this.brewFuel = el('div', 'enchhint', brenn);
+
+    el('div', 'wsep', win);
+    var main = el('div', 'invgrid', win);
+    for (var m = 9; m < 36; m++) {
+      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
+    }
+    var hb = el('div', 'invgrid hotbarrow', win);
+    for (var hh = 0; hh < 9; hh++) {
+      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
+    }
+    this.refreshBrewUI();
+    this.refreshSlots();
+  };
+
+  UI.prototype.refreshBrewUI = function () {
+    var te = this.brew;
+    if (!te || !this.brewProg) return;
+    var f = Math.min(1, te.fortschritt / MC.Effekte.BRAUZEIT);
+    this.brewProg.firstChild.style.height = Math.round(f * 100) + '%';
+    this.brewFuel.textContent = te.brennstoff > 0 ? te.brennstoff + '×' : 'Lohenstaub';
   };
 
   // ---------- Amboss ----------

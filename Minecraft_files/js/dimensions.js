@@ -91,6 +91,20 @@
       }
     }
 
+    // Nethergewächs auf den Seelensandnestern – ohne das gäbe es kein Brauen
+    for (var wz2 = 0; wz2 < CS; wz2++) {
+      for (var wx2 = 0; wx2 < CS; wx2++) {
+        for (var wy2 = 1; wy2 < WH - 1; wy2++) {
+          var si = wx2 | (wz2 << 4) | (wy2 << 8);
+          if (blocks[si] !== ID.soul) continue;
+          if (blocks[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] !== 0) continue;
+          if (U.hash3(cx * CS + wx2, 4711, cz * CS + wz2) > 0.09) continue;
+          blocks[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] = B.id('nether_wart');
+          meta[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] = 1 + ((U.hash3(cx * CS + wx2, 99, cz * CS + wz2) * 3) | 0);
+        }
+      }
+    }
+
     // Erzadern: Quarz häufig, Zanit deutlich seltener und tiefer
     var rnd = U.rng((gen.seed ^ 0x9e37 ^ (cx * 341873128) ^ (cz * 132897987)) >>> 0);
     var adern = [

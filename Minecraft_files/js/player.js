@@ -280,6 +280,7 @@
 
     // Detektorhelm: peilt in festem Takt die Umgebung an
     var helm = inv.armor[0];
+    if (MC.Effekte) MC.Effekte.tick(this, game, dt);
     this.detektor = !!(helm && helm.id === 'detector_helmet');
     if (this.detektor) tickDetektor(this, game, dt); else this.detektorPuls = 0;
 
@@ -295,6 +296,7 @@
     this.inWebe = !!(drin && drin.name === 'cobweb');
     if (this.inWebe && !this.flying) { speed *= 0.22; if (this.vy < 0) this.vy = Math.max(this.vy, -1.2); }
     if (this.gravLegs && !this.flying) speed *= 1.28;   // Hose: leichtfüßig
+    if (MC.Effekte) speed *= 1 + 0.2 * MC.Effekte.stufe(this, 'schnelligkeit');
 
     var len = Math.sqrt(fwd * fwd + side * side);
     var wx = 0, wz = 0;
@@ -345,6 +347,8 @@
         else if (this.onGround || this.coyote > 0) {
           // Brustpanzer aus Gravitit hebt einen deutlich höher
           this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
+          // Sprungkraft legt je Stufe gut einen halben Block drauf
+          if (MC.Effekte) this.vy += 1.6 * MC.Effekte.stufe(this, 'sprungkraft');
           this.coyote = 0; this.jumpBuffer = 0;
           this.exhaust(this.sprinting ? 0.2 : 0.05);
           if (this.gravChest) game.particles.crit(this.x, this.y + 0.2, this.z);
@@ -472,7 +476,8 @@
 
     if (inLava && !creative && hitzeSchutz < 1) {
       this.lavaTimer = (this.lavaTimer || 0) + dt;
-      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4 * (1 - hitzeSchutz), null, game, 'feuer'); }
+      if (this.lavaTimer > 0.5) { this.lavaTimer = 0;
+        if (!MC.Effekte || !MC.Effekte.stufe(this, 'feuerresistenz')) this.hurt(4 * (1 - hitzeSchutz), null, game, 'feuer'); }
     }
 
     // Blöcke, die beim Berühren wehtun: Kaktus sticht, Feuer und Magma brennen.
@@ -505,7 +510,8 @@
     } else this.cactusTimer = 0;
     if (!creative && brand > 0 && hitzeSchutz < 1) {
       this.burnTimer = (this.burnTimer || 0) + dt;
-      if (this.burnTimer > 0.6) { this.burnTimer = 0; this.hurt(brand * (1 - hitzeSchutz), null, game, 'feuer'); }
+      if (this.burnTimer > 0.6) { this.burnTimer = 0;
+        if (!MC.Effekte || !MC.Effekte.stufe(this, 'feuerresistenz')) this.hurt(brand * (1 - hitzeSchutz), null, game, 'feuer'); }
     } else this.burnTimer = 0;
 
     // ---- Hunger & Regeneration ----
@@ -652,7 +658,10 @@
     if (this.food >= 20 && it.name !== 'golden_apple') return false;
     this.food = Math.min(20, this.food + it.food.hunger);
     this.saturation = Math.min(this.food, this.saturation + it.food.sat);
-    if (it.name === 'golden_apple') this.heal(4);
+    if (it.name === 'golden_apple') {
+      this.heal(2);
+      if (MC.Effekte) MC.Effekte.gib(this, 'regeneration', 2, 5);
+    }
     if (it.name === 'chicken_raw' && Math.random() < 0.3) this.food = Math.max(0, this.food - 2);
     this.inventory.consumeSelected(1);
     game.audio.play('eat');
@@ -664,7 +673,7 @@
     return {
       x: this.x, y: this.y, z: this.z, yaw: this.yaw, pitch: this.pitch,
       health: this.health, food: this.food, saturation: this.saturation,
-      xp: this.xp, level: this.level, air: this.air,
+      xp: this.xp, level: this.level, air: this.air, effekte: this.effekte,
       spawnPoint: this.spawnPoint, inventory: this.inventory.serialize()
     };
   };
@@ -678,6 +687,7 @@
     this.saturation = d.saturation || 0;
     this.xp = d.xp || 0; this.level = d.level || 0;
     this.air = d.air === undefined ? 10 : d.air;
+    this.effekte = d.effekte || [];
     if (d.spawnPoint) this.spawnPoint = d.spawnPoint;
     this.inventory.load(d.inventory);
   };

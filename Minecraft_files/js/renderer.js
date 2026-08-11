@@ -350,6 +350,14 @@
   // Grundhelligkeit einer Dimension. Der Nether hat kein Himmelslicht – ohne
   // diesen Sockel wäre dort alles pechschwarz.
   Renderer.prototype.ambient = function (world) {
+    // Nachtsicht hebt den Sockel an, statt eine eigene Beleuchtung zu bauen
+    var nacht = (MC.Effekte && MC.game && MC.game.player)
+      ? MC.Effekte.stufe(MC.game.player, 'nachtsicht') : 0;
+    if (nacht) return Math.max(0.72, this.ambientRoh(world));
+    return this.ambientRoh(world);
+  };
+
+  Renderer.prototype.ambientRoh = function (world) {
     if (world.dim === 'nether') return 0.44;
     if (world.dim === 'aether') return 0.34;   // Inselunterseiten bleiben sonst schwarz
     if (world.dim === 'the_end') return 0.30;  // düster, aber man sieht, worauf man tritt

@@ -197,6 +197,11 @@
   shapeless(['blaze_powder', 'ender_pearl'], 'ender_eye', 1);
   shaped(['EE', 'EE'], { E: 'end_stone' }, 'end_stone_bricks', 4);
 
+  // ---------------- Brauen ----------------
+  shaped(['G G', ' G '], { G: 'glass' }, 'glass_bottle', 3);
+  // Braustand: Lohenrute auf drei Bruchsteinen, wie im Original
+  shaped([' R ', 'CCC'], { R: 'blaze_rod', C: 'cobblestone' }, 'brewing_stand', 1);
+
   // ---------------- Redstone ----------------
   shaped(['R', 'S'], { R: 'redstone', S: 'stick' }, 'redstone_torch', 1);
   shaped(['S', 'C'], { S: 'stick', C: 'cobblestone' }, 'lever', 1);
@@ -234,6 +239,7 @@
   smelt('ambrosium_ore', 'ambrosium_shard');
   smelt('log_skyroot', 'charcoal');
   smelt('log_golden_oak', 'charcoal');
+  fuel('blaze_powder', 2400);
 
   // ---------------- Brennstoffe ----------------
   fuel('coal', 1600); fuel('charcoal', 1600); fuel('coal_block', 16000);
