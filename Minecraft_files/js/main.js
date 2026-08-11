@@ -404,20 +404,36 @@
   // ---------- Drops ----------
   Game.prototype.spawnItem = function (x, y, z, stack) {
     if (!stack || stack.count <= 0) return;
-    var e = new MC.ItemEntity(this.world, x, y, z, { id: stack.id, count: stack.count, dur: stack.dur });
+    var e = new MC.ItemEntity(this.world, x, y, z, { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench });
     e.vx = (Math.random() - 0.5) * 2.2;
     e.vy = 2 + Math.random();
     e.vz = (Math.random() - 0.5) * 2.2;
     this.world.entities.push(e);
   };
 
-  Game.prototype.dropBlock = function (x, y, z, id, meta, toolName) {
+  Game.prototype.dropBlock = function (x, y, z, id, meta, toolName, stack) {
     var b = B.byId[id];
     if (!b || !b.drop) return;
     if (this.mode === 'creative') return;
     if (!I.canHarvest(toolName, b)) return;
     var drops = [];
     var d = b.drop;
+
+    // Behutsamkeit: der Block selbst statt seiner Beute – aber nur, wenn es
+    // ihn überhaupt als Item gibt (Ackerboden und Feuer haben keins).
+    var behutsam = stack && MC.Ench.stufe(stack, 'silk_touch') > 0;
+    if (behutsam && b.item !== false && I.get(b.name) && b.name !== d) {
+      this.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: b.name, count: 1 });
+      return;
+    }
+    // Glück: mehr Beute aus allem, was nicht sich selbst fallen lässt.
+    // Original: gleichverteilt 1 bis Stufe+1 Mal, kleinere Werte fallen weg.
+    var glueck = stack ? MC.Ench.stufe(stack, 'fortune') : 0;
+    var mehr = 1;
+    if (glueck && b.name !== d && d !== 'special_grass' && d.indexOf('special_leaves') !== 0) {
+      var w = 1 + ((Math.random() * (glueck + 1)) | 0);
+      mehr = Math.max(1, w);
+    }
 
     if (d === 'special_leaves_oak' || d === 'special_leaves_birch' || d === 'special_leaves_spruce') {
       var kind = d.replace('special_leaves_', '');
@@ -443,11 +459,13 @@
 
     for (var i = 0; i < drops.length; i++) {
       if (!I.get(drops[i].id)) continue;
-      this.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: drops[i].id, count: drops[i].n });
+      this.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: drops[i].id, count: drops[i].n * mehr });
     }
 
-    // XP aus Erzen
-    var xpOres = { coal_ore: 1, diamond_ore: 5, emerald_ore: 6, lapis_ore: 3, redstone_ore: 3 };
+    // XP aus Erzen. Ohne die wäre Stufe 30 am Zaubertisch eine Zumutung,
+    // darum zählt hier auch der Netherquarz mit.
+    var xpOres = { coal_ore: 1, diamond_ore: 5, emerald_ore: 6, lapis_ore: 3, redstone_ore: 3, quartz_ore: 3 };
+    if (behutsam) xpOres = {};
     if (xpOres[b.name]) {
       this.world.entities.push(new MC.XPOrb(this.world, x + 0.5, y + 0.5, z + 0.5, xpOres[b.name]));
     }
@@ -578,7 +596,23 @@
     }
     var dmg = it ? it.damage : 1;
     if (!p.onGround && p.vy < 0) { dmg *= 1.5; this.particles.crit(e.x, e.y + e.height * 0.7, e.z); }
+    if (st) dmg += MC.Ench.schadenBonus(st, e);
+    var vorher = e.health;
     e.hurt(dmg, p, this);
+    // Rückstoß und Verbrennung greifen erst nach dem Treffer
+    if (st) {
+      var kb = MC.Ench.stufe(st, 'knockback');
+      if (kb && !e.dead) {
+        var kdx = e.x - p.x, kdz = e.z - p.z;
+        var kd = Math.sqrt(kdx * kdx + kdz * kdz) || 1;
+        e.vx += kdx / kd * 5 * kb; e.vz += kdz / kd * 5 * kb;
+        e.vy = Math.max(e.vy, 3);
+      }
+      var fa = MC.Ench.stufe(st, 'fire_aspect');
+      if (fa && vorher !== undefined) e.brennt = Math.max(e.brennt || 0, fa * 4);
+      var pl = MC.Ench.stufe(st, 'looting');
+      if (pl) e.looting = pl;
+    }
     p.exhaust(0.1);
     if (it && it.tool && it.tool.type === 'sword') p.inventory.damageSelected(1, this);
   };
@@ -609,7 +643,7 @@
 
     this.particles.blockBreak(x, y, z, id, meta);
     this.audio.breakBlock(b.sound);
-    this.dropBlock(x, y, z, id, meta, toolName);
+    this.dropBlock(x, y, z, id, meta, toolName, st);
 
     // Truheninhalt ausschütten – bei einer nie geöffneten Dorftruhe wird der
     // Inhalt jetzt erst ausgewürfelt, sonst ginge die Beute verloren
@@ -678,6 +712,18 @@
       }
       if (b.name === 'chest') {
         this.ui.openScreen('chest', this.chestTile(t.x, t.y, t.z));
+        return;
+      }
+      if (b.name === 'enchanting_table') {
+        // Die Regale werden bei jedem Öffnen neu gezählt – wer nachrüstet,
+        // sieht den Unterschied sofort. Die Saat hängt am Tisch, damit das
+        // Angebot beim Zumachen und Wiederöffnen dasselbe bleibt.
+        var et = w.tileEntity(t.x, t.y, t.z, function () {
+          return { type: 'enchant', item: null, lapis: null, regale: 0, saat: 1 };
+        });
+        if (!et.saat || et.saat === 1) et.saat = (U.hashString('zauber:' + t.x + ':' + t.y + ':' + t.z + ':' + this.seed)) >>> 0;
+        et.regale = MC.Ench.regale(w, t.x, t.y, t.z);
+        this.ui.openScreen('enchant', et);
         return;
       }
       if (b.shape === B.SHAPE_BED) { this.trySleep(t); return; }
@@ -1029,19 +1075,36 @@
 
   Game.prototype.shootBow = function () {
     var p = this.player;
+    var bogen = p.inventory.selectedStack();
+    var unendlich = bogen && MC.Ench.stufe(bogen, 'infinity') > 0;
     if (this.mode !== 'creative') {
       var found = false;
       for (var i = 0; i < p.inventory.size; i++) {
         var s = p.inventory.slots[i];
-        if (s && s.id === 'arrow') { s.count--; if (s.count <= 0) p.inventory.slots[i] = null; found = true; break; }
+        if (s && s.id === 'arrow') {
+          // Unendlichkeit braucht einen Pfeil im Köcher, verbraucht ihn aber nicht
+          if (!unendlich) { s.count--; if (s.count <= 0) p.inventory.slots[i] = null; }
+          found = true; break;
+        }
       }
       if (!found) return;
       p.inventory.damageSelected(1, this);
     }
     var d = p.lookDir();
-    var power = Math.min(1, this.bowCharge) * 34 + 12;
+    var zug = Math.min(1, this.bowCharge);
+    var power = zug * 34 + 12;
+    var schaden = 4 + zug * 5;
+    if (bogen) {
+      // Stärke: +25 % je Stufe, wie im Original
+      var st = MC.Ench.stufe(bogen, 'power');
+      if (st) schaden *= 1 + 0.25 * st + 0.25;
+    }
     var a = new MC.Arrow(this.world, p.x + d.x * 0.5, p.eyeY() - 0.1, p.z + d.z * 0.5,
-      d.x * power, d.y * power + 1.2, d.z * power, p, Math.round(4 + Math.min(1, this.bowCharge) * 5));
+      d.x * power, d.y * power + 1.2, d.z * power, p, Math.round(schaden));
+    if (bogen) {
+      a.punch = MC.Ench.stufe(bogen, 'punch');
+      a.flamme = MC.Ench.stufe(bogen, 'flame');
+    }
     this.world.entities.push(a);
     this.audio.play('bow');
     p.swingTime = 1;
@@ -1181,7 +1244,7 @@
     var s = p.inventory.selectedStack();
     if (!s) return;
     var n = all ? s.count : 1;
-    this.throwStack({ id: s.id, count: n, dur: s.dur });
+    this.throwStack({ id: s.id, count: n, dur: s.dur, ench: s.ench });
     s.count -= n;
     if (s.count <= 0) p.inventory.slots[p.inventory.selected] = null;
     this.ui.updateHotbar();
@@ -1688,7 +1751,10 @@
     p.swingTime = Math.max(p.swingTime, 0.35);
     var b = B.byId[t.id];
     var st = p.inventory.selectedStack();
-    var time = I.breakTime(st ? st.id : null, b);
+    var time = I.breakTime(st ? st.id : null, b, st);
+    // Unter Wasser gräbt man wie im Original fünfmal so langsam – dagegen hilft
+    // ein Helm mit Wasseraffinität.
+    if (p.headInWater && !MC.Ench.stufe(p.inventory.armor[0], 'aqua_affinity')) time *= 5;
     if (time === Infinity) return;
     this.mining.progress += dt / Math.max(0.001, time);
     this.miningSoundTimer = (this.miningSoundTimer || 0) + dt;

@@ -196,6 +196,11 @@
     title: 'TNT', tex: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
     hardness: 0, sound: 'grass', group: 'werkzeug'
   });
+  define('enchanting_table', {
+    title: 'Zaubertisch',
+    tex: { top: 'enchanting_table_top', bottom: 'obsidian', side: 'enchanting_table_side' },
+    hardness: 5, tool: 'pickaxe', level: 1, light: 7, group: 'werkzeug'
+  });
 
   // ---------- Pflanzen ----------
   define('cactus', {

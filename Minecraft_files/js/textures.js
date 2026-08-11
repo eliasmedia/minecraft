@@ -704,6 +704,32 @@
   });
   tex('tnt_bottom', function (g) { g.qn(TNT, [46, 38, 16]); });
 
+  // Zaubertisch: Obsidianblock, oben mit einer roten Buchdecke, an den Seiten
+  // ein schmaler Streifen aus demselben Rot – so ist er von weitem zu erkennen.
+  var BUCH = [[74, 16, 20], [110, 26, 30], [146, 40, 44], [178, 62, 62]];
+  tex('enchanting_table_side', function (g) {
+    g.copyFrom(data('obsidian'));
+    for (var x = 0; x < 16; x++) {
+      for (var y = 2; y < 5; y++) g.set(x, y, BUCH[1 + ((g.r() * 3) | 0)]);
+      g.set(x, 1, mul(BUCH[0], 0.7));
+      g.set(x, 5, mul(BUCH[0], 0.7));
+    }
+    for (var i = 0; i < 8; i++) g.set((g.r() * 16) | 0, 2 + ((g.r() * 3) | 0), [214, 190, 120]);
+  });
+  tex('enchanting_table_top', function (g) {
+    g.copyFrom(data('obsidian'));
+    // aufgeschlagenes Buch: zwei helle Seiten mit dunklem Bund
+    g.rect(2, 4, 12, 8, BUCH[2]);
+    g.frame(2, 4, 12, 8, BUCH[0]);
+    g.rect(3, 5, 5, 6, [226, 214, 178]);
+    g.rect(9, 5, 5, 6, [226, 214, 178]);
+    g.rect(8, 4, 1, 8, BUCH[0]);
+    for (var i = 0; i < 14; i++) {
+      var sx = g.r() < 0.5 ? 4 : 10;
+      g.set(sx + ((g.r() * 3) | 0), 6 + ((g.r() * 4) | 0), [150, 140, 118]);
+    }
+  });
+
   tex('bookshelf', function (g) {
     g.copyFrom(data('planks_oak'));
     var bookCols = [[154, 56, 50], [64, 96, 160], [186, 160, 74], [74, 136, 74], [144, 84, 156], [176, 116, 56]];

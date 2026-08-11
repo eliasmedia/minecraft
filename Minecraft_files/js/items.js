@@ -164,6 +164,8 @@
   // In der Hand blendet der Kompass oben ein Band mit Himmelsrichtung und
   // Koordinaten ein – die Nadel selbst steckt in der Oberfläche, nicht im Item.
   define('compass', { title: 'Kompass', stack: 1, group: 'werkzeug' });
+  // Verzauberungsbuch: trägt seine Verzauberung, bis der Amboss sie weitergibt
+  define('enchanted_book', { title: 'Verzaubertes Buch', stack: 1, tex: 'book', group: 'material' });
 
   // ---------- Rüstung ----------
   I.ARMOR = {
@@ -219,12 +221,13 @@
     return it.tool.level >= block.level;
   };
 
-  // Zeit in Sekunden zum Abbauen
-  I.breakTime = function (itemName, block) {
+  // Zeit in Sekunden zum Abbauen. `stack` nur, wenn Verzauberungen zählen sollen.
+  I.breakTime = function (itemName, block, stack) {
     if (block.hardness < 0) return Infinity;
     if (block.hardness === 0) return 0;
     var can = I.canHarvest(itemName, block);
     var speed = I.breakSpeed(itemName, block);
+    if (stack && MC.Ench) speed += MC.Ench.grabBonus(stack, block);
     return (block.hardness * (can ? 1.5 : 5)) / speed;
   };
 
@@ -248,6 +251,7 @@
     if (!a || !b) return false;
     if (a.id !== b.id) return false;
     if (a.dur !== undefined || b.dur !== undefined) return false; // Werkzeuge nie stapeln
+    if (a.ench || b.ench) return false;   // zwei Zauberbücher sind nicht dasselbe
     return true;
   };
 

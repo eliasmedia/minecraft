@@ -13,6 +13,12 @@
     return e;
   }
 
+  // Alle Namen kommen aus unseren eigenen Tabellen, aber innerHTML mit
+  // ungeprüftem Text ist trotzdem eine schlechte Angewohnheit.
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function UI(game) {
     this.game = game;
     this.open = null;          // null | 'inventory' | 'crafting' | 'furnace' | 'chest' | 'creative'
@@ -374,7 +380,9 @@
     var st = inv.selectedStack();
     if (st) {
       var it = I.get(st.id);
-      this.itemNameEl.textContent = it ? it.title : st.id;
+      var zauber = MC.Ench ? MC.Ench.beschreiben(st) : [];
+      this.itemNameEl.innerHTML = escapeHtml(it ? it.title : st.id) +
+        (zauber.length ? '<span class="ench">' + escapeHtml(zauber.join(' · ')) + '</span>' : '');
       this.itemNameEl.classList.add('show');
       clearTimeout(this._nameTimer);
       var self = this;
@@ -404,8 +412,11 @@
       var col = frac > 0.5 ? '#3c3' : (frac > 0.25 ? '#dd3' : '#d33');
       html += '<span class="durbar"><i style="width:' + Math.round(frac * 100) + '%;background:' + col + '"></i></span>';
     }
+    // Verzaubertes schimmert violett und nennt seine Verzauberungen im Tooltip
+    var zauber = MC.Ench ? MC.Ench.beschreiben(stack) : [];
+    if (zauber.length) html += '<span class="glint"></span>';
     dom.innerHTML = html;
-    dom.title = it ? it.title : stack.id;
+    dom.title = (it ? it.title : stack.id) + (zauber.length ? '\n' + zauber.join('\n') : '');
   };
 
   UI.prototype.updateHUD = function () {
@@ -516,6 +527,13 @@
     for (var i = 0; i < this.craftGrid.length; i++) {
       if (this.craftGrid[i]) { this.game.player.inventory.add(this.craftGrid[i]); this.craftGrid[i] = null; }
     }
+    // Was im Zaubertisch liegt, bleibt nicht dort liegen
+    if (this.enchTable) {
+      if (this.enchTable.item) { this.game.player.inventory.add(this.enchTable.item); this.enchTable.item = null; }
+      if (this.enchTable.lapis) { this.game.player.inventory.add(this.enchTable.lapis); this.enchTable.lapis = null; }
+      this.enchTable = null;
+      this.enchRows = null;
+    }
     this.open = null;
     this.trader = null;
     this.tradeRows = null;
@@ -537,6 +555,7 @@
     if (type === 'inventory') this.buildInventory(2);
     else if (type === 'crafting') this.buildInventory(3);
     else if (type === 'furnace') this.buildFurnace(data);
+    else if (type === 'enchant') this.buildEnchant(data);
     else if (type === 'chest') this.buildChest(data);
     else if (type === 'creative') this.buildCreative();
     else if (type === 'trade') this.buildTrade(data);
@@ -901,7 +920,7 @@
     }
     for (i = from; i < to; i++) {
       if (!inv.slots[i]) {
-        inv.slots[i] = { id: stack.id, count: stack.count, dur: stack.dur };
+        inv.slots[i] = { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench };
         stack.count = 0;
         return true;
       }
@@ -1041,6 +1060,119 @@
     this.refreshSlots();
   };
 
+  // ---------- Zaubertisch ----------
+  // Ein Fantasiealphabet für die Angebotszeilen: im Original steht dort die
+  // "galaktische" Schrift, die niemand lesen kann und lesen soll. Der Text ist
+  // aus dem Angebot abgeleitet, damit er beim Neuzeichnen stehen bleibt.
+  var RUNEN = 'ᔑ ʖ ᓵ ↸ ᒷ ⎓ ⊣ ⍑ ╎ ⋮ ꖌ ꖎ ᒲ リ ○ ᑑ ᑫ ∷ ᓭ ℸ ⚍ ⍊ ∴ ̇/ ||'.split(' ');
+  function runen(seed, n) {
+    var r = MC.U.rng(MC.U.hashString('rune:' + seed));
+    var out = [], w = 2 + ((r() * 3) | 0);
+    for (var i = 0; i < n; i++) {
+      if (w === 0) { out.push(' '); w = 2 + ((r() * 3) | 0); continue; }
+      out.push(RUNEN[(r() * RUNEN.length) | 0]); w--;
+    }
+    return out.join('');
+  }
+
+  UI.prototype.buildEnchant = function (te) {
+    var self = this, g = this.game, inv = g.player.inventory;
+    this.slotList = [];
+    this.enchTable = te;
+    var win = el('div', 'window enchwin', this.screen);
+    var head = el('div', 'wtitle', win); head.textContent = 'Zaubertisch';
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var top = el('div', 'enchbox', win);
+    var links = el('div', 'fcol', top);
+    this.makeSlot(links, function () { return te.item; },
+      function (v) { te.item = v; self.refreshEnchant(); }, { area: 'ext' });
+    this.makeSlot(links, function () { return te.lapis; },
+      function (v) { te.lapis = v; self.refreshEnchant(); }, { area: 'ext' });
+    var hinweis = el('div', 'enchhint', links);
+    hinweis.textContent = 'Lapis';
+
+    this.enchRows = el('div', 'enchrows', top);
+
+    el('div', 'wsep', win);
+    var main = el('div', 'invgrid', win);
+    for (var m = 9; m < 36; m++) {
+      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
+    }
+    var hb = el('div', 'invgrid hotbarrow', win);
+    for (var hh = 0; hh < 9; hh++) {
+      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
+    }
+    this.refreshEnchant();
+    this.refreshSlots();
+  };
+
+  UI.prototype.refreshEnchant = function () {
+    var self = this, g = this.game, te = this.enchTable, E = MC.Ench;
+    if (!te || !this.enchRows) return;
+    this.enchRows.innerHTML = '';
+    var kreativ = g.mode === 'creative';
+    var kopf = el('div', 'enchshelves', this.enchRows);
+    kopf.textContent = te.regale + ' Bücherregal' + (te.regale === 1 ? '' : 'e');
+
+    if (!te.item || !E.verzauberbar(te.item)) {
+      var leer = el('div', 'enchempty', this.enchRows);
+      leer.textContent = te.item ? 'Darauf wirkt keine Verzauberung.'
+                                 : 'Werkzeug, Rüstung, Bogen oder Buch einlegen.';
+      return;
+    }
+
+    var angebote = E.angebote(te.item, te.regale, MC.U.rng(te.saat));
+    angebote.forEach(function (a, i) {
+      var leerAngebot = !Object.keys(a.ench).length;
+      var lapisDa = kreativ || (te.lapis && te.lapis.id === 'lapis' && te.lapis.count >= a.lapis);
+      var stufeDa = kreativ || g.player.level >= a.stufe;
+      var ok = lapisDa && stufeDa && !leerAngebot;
+      var row = el('div', 'enchrow' + (ok ? '' : ' aus'), self.enchRows);
+      el('div', 'enchnum', row).textContent = a.lapis;
+      var txt = el('div', 'enchtext', row);
+      el('div', 'enchrunes', txt).textContent = runen(te.saat + ':' + i, 16);
+      // Wie im Original wird eine der Verzauberungen schon vorab verraten
+      var keys = Object.keys(a.ench);
+      var tipp = keys.length ? E.get(keys[0]).titel +
+            (E.get(keys[0]).max > 1 ? ' ' + E.roemisch(a.ench[keys[0]]) : '') +
+            (keys.length > 1 ? ' …' : '') : 'nichts Passendes';
+      el('div', 'enchtip', txt).textContent = tipp;
+      var kosten = el('div', 'enchcost', row);
+      kosten.textContent = a.stufe;
+      kosten.title = 'Stufe ' + a.stufe + ' nötig · kostet ' + a.lapis + ' Stufen und ' + a.lapis + ' Lapis';
+      if (!ok) return;
+      row.addEventListener('mousedown', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        self.verzaubern(a);
+      });
+    });
+  };
+
+  UI.prototype.verzaubern = function (angebot) {
+    var g = this.game, te = this.enchTable, E = MC.Ench;
+    if (!te.item) return;
+    if (g.mode !== 'creative') {
+      if (g.player.level < angebot.stufe) return;
+      if (!te.lapis || te.lapis.id !== 'lapis' || te.lapis.count < angebot.lapis) return;
+      // Bezahlt werden nur so viele Stufen wie Lapis – die angezeigte Stufe ist
+      // bloß die Voraussetzung. Genau wie im Original.
+      g.player.level -= angebot.lapis;
+      g.player.xp = 0;
+      te.lapis.count -= angebot.lapis;
+      if (te.lapis.count <= 0) te.lapis = null;
+    }
+    E.anwenden(te.item, angebot.ench);
+    te.saat = (te.saat * 1103515245 + 12345) >>> 0;   // neues Angebot
+    g.audio.play('level');
+    g.particles.crit(g.player.x, g.player.y + 1, g.player.z);
+    if (MC.Achievements) MC.Achievements.onItem(g, 'enchanted');
+    this.refreshEnchant();
+    this.refreshSlots();
+    this.game.ui.updateHUD();
+  };
+
   // ---------- Truhe ----------
   UI.prototype.buildChest = function (te) {
     var self = this, inv = this.game.player.inventory;
@@ -1086,7 +1218,7 @@
       }
     }
     for (i = 0; i < 27; i++) {
-      if (!te.items[i]) { te.items[i] = { id: stack.id, count: stack.count, dur: stack.dur }; stack.count = 0; return true; }
+      if (!te.items[i]) { te.items[i] = { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench }; stack.count = 0; return true; }
     }
     return stack.count === 0;
   };

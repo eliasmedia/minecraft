@@ -227,7 +227,10 @@
       this.x += dx * pull; this.y += dy * pull; this.z += dz * pull;
     }
     if (d2 < 0.8 * 0.8) {
-      p.addXP(this.amount);
+      // Reparatur: die Kugel flickt getragenes Gerät, bevor sie zu Stufen wird.
+      var rest = this.amount;
+      if (MC.Ench) rest = MC.Ench.reparieren(p.inventory, rest);
+      if (rest > 0) p.addXP(rest);
       this.dead = true;
       game.audio.play('xp');
     }
@@ -268,6 +271,14 @@
       if (Math.abs(e.x - nx) < e.width / 2 + 0.25 && Math.abs(e.z - nz) < e.width / 2 + 0.25 &&
           ny > e.y - 0.2 && ny < e.y + e.height + 0.2) {
         e.hurt(this.damage, this.shooter, game);
+        // Schlag stößt zurück, Flamme zündet an
+        if (this.punch && !e.dead) {
+          var kd = Math.sqrt(this.vx * this.vx + this.vz * this.vz) || 1;
+          e.vx += this.vx / kd * 6 * this.punch;
+          e.vz += this.vz / kd * 6 * this.punch;
+          e.vy = Math.max(e.vy, 3);
+        }
+        if (this.flamme) e.brennt = Math.max(e.brennt || 0, 5);
         this.dead = true;
         game.audio.play('hit');
         return;
@@ -276,7 +287,7 @@
     if (this.shooter !== game.player && game.player && !game.player.dead) {
       var p = game.player;
       if (Math.abs(p.x - nx) < 0.55 && Math.abs(p.z - nz) < 0.55 && ny > p.y - 0.2 && ny < p.y + p.height + 0.2) {
-        p.hurt(this.damage, this, game);
+        p.hurt(this.damage, this, game, 'geschoss');
         this.dead = true;
         return;
       }
@@ -786,6 +797,15 @@
       game.particles.smoke(this.x, this.y + this.height * 0.7, this.z, 1);
     }
 
+    // Von einer Verbrennungsklinge angezündet – eigener Zähler, damit er sich
+    // nicht mit dem Sonnenbrand der Untoten ins Gehege kommt
+    if (this.brennt > 0 && !this.spec.fireproof) {
+      this.brennt -= dt;
+      this.feuerCd = (this.feuerCd || 0) + dt;
+      if (this.feuerCd > 1) { this.feuerCd = 0; this.hurt(1, null, game); }
+      game.particles.smoke(this.x, this.y + this.height * 0.6, this.z, 1);
+    }
+
     // Lava / Kaktus-Schaden – Netherbewohner stört das nicht
     if (!this.spec.fireproof && P.inLiquid(world, this, 'lava')) {
       if ((game.tickCount % 12) === 0) this.hurt(4, null, game);
@@ -1061,7 +1081,7 @@
       game.audio.play3d('fizz', x, y, z, p);
       if (p && !p.dead) {
         var fdx = p.x - x, fdy = (p.y + 0.9) - y, fdz = p.z - z;
-        if (fdx * fdx + fdy * fdy + fdz * fdz < 2.2 * 2.2) p.hurt(5, this, game);
+        if (fdx * fdx + fdy * fdy + fdz * fdz < 2.2 * 2.2) p.hurt(5, this, game, 'feuer');
       }
     } else if (this.fire) {
       MC.explode(game, x, y, z, this.power);
@@ -1390,9 +1410,12 @@
   Mob.prototype.die = function (game, source) {
     this.dead = true;
     var drops = this.spec.drops || [];
+    // Plünderung hebt nur die Obergrenze an, wie im Original – der Wurf selbst
+    // bleibt gleichverteilt, es fällt also nicht garantiert mehr.
+    var pl = this.looting || 0;
     for (var i = 0; i < drops.length; i++) {
       var d = drops[i];
-      var n = d.min + Math.floor(Math.random() * (d.max - d.min + 1));
+      var n = d.min + Math.floor(Math.random() * (d.max + pl - d.min + 1));
       if (n > 0) game.spawnItem(this.x, this.y + 0.5, this.z, I.newStack(d.id, n));
     }
     if (this.mobType === 'sheep' && !this.sheared) {

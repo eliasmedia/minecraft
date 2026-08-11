@@ -27,10 +27,10 @@
     if (!stack) return 0;
     var max = I.stackMax(stack.id);
     var i;
-    if (max > 1) {
+    if (max > 1 && !stack.ench) {
       for (i = 0; i < this.size; i++) {
         var s = this.slots[i];
-        if (s && s.id === stack.id && s.dur === undefined && s.count < max) {
+        if (s && s.id === stack.id && s.dur === undefined && !s.ench && s.count < max) {
           var can = Math.min(max - s.count, stack.count);
           s.count += can; stack.count -= can;
           if (stack.count <= 0) return 0;
@@ -42,6 +42,8 @@
         var put = Math.min(max, stack.count);
         var ns = { id: stack.id, count: put };
         if (stack.dur !== undefined) ns.dur = stack.dur;
+        // Ohne das ginge jede Verzauberung beim Aufheben verloren
+        if (stack.ench) ns.ench = stack.ench;
         this.slots[i] = ns;
         stack.count -= put;
         if (stack.count <= 0) return 0;
@@ -81,6 +83,9 @@
     var s = this.slots[this.selected];
     if (!s || s.dur === undefined) return;
     if (game && game.mode === 'creative') return;
+    // Haltbarkeit: mit der Verzauberung geht nur noch ein Bruchteil der
+    // Schläge auf das Werkzeug
+    if (MC.Ench && !MC.Ench.verbraucht(s, false)) return;
     s.dur -= (n || 1);
     if (s.dur <= 0) {
       this.slots[this.selected] = null;
@@ -93,6 +98,7 @@
       var a = this.armor[i];
       if (!a || a.dur === undefined) continue;
       if (game && game.mode === 'creative') continue;
+      if (MC.Ench && !MC.Ench.verbraucht(a, true)) continue;
       a.dur -= n;
       if (a.dur <= 0) { this.armor[i] = null; if (game) game.audio.play('break_tool'); }
     }
@@ -418,7 +424,7 @@
           game.audio.play('pop');
         } else if (fd > 3.2) {
           var dmg = Math.floor(fd - 3);
-          if (dmg > 0) { this.hurt(dmg, null, game); game.audio.play('fall'); }
+          if (dmg > 0) { this.hurt(dmg, null, game, 'fall'); game.audio.play('fall'); }
         }
         this.fallStart = null;
       }
@@ -447,7 +453,10 @@
     // Der Gravitithelm bringt kein Atmen unter Wasser mehr, sondern das HUD:
     // Lebensbalken über Kreaturen und den Kompass zum Endportal.
     if (this.headInWater && !creative) {
-      this.air -= dt;
+      // Atmung streckt die Luft: je Stufe kommt eine Sekunde Reserve dazu,
+      // gerechnet als Bruchteil des Verbrauchs
+      var atmung = MC.Ench ? MC.Ench.stufe(this.inventory.armor[0], 'respiration') : 0;
+      this.air -= dt / (1 + atmung);
       if (this.air <= 0) { this.air = 0; this.drownTimer = (this.drownTimer || 0) + dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2, null, game); game.audio.play('hurt'); } }
       if (Math.random() < dt * 4) game.particles.splash(this.x, this.eyeY(), this.z, 1);
     } else {
@@ -460,7 +469,7 @@
 
     if (inLava && !creative && hitzeSchutz < 1) {
       this.lavaTimer = (this.lavaTimer || 0) + dt;
-      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4 * (1 - hitzeSchutz), null, game); }
+      if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4 * (1 - hitzeSchutz), null, game, 'feuer'); }
     }
 
     // Blöcke, die beim Berühren wehtun: Kaktus sticht, Feuer und Magma brennen.
@@ -493,7 +502,7 @@
     } else this.cactusTimer = 0;
     if (!creative && brand > 0 && hitzeSchutz < 1) {
       this.burnTimer = (this.burnTimer || 0) + dt;
-      if (this.burnTimer > 0.6) { this.burnTimer = 0; this.hurt(brand * (1 - hitzeSchutz), null, game); }
+      if (this.burnTimer > 0.6) { this.burnTimer = 0; this.hurt(brand * (1 - hitzeSchutz), null, game, 'feuer'); }
     } else this.burnTimer = 0;
 
     // ---- Hunger & Regeneration ----
@@ -545,12 +554,15 @@
 
   Player.prototype.exhaust = function (n) { this.exhaustion += n; };
 
-  Player.prototype.hurt = function (amount, source, game) {
+  // art: 'feuer' | 'explosion' | 'geschoss' | 'fall' | undefined
+  Player.prototype.hurt = function (amount, source, game, art) {
     if (this.dead) return;
     if (game.mode === 'creative' && amount < 900) return;
     if (this.hurtTime > 0.35 && amount < 900) return;
     var def = this.inventory.defense();
     if (amount < 900 && def > 0) amount = amount * (1 - Math.min(20, def) * 0.04);
+    // Schutzverzauberungen zahlen auf denselben Topf ein, gedeckelt bei 20
+    if (amount < 900 && MC.Ench) amount = amount * MC.Ench.schutzFaktor(this.inventory, art);
     amount = Math.max(0, amount);
     this.health -= amount;
     this.hurtTime = 0.6;
@@ -561,6 +573,11 @@
       var dx = this.x - source.x, dz = this.z - source.z;
       var d = Math.sqrt(dx * dx + dz * dz) || 1;
       this.vx += dx / d * 8; this.vz += dz / d * 8; this.vy = Math.max(this.vy, 6);
+      // Dornen schlagen zurück, wenn der Angreifer nah genug ist
+      if (MC.Ench && source.hurt && d < 6) {
+        var dorn = MC.Ench.dornen(this.inventory);
+        if (dorn) { source.hurt(dorn, this, game); this.inventory.damageArmor(1, game); }
+      }
     }
     if (this.health <= 0) this.die(game);
   };
