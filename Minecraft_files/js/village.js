@@ -43,6 +43,8 @@
     for (var k in m) out[k] = B.id(m[k]);
     out.gate = B.id(gateFor(m.fence));
     out.cobble = B.id('cobblestone');
+    // Sockelstein: in der Wüste passt Sandstein, sonst Bruchstein
+    out.plinth = B.id(m.wall === 'sandstone' ? 'sandstone' : 'cobblestone');
     out.dirt = B.id('dirt');
     out.torch = B.id('torch');
     out.door = B.id('door_oak');
@@ -73,7 +75,10 @@
   // ============================================================
   //  Layout
   // ============================================================
-  function layout(gen, rx, rz) {
+  // Der billige Teil: gibt es hier überhaupt ein Dorf, und wo liegt seine
+  // Mitte? Rund zwanzig Höhenabfragen. Das volle Layout kostet ein Vielfaches
+  // davon, deshalb wird es erst gebaut, wenn wirklich jemand in die Nähe kommt.
+  function kopf(gen, rx, rz) {
     var rnd = U.rng(U.hashString('dorf:' + gen.seed + ':' + rx + ':' + rz));
     if (rnd() > V.CHANCE) return null;
 
@@ -89,7 +94,10 @@
     var y = Math.floor(info.h);
     if (y <= gen.sea + 1 || y > WH - 12) return null;
 
-    // Nur halbwegs ebenes Gelände bebauen, sonst steht das Dorf auf Stelzen
+    // Nur halbwegs ebenes Gelände bebauen, sonst steht das Dorf auf Stelzen.
+    // Version 2 verträgt deutlich mehr, weil jedes Haus seine eigene Höhe
+    // bekommt statt gemeinsam auf einem Plateau zu stehen.
+    var erlaubt = gen.genV >= 2 ? 16 : 7;
     var lo = y, hi = y;
     for (var s = 0; s < 20; s++) {
       var a = (s / 20) * Math.PI * 2, r = 10 + (s % 4) * 7;
@@ -97,9 +105,18 @@
       if (hh < lo) lo = hh;
       if (hh > hi) hi = hh;
     }
-    if (hi - lo > 7) return null;
+    if (hi - lo > erlaubt) return null;
+    return { x: cx, z: cz, y: y, biome: info.biome, rnd: rnd };
+  }
 
-    var mat = resolve(matsFor(info.biome));
+  function layout(gen, rx, rz) {
+    var k = kopf(gen, rx, rz);
+    if (!k) return null;
+    var rnd = k.rnd, cx = k.x, cz = k.z, y = k.y;
+
+    if (gen.genV >= 2) return layoutV2(gen, rnd, rx, rz, cx, cz, y, k.biome);
+
+    var mat = resolve(matsFor(k.biome));
     var builds = [{ type: 'brunnen', x: cx - 1, z: cz - 1, w: 4, d: 4, face: 0 }];
 
     for (var i = -GRID; i <= GRID; i++) {
@@ -134,7 +151,7 @@
     var core = GRID * CELL + 4;
     var reach = GRID * CELL + 9;
     var v = {
-      id: rx + ':' + rz, x: cx, z: cz, y: y, biome: info.biome, mat: mat, builds: builds,
+      id: rx + ':' + rz, x: cx, z: cz, y: y, biome: k.biome, mat: mat, builds: builds,
       core: core, reach: reach,
       minX: cx - reach, maxX: cx + reach, minZ: cz - reach, maxZ: cz + reach
     };
@@ -156,6 +173,292 @@
     return v;
   }
 
+  // ============================================================
+  //  Layout Version 2 – Häuser aufs Gelände, Wege dazwischen
+  // ============================================================
+  // Kein Plateau mehr. Jedes Haus sucht sich einen Platz, der flach genug ist,
+  // und bekommt seine eigene Höhe. Verbunden wird nicht über ein Wegkreuz,
+  // sondern über ein Wegenetz, das dem Gelände folgt: eine Dijkstra-Suche vom
+  // Brunnen über das ganze Dorffeld gibt für jede Haustür den günstigsten Weg,
+  // und weil alle Wege denselben Baum benutzen, laufen sie von selbst zusammen.
+  var RAD = 34;              // halbe Kantenlänge des Dorffelds
+  var PLATZ = 28;            // so weit vom Brunnen darf gebaut werden
+  var MAX_STUFE = 1;         // Höhenschritt, den ein Weg noch nehmen darf
+
+  function layoutV2(gen, rnd, rx, rz, cx, cz, y, biome) {
+    var mat = resolve(matsFor(biome));
+    var mw = RAD * 2 + 1;
+    var minX = cx - RAD, minZ = cz - RAD;
+
+    // ---- Höhenfeld einmal einsammeln ----
+    var hf = new Int16Array(mw * mw);
+    var nass = new Uint8Array(mw * mw);
+    for (var iz = 0; iz < mw; iz++) {
+      for (var ix = 0; ix < mw; ix++) {
+        var ci = gen.columnInfo(minX + ix, minZ + iz);
+        hf[iz * mw + ix] = Math.floor(ci.h);
+        if (ci.h < gen.sea + 0.5) nass[iz * mw + ix] = 1;
+      }
+    }
+    function hAt(x, z) {
+      var ix = x - minX, iz = z - minZ;
+      if (ix < 0 || ix >= mw || iz < 0 || iz >= mw) return null;
+      return hf[iz * mw + ix];
+    }
+    function nassAt(x, z) {
+      var ix = x - minX, iz = z - minZ;
+      if (ix < 0 || ix >= mw || iz < 0 || iz >= mw) return 1;
+      return nass[iz * mw + ix];
+    }
+
+    // ---- Bauplätze suchen ----
+    var belegt = new Uint8Array(mw * mw);
+    function markiere(x0, z0, w, d, feld, rand) {
+      rand = rand || 0;
+      for (var z = z0 - rand; z < z0 + d + rand; z++) {
+        for (var x = x0 - rand; x < x0 + w + rand; x++) {
+          var ix = x - minX, iz = z - minZ;
+          if (ix < 0 || ix >= mw || iz < 0 || iz >= mw) continue;
+          feld[iz * mw + ix] = 1;
+        }
+      }
+    }
+    function frei(x0, z0, w, d, rand) {
+      for (var z = z0 - rand; z < z0 + d + rand; z++) {
+        for (var x = x0 - rand; x < x0 + w + rand; x++) {
+          var ix = x - minX, iz = z - minZ;
+          if (ix < 0 || ix >= mw || iz < 0 || iz >= mw) return false;
+          if (belegt[iz * mw + ix]) return false;
+        }
+      }
+      return true;
+    }
+    // Wie eben ist die Grundfläche, und auf welcher Höhe sitzt sie?
+    function pruefe(x0, z0, w, d) {
+      var lo = 9999, hi = -9999;
+      for (var z = z0; z < z0 + d; z++) {
+        for (var x = x0; x < x0 + w; x++) {
+          if (nassAt(x, z)) return null;
+          var h = hAt(x, z);
+          if (h === null) return null;
+          if (h < lo) lo = h;
+          if (h > hi) hi = h;
+        }
+      }
+      if (hi - lo > 3) return null;
+      return lo;   // auf die tiefste Ecke setzen, den Rest untermauern
+    }
+
+    // belegt = kein zweites Haus hierhin. sperre = hier darf auch kein Weg
+    // durch. Der Brunnenplatz steht nur in `belegt`: von dort geht der Weg ja
+    // gerade los. Häuser sperren, weil sonst ein Weg unter einem Fundament
+    // verschwindet und die Tür dahinter unerreichbar wird.
+    var sperre = new Uint8Array(mw * mw);
+    var builds = [{ type: 'brunnen', x: cx - 1, z: cz - 1, w: 4, d: 4, face: 0, y: y }];
+    markiere(cx - 2, cz - 2, 6, 6, belegt);
+
+    // Kandidaten auf einem verrauschten Raster, in zufälliger Reihenfolge
+    var kand = [];
+    for (var gz = -PLATZ; gz <= PLATZ; gz += 9) {
+      for (var gx = -PLATZ; gx <= PLATZ; gx += 9) {
+        if (gx * gx + gz * gz > PLATZ * PLATZ) continue;
+        if (Math.abs(gx) < 6 && Math.abs(gz) < 6) continue;   // Brunnenplatz
+        kand.push([cx + gx + ((rnd() * 5) | 0) - 2, cz + gz + ((rnd() * 5) | 0) - 2]);
+      }
+    }
+    for (var m = kand.length - 1; m > 0; m--) {
+      var k = (rnd() * (m + 1)) | 0, t = kand[m]; kand[m] = kand[k]; kand[k] = t;
+    }
+
+    for (var ki = 0; ki < kand.length; ki++) {
+      var typ = TYPE_BAG[(rnd() * TYPE_BAG.length) | 0];
+      var spec = TYPES[typ];
+      var px = kand[ki][0] - (spec.w >> 1), pz = kand[ki][1] - (spec.d >> 1);
+      if (!frei(px, pz, spec.w, spec.d, 2)) continue;
+      var py = pruefe(px, pz, spec.w, spec.d);
+      if (py === null) continue;
+      // Die Tür zeigt zur Dorfmitte – von dort kommt der Weg. Taugt die Seite
+      // nicht (Wasser davor, oder eine Stufe zu hoch), wird reihum probiert;
+      // sonst endet der Weg vor einer Schwelle, die man nicht hochkommt.
+      var dx = cx - (px + spec.w / 2), dz = cz - (pz + spec.d / 2);
+      var wunsch = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 1 : 3) : (dz > 0 ? 2 : 0);
+      var face = -1;
+      for (var fi = 0; fi < 4 && face < 0; fi++) {
+        var f = (wunsch + fi) & 3, sd = SIDE[f];
+        var tx = sd[0] === 0 ? px + (spec.w >> 1) : (sd[0] > 0 ? px + spec.w - 1 : px);
+        var tz = sd[1] === 0 ? pz + (spec.d >> 1) : (sd[1] > 0 ? pz + spec.d - 1 : pz);
+        var fx = tx + sd[0], fz = tz + sd[1];
+        if (nassAt(fx, fz)) continue;
+        var fh = hAt(fx, fz);
+        if (fh === null || Math.abs(fh - py) > 1) continue;
+        face = f;
+      }
+      if (face < 0) continue;
+      builds.push({ type: typ, x: px, z: pz, w: spec.w, d: spec.d, face: face, y: py });
+      markiere(px, pz, spec.w, spec.d, belegt, 1);
+      // Gesperrt ist die Grundfläche selbst; der Ring darum bleibt frei,
+      // sonst käme der Weg gar nicht erst bis vor die Tür.
+      markiere(px, pz, spec.w, spec.d, sperre);
+      if (builds.length > 14) break;
+    }
+    if (builds.length < 4) return null;    // zu zerklüftet, hier wohnt niemand
+
+    // ---- Wegenetz ----
+    var v = {
+      id: rx + ':' + rz, v2: true, x: cx, z: cz, y: y, biome: biome, mat: mat,
+      builds: builds, minX: minX, maxX: minX + mw - 1, minZ: minZ, maxZ: minZ + mw - 1,
+      mw: mw, mh: mw
+    };
+    var wege = wegenetz(v, hf, nass, sperre, mw, minX, minZ, cx, cz);
+    v.wege = wege.maske;
+    v.wegH = wege.hoehe;
+
+    // Häuser, zu denen kein Weg führt, sind auch keine Häuser
+    v.builds = builds.filter(function (b, i) {
+      return i === 0 || b.type === 'lampe' || wege.erreicht[i];
+    });
+
+    // Laternen an den Wegkreuzungen
+    laternen(v, rnd);
+
+    // built = Häuser und Wege – dort wächst nichts von selbst
+    v.built = new Uint8Array(mw * mw);
+    v.builds.forEach(function (b) { markiere(b.x - 1, b.z - 1, b.w + 2, b.d + 2, v.built); });
+    for (var q = 0; q < wege.maske.length; q++) if (wege.maske[q]) v.built[q] = 1;
+    return v;
+  }
+
+  // Dijkstra vom Brunnen über das ganze Feld. Kanten mit mehr als einem Block
+  // Höhenunterschied gibt es nicht – so ist jeder Weg, den die Suche findet,
+  // auch begehbar, ohne dass man Treppen einbauen müsste.
+  function wegenetz(v, hf, nass, sperre, mw, minX, minZ, cx, cz) {
+    var N = mw * mw;
+    var dist = new Float32Array(N); dist.fill(Infinity);
+    var vor = new Int32Array(N); vor.fill(-1);
+    var fertig = new Uint8Array(N);
+    var start = (cz - minZ) * mw + (cx - minX);
+    dist[start] = 0;
+
+    // Binärheap, sonst wird das quadratisch
+    var heap = [start], hd = [0];
+    function push(node, d) {
+      heap.push(node); hd.push(d);
+      var i = heap.length - 1;
+      while (i > 0) {
+        var p = (i - 1) >> 1;
+        if (hd[p] <= hd[i]) break;
+        var a = heap[p]; heap[p] = heap[i]; heap[i] = a;
+        var b = hd[p]; hd[p] = hd[i]; hd[i] = b;
+        i = p;
+      }
+    }
+    function pop() {
+      var top = heap[0];
+      var last = heap.pop(), ld = hd.pop();
+      if (heap.length) {
+        heap[0] = last; hd[0] = ld;
+        var i = 0;
+        for (;;) {
+          var l = i * 2 + 1, r = l + 1, s = i;
+          if (l < heap.length && hd[l] < hd[s]) s = l;
+          if (r < heap.length && hd[r] < hd[s]) s = r;
+          if (s === i) break;
+          var a = heap[s]; heap[s] = heap[i]; heap[i] = a;
+          var b = hd[s]; hd[s] = hd[i]; hd[i] = b;
+          i = s;
+        }
+      }
+      return top;
+    }
+
+    var NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+              [1, 1, 1.41], [1, -1, 1.41], [-1, 1, 1.41], [-1, -1, 1.41]];
+    while (heap.length) {
+      var u = pop();
+      if (fertig[u]) continue;
+      fertig[u] = 1;
+      var ux = u % mw, uz = (u / mw) | 0;
+      for (var n = 0; n < NB.length; n++) {
+        var vx = ux + NB[n][0], vz = uz + NB[n][1];
+        if (vx < 0 || vx >= mw || vz < 0 || vz >= mw) continue;
+        var vi = vz * mw + vx;
+        if (fertig[vi] || nass[vi] || sperre[vi]) continue;
+        var dh = hf[vi] - hf[u];
+        if (dh > MAX_STUFE || dh < -MAX_STUFE) continue;
+        var c = NB[n][2] + Math.abs(dh) * 4;   // Steigung kostet
+        if (dist[u] + c < dist[vi]) { dist[vi] = dist[u] + c; vor[vi] = u; push(vi, dist[vi]); }
+      }
+    }
+
+    var maske = new Uint8Array(N);
+    var hoehe = new Int16Array(N);
+    var erreicht = [];
+    v.builds.forEach(function (b, i) {
+      erreicht[i] = (i === 0);
+      if (i === 0) return;
+      // Zielfeld: der Block direkt vor der Tür
+      var d = SIDE[b.face];
+      var tx = d[0] === 0 ? b.x + (b.w >> 1) : (d[0] > 0 ? b.x + b.w - 1 : b.x);
+      var tz = d[1] === 0 ? b.z + (b.d >> 1) : (d[1] > 0 ? b.z + b.d - 1 : b.z);
+      b.doorX = tx; b.doorZ = tz;
+      var zx = tx + d[0], zz = tz + d[1];
+      var zi = (zz - minZ) * mw + (zx - minX);
+      if (zi < 0 || zi >= N || dist[zi] === Infinity) return;
+      erreicht[i] = true;
+      for (var p = zi; p !== -1; p = vor[p]) {
+        if (maske[p]) break;                 // ab hier läuft der Weg schon
+        maske[p] = 1; hoehe[p] = hf[p];
+        // Diagonalschritte auffüllen: eine Kette einzelner Eckblöcke sieht
+        // nicht nach Weg aus. Der Eckblock kommt dazu, wenn er auf derselben
+        // Höhe liegt und nicht schon jemandem gehört.
+        var q = vor[p];
+        if (q === -1) continue;
+        var px = p % mw, pz = (p / mw) | 0, qx = q % mw, qz = (q / mw) | 0;
+        if (px === qx || pz === qz) continue;
+        var e1 = pz * mw + qx, e2 = qz * mw + px;
+        var e = (!sperre[e1] && !nass[e1] && hf[e1] === hf[p]) ? e1
+              : ((!sperre[e2] && !nass[e2] && hf[e2] === hf[p]) ? e2 : -1);
+        if (e >= 0 && !maske[e]) { maske[e] = 1; hoehe[e] = hf[e]; }
+      }
+      maske[zi] = 1; hoehe[zi] = hf[zi];
+    });
+    // Der Brunnenplatz selbst gehört dazu
+    maske[start] = 1; hoehe[start] = hf[start];
+    return { maske: maske, hoehe: hoehe, erreicht: erreicht };
+  }
+
+  // Laternen dort, wo der Weg sich verzweigt – das sind die Kreuzungen
+  function laternen(v, rnd) {
+    var mw = v.mw, maske = v.wege;
+    var kandidaten = [];
+    for (var iz = 2; iz < mw - 2; iz++) {
+      for (var ix = 2; ix < mw - 2; ix++) {
+        var i = iz * mw + ix;
+        if (maske[i]) continue;
+        // ein freies Feld mit mindestens drei Wegnachbarn steht an einer Kreuzung
+        var n = 0;
+        if (maske[i - 1]) n++;
+        if (maske[i + 1]) n++;
+        if (maske[i - mw]) n++;
+        if (maske[i + mw]) n++;
+        if (n >= 2 && rnd() < 0.5) kandidaten.push([v.minX + ix, v.minZ + iz, v.wegH[maske[i - 1] ? i - 1 : (maske[i + 1] ? i + 1 : (maske[i - mw] ? i - mw : i + mw))]]);
+      }
+    }
+    // ausdünnen, sonst steht alle zwei Blöcke eine Laterne
+    var gesetzt = [];
+    for (var c = 0; c < kandidaten.length; c++) {
+      var k = kandidaten[c], ok = true;
+      for (var g = 0; g < gesetzt.length; g++) {
+        var ddx = gesetzt[g][0] - k[0], ddz = gesetzt[g][1] - k[1];
+        if (ddx * ddx + ddz * ddz < 100) { ok = false; break; }
+      }
+      if (!ok) continue;
+      gesetzt.push(k);
+      v.builds.push({ type: 'lampe', x: k[0], z: k[1], w: 1, d: 1, face: 0, y: k[2] });
+      if (gesetzt.length >= 8) break;
+    }
+  }
+
   // Zielhöhe einer Spalte: innen glatt, außen zum Gelände hin verlaufend
   function levelAt(gen, v, wx, wz) {
     var d = Math.max(Math.abs(wx - v.x), Math.abs(wz - v.z));
@@ -169,6 +472,17 @@
   // ============================================================
   //  Nachschlagen
   // ============================================================
+  // Nur die Mitte, ohne das teure Layout
+  V.kopfAt = function (gen, rx, rz) {
+    if (!gen._vilK) gen._vilK = {};
+    var k = rx + ',' + rz;
+    if (k in gen._vilK) return gen._vilK[k];
+    var h = null;
+    try { h = kopf(gen, rx, rz); } catch (e) { h = null; }
+    gen._vilK[k] = h;
+    return h;
+  };
+
   V.at = function (gen, rx, rz) {
     if (!gen._vil) gen._vil = {};
     var k = rx + ',' + rz;
@@ -179,12 +493,21 @@
     return v;
   };
 
-  // Alle Dörfer, die in die Nähe dieser Weltposition reichen (oder null)
+  // So weit reicht ein Dorf höchstens von seiner Mitte aus – muss zum
+  // Randabstand in V.near passen, sonst fällt ein Dorf am Rand durch
+  var WEITE = 34 + 24;
+
+  // Alle Dörfer, die in die Nähe dieser Weltposition reichen (oder null).
+  // Erst wird über die billige Mitte gefiltert – sonst würde jeder Chunk das
+  // volle Layout aller neun Nachbarregionen erzwingen, für nichts.
   V.near = function (gen, wx, wz) {
     var rx = Math.floor(wx / V.SPACING), rz = Math.floor(wz / V.SPACING);
     var list = null;
     for (var dx = -1; dx <= 1; dx++) {
       for (var dz = -1; dz <= 1; dz++) {
+        var h = V.kopfAt(gen, rx + dx, rz + dz);
+        if (!h) continue;
+        if (Math.abs(wx - h.x) > WEITE || Math.abs(wz - h.z) > WEITE) continue;
         var v = V.at(gen, rx + dx, rz + dz);
         if (!v) continue;
         if (wx < v.minX - 24 || wx > v.maxX + 24 || wz < v.minZ - 24 || wz > v.maxZ + 24) continue;
@@ -200,11 +523,14 @@
     var best = null, bestD = maxDist * maxDist;
     for (var dx = -1; dx <= 1; dx++) {
       for (var dz = -1; dz <= 1; dz++) {
+        var h = V.kopfAt(gen, rx + dx, rz + dz);
+        if (!h) continue;
+        var ddx = h.x - wx, ddz = h.z - wz;
+        var d2 = ddx * ddx + ddz * ddz;
+        if (d2 >= bestD) continue;
         var v = V.at(gen, rx + dx, rz + dz);
         if (!v) continue;
-        var ddx = v.x - wx, ddz = v.z - wz;
-        var d2 = ddx * ddx + ddz * ddz;
-        if (d2 < bestD) { bestD = d2; best = v; }
+        bestD = d2; best = v;
       }
     }
     return best;
@@ -212,9 +538,12 @@
 
   // Das ganze Plateau ist tabu für die normale Dekoration – Bäume und Blumen
   // würden sonst auf der alten Geländehöhe stehenbleiben und schweben.
+  // In Version 2 gibt es kein Plateau: dort ist nur gesperrt, was wirklich
+  // bebaut ist. Deshalb wächst der Wald bis an die Häuser heran.
   V.occupies = function (list, wx, wz) {
     for (var i = 0; i < list.length; i++) {
       var v = list[i];
+      if (v.v2) { if (isBuilt(v, wx, wz)) return true; continue; }
       if (Math.max(Math.abs(wx - v.x), Math.abs(wz - v.z)) <= v.reach) return true;
     }
     return false;
@@ -244,8 +573,12 @@
     for (var i = 0; i < list.length; i++) {
       var v = list[i];
       if (v.maxX < wx0 || v.minX > wx0 + CS - 1 || v.maxZ < wz0 || v.minZ > wz0 + CS - 1) continue;
-      plateau(gen, v, set, wx0, wz0);
-      roads(gen, v, set, wx0, wz0);
+      if (v.v2) {
+        wegeZeichnen(gen, v, set, wx0, wz0);
+      } else {
+        plateau(gen, v, set, wx0, wz0);
+        roads(gen, v, set, wx0, wz0);
+      }
       for (var b = 0; b < v.builds.length; b++) {
         var bd = v.builds[b];
         if (bd.x + bd.w < wx0 - 1 || bd.x > wx0 + CS || bd.z + bd.d < wz0 - 1 || bd.z > wz0 + CS) continue;
@@ -253,6 +586,23 @@
       }
     }
   };
+
+  // Version 2: nur die Wegfelder dieses Chunks belegen, jedes auf seiner
+  // eigenen Höhe. Der Weg folgt dem Gelände, statt es einzuebnen.
+  function wegeZeichnen(gen, v, set, wx0, wz0) {
+    var m = v.mat, mw = v.mw;
+    var x0 = Math.max(v.minX, wx0), x1 = Math.min(v.maxX, wx0 + CS - 1);
+    var z0 = Math.max(v.minZ, wz0), z1 = Math.min(v.maxZ, wz0 + CS - 1);
+    for (var z = z0; z <= z1; z++) {
+      for (var x = x0; x <= x1; x++) {
+        var i = (z - v.minZ) * mw + (x - v.minX);
+        if (!v.wege[i]) continue;
+        var wy = v.wegH[i];
+        set(x, wy, z, m.path, 0);
+        for (var ay = wy + 1; ay <= wy + 3; ay++) set(x, ay, z, 0, 0);
+      }
+    }
+  }
 
   // Plateau einebnen, Rand ausschleifen und etwas Gras stehen lassen
   function plateau(gen, v, set, wx0, wz0) {
@@ -286,7 +636,10 @@
       for (var x = x0; x < x0 + w; x++) {
         if (groundId !== null) set(x, v.y, z, groundId, 0);
         var th = Math.floor(gen.columnInfo(x, z).h);
-        for (var yy = v.y - 1; yy > th && yy > 1; yy--) set(x, yy, z, v.mat.dirt, 0);
+        // Sockel: was unter dem Haus fehlt, wird untermauert. In Version 2
+        // sieht man ihn am Hang, darum Stein statt Erde.
+        var sockel = v.v2 ? v.mat.plinth : v.mat.dirt;
+        for (var yy = v.y - 1; yy > th && yy > 1; yy--) set(x, yy, z, sockel, 0);
         var top = Math.max(v.y + clearHeight, th + 2);
         for (var ay = v.y + 1; ay <= top; ay++) set(x, ay, z, 0, 0);
       }
@@ -318,6 +671,14 @@
   var SIDE = B.SIDE_DIRS;   // 0=-Z 1=+X 2=+Z 3=-X
 
   function draw(gen, v, b, set) {
+    // In Version 2 hat jedes Gebäude seine eigene Höhe. Statt jede Bauroutine
+    // umzuschreiben bekommt sie ein Dorf vorgesetzt, dessen `y` die des Hauses
+    // ist – alles andere liest sie über die Prototypenkette weiter aus v.
+    if (v.v2 && b.y !== undefined && b.y !== v.y) {
+      var vv = Object.create(v);
+      vv.y = b.y;
+      v = vv;
+    }
     switch (b.type) {
       case 'brunnen': return well(gen, v, b, set);
       case 'lampe': return lamp(gen, v, b, set);
@@ -642,7 +1003,8 @@
     var dx = dir[0] === 0 ? b.x + (b.w >> 1) : (dir[0] > 0 ? b.x + b.w - 1 : b.x);
     var dz = dir[1] === 0 ? b.z + (b.d >> 1) : (dir[1] > 0 ? b.z + b.d - 1 : b.z);
     return {
-      y: v.y + 1,
+      // In Version 2 steht jedes Haus auf seiner eigenen Höhe
+      y: (b.y !== undefined ? b.y : v.y) + 1,
       doorX: dx, doorZ: dz, dir: dir,
       // Raummitte als Ziel und das Innenrechteck zum Prüfen, ob jemand drin ist
       inX: b.x + b.w / 2, inZ: b.z + b.d / 2,
@@ -655,7 +1017,7 @@
   V.spawnSpot = function (v, index) {
     var h = V.homeFor(v, index);
     if (!h) return { x: v.x + 0.5, y: v.y + 1.05, z: v.z + 3.5 };
-    return { x: h.outX, y: v.y + 1.05, z: h.outZ };
+    return { x: h.outX, y: h.y + 0.05, z: h.outZ };
   };
 
 })();
