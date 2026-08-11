@@ -381,7 +381,7 @@
     if (st) {
       var it = I.get(st.id);
       var zauber = MC.Ench ? MC.Ench.beschreiben(st) : [];
-      this.itemNameEl.innerHTML = escapeHtml(it ? it.title : st.id) +
+      this.itemNameEl.innerHTML = escapeHtml(MC.Ench ? MC.Ench.anzeigeName(st) : (it ? it.title : st.id)) +
         (zauber.length ? '<span class="ench">' + escapeHtml(zauber.join(' · ')) + '</span>' : '');
       this.itemNameEl.classList.add('show');
       clearTimeout(this._nameTimer);
@@ -416,7 +416,8 @@
     var zauber = MC.Ench ? MC.Ench.beschreiben(stack) : [];
     if (zauber.length) html += '<span class="glint"></span>';
     dom.innerHTML = html;
-    dom.title = (it ? it.title : stack.id) + (zauber.length ? '\n' + zauber.join('\n') : '');
+    dom.title = (MC.Ench ? MC.Ench.anzeigeName(stack) : (it ? it.title : stack.id)) +
+                (zauber.length ? '\n' + zauber.join('\n') : '');
   };
 
   UI.prototype.updateHUD = function () {
@@ -534,6 +535,13 @@
       this.enchTable = null;
       this.enchRows = null;
     }
+    if (this.anvil) {
+      if (this.anvil.a) { this.game.player.inventory.add(this.anvil.a); this.anvil.a = null; }
+      if (this.anvil.b) { this.game.player.inventory.add(this.anvil.b); this.anvil.b = null; }
+      this.anvil.out = null; this.anvil.plan = null;
+      this.anvil = null;
+      this.anvilCostEl = null; this.anvilOut = null; this.anvilNameEl = null;
+    }
     this.open = null;
     this.trader = null;
     this.tradeRows = null;
@@ -556,6 +564,7 @@
     else if (type === 'crafting') this.buildInventory(3);
     else if (type === 'furnace') this.buildFurnace(data);
     else if (type === 'enchant') this.buildEnchant(data);
+    else if (type === 'anvil') this.buildAnvil(data);
     else if (type === 'chest') this.buildChest(data);
     else if (type === 'creative') this.buildCreative();
     else if (type === 'trade') this.buildTrade(data);
@@ -825,15 +834,19 @@
     // Ergebnisslot (Crafting/Ofen): nur entnehmen
     if (opts.result) {
       if (!cur) return;
-      if (this.cursor && (this.cursor.id !== cur.id || this.cursor.count + cur.count > I.stackMax(cur.id))) return;
+      // Der Amboss will erst bezahlt werden – ohne diese Sperre läge das
+      // fertige Stück schon am Zeiger, bevor die Stufen abgezogen sind.
+      if (opts.canTake && !opts.canTake()) { this.game.audio.play('nope'); return; }
+      if (this.cursor && (this.cursor.id !== cur.id || this.cursor.count + cur.count > I.stackMax(cur.id) ||
+                          this.cursor.ench || cur.ench)) return;
       var times = shift ? 64 : 1;
       for (var t = 0; t < times; t++) {
         var res = slot.slotGet();
         if (!res) break;
         if (shift) {
-          if (this.game.player.inventory.add({ id: res.id, count: res.count, dur: res.dur }) > 0) break;
+          if (this.game.player.inventory.add(I.copyStack(res)) > 0) break;
         } else {
-          if (!this.cursor) this.cursor = { id: res.id, count: res.count, dur: res.dur };
+          if (!this.cursor) this.cursor = I.copyStack(res);
           else this.cursor.count += res.count;
         }
         if (opts.onTake) opts.onTake(res);
@@ -920,7 +933,7 @@
     }
     for (i = from; i < to; i++) {
       if (!inv.slots[i]) {
-        inv.slots[i] = { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench };
+        inv.slots[i] = I.copyStack(stack);
         stack.count = 0;
         return true;
       }
@@ -1173,6 +1186,101 @@
     this.game.ui.updateHUD();
   };
 
+  // ---------- Amboss ----------
+  UI.prototype.buildAnvil = function (te) {
+    var self = this, g = this.game, inv = g.player.inventory;
+    this.slotList = [];
+    this.anvil = te;
+    var win = el('div', 'window', this.screen);
+    var head = el('div', 'wtitle', win); head.textContent = 'Amboss';
+    var close = el('div', 'wclose', head); close.textContent = '✕';
+    close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
+
+    var name = el('input', 'anvilname', win);
+    name.type = 'text'; name.maxLength = 32; name.placeholder = 'Name';
+    name.addEventListener('input', function () { te.name = name.value; self.refreshAnvil(); });
+    name.addEventListener('keydown', function (e) { e.stopPropagation(); });
+    this.anvilNameEl = name;
+
+    var box = el('div', 'furnacebox', win);
+    this.makeSlot(box, function () { return te.a; },
+      function (v) { te.a = v; self.anvilNameSync(); self.refreshAnvil(); }, { area: 'ext' });
+    el('div', 'anvilplus', box).textContent = '+';
+    this.makeSlot(box, function () { return te.b; },
+      function (v) { te.b = v; self.refreshAnvil(); }, { area: 'ext' });
+    this.anvilCostEl = el('div', 'anvilcost', box);
+    this.anvilOut = this.makeSlot(box, function () { return te.out; }, function () { },
+      { result: true,
+        canTake: function () {
+          return g.mode === 'creative' || (te.plan && g.player.level >= te.plan.kosten);
+        },
+        onTake: function () { self.anvilNehmen(); } });
+
+    el('div', 'wsep', win);
+    var main = el('div', 'invgrid', win);
+    for (var m = 9; m < 36; m++) {
+      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
+    }
+    var hb = el('div', 'invgrid hotbarrow', win);
+    for (var hh = 0; hh < 9; hh++) {
+      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
+    }
+    this.anvilNameSync();
+    this.refreshAnvil();
+    this.refreshSlots();
+  };
+
+  // Das Namensfeld zeigt den aktuellen Namen des linken Stücks, solange
+  // niemand hineingeschrieben hat – sonst müsste man ihn abtippen.
+  UI.prototype.anvilNameSync = function () {
+    var te = this.anvil;
+    if (!te || !this.anvilNameEl) return;
+    te.name = te.a ? MC.Ench.anzeigeName(te.a) : '';
+    this.anvilNameEl.value = te.name;
+  };
+
+  UI.prototype.refreshAnvil = function () {
+    var te = this.anvil, g = this.game;
+    if (!te) return;
+    var r = MC.Ench.amboss(te.a, te.b, te.name);
+    te.out = (r && !(r.zuTeuer && g.mode !== 'creative')) ? r.out : null;
+    te.plan = r;
+    if (this.anvilCostEl) {
+      if (!r) this.anvilCostEl.textContent = '';
+      else if (r.zuTeuer && g.mode !== 'creative') {
+        this.anvilCostEl.innerHTML = '<span class="teuer">Zu teuer!</span>';
+      } else {
+        var reicht = g.mode === 'creative' || g.player.level >= r.kosten;
+        this.anvilCostEl.innerHTML = '<span class="' + (reicht ? '' : 'teuer') + '">' +
+          r.kosten + ' Stufe' + (r.kosten === 1 ? '' : 'n') + '</span>';
+      }
+    }
+    if (this.anvilOut) this.renderSlot(this.anvilOut, te.out);
+  };
+
+  UI.prototype.anvilNehmen = function () {
+    var te = this.anvil, g = this.game, r = te.plan;
+    if (!r || !te.out) return;
+    if (g.mode !== 'creative') {
+      if (g.player.level < r.kosten) return;
+      g.player.level -= r.kosten;
+      g.player.xp = 0;
+    }
+    te.a = null;
+    if (te.b) {
+      te.b.count -= r.verbraucht;
+      if (te.b.count <= 0) te.b = null;
+    }
+    te.out = null; te.plan = null;
+    g.audio.play('level');
+    // Der Amboss nimmt beim Arbeiten Schaden – zwölf Prozent je Vorgang
+    if (g.mode !== 'creative' && te.pos && Math.random() < 0.12) g.amboss(te.pos);
+    this.anvilNameSync();
+    this.refreshAnvil();
+    this.refreshSlots();
+    this.updateHUD();
+  };
+
   // ---------- Truhe ----------
   UI.prototype.buildChest = function (te) {
     var self = this, inv = this.game.player.inventory;
@@ -1218,7 +1326,7 @@
       }
     }
     for (i = 0; i < 27; i++) {
-      if (!te.items[i]) { te.items[i] = { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench }; stack.count = 0; return true; }
+      if (!te.items[i]) { te.items[i] = I.copyStack(stack); stack.count = 0; return true; }
     }
     return stack.count === 0;
   };
@@ -1247,7 +1355,7 @@
       el('div', 'tarrow', row).textContent = '➜';
       var got = el('div', 'tside', row);
       var gs = el('div', 'slot', got);
-      self.renderSlot(gs, { id: offer.get[0], count: offer.get[1] });
+      self.renderSlot(gs, { id: offer.get[0], count: offer.get[1], ench: offer.ench });
       var btn = el('button', 'tbtn', row);
       btn.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
@@ -1308,7 +1416,9 @@
     var offer = this.tradeRows[idx].offer;
     if (!this.canAfford(offer)) { g.audio.play('nope'); return; }
     for (var i = 0; i < offer.give.length; i++) inv.remove(offer.give[i][0], offer.give[i][1]);
-    var rest = inv.add(I.newStack(offer.get[0], offer.get[1]));
+    var ware = I.newStack(offer.get[0], offer.get[1]);
+    if (offer.ench) { ware.ench = {}; for (var k in offer.ench) ware.ench[k] = offer.ench[k]; }
+    var rest = inv.add(ware);
     if (rest > 0) g.throwStack(I.newStack(offer.get[0], rest));
     offer.uses++;
     g.player.addXP(2);

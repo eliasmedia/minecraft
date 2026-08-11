@@ -280,6 +280,14 @@
               break;
             }
 
+            case B.SHAPE_ANVIL: {
+              for (var av = 0; av < B.ANVIL_LAYERS.length; av++) {
+                var A = B.ANVIL_LAYERS[av];
+                emitShapedBox(buf, x, y, z, [A[0], A[1], A[2]], [A[3], A[4], A[5]], block, meta);
+              }
+              break;
+            }
+
             // Redstoneleitung: flach auf dem Boden. Die Signalstärke steuert
             // die Helligkeit über den Shadewert, darum nur eine Textur.
             case B.SHAPE_WIRE: {

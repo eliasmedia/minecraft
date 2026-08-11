@@ -404,7 +404,7 @@
   // ---------- Drops ----------
   Game.prototype.spawnItem = function (x, y, z, stack) {
     if (!stack || stack.count <= 0) return;
-    var e = new MC.ItemEntity(this.world, x, y, z, { id: stack.id, count: stack.count, dur: stack.dur, ench: stack.ench });
+    var e = new MC.ItemEntity(this.world, x, y, z, I.copyStack(stack));
     e.vx = (Math.random() - 0.5) * 2.2;
     e.vy = 2 + Math.random();
     e.vz = (Math.random() - 0.5) * 2.2;
@@ -712,6 +712,13 @@
       }
       if (b.name === 'chest') {
         this.ui.openScreen('chest', this.chestTile(t.x, t.y, t.z));
+        return;
+      }
+      if (b.shape === B.SHAPE_ANVIL) {
+        // Der Amboss merkt sich nichts: was drin liegt, kommt beim Schließen
+        // zurück ins Inventar. Nur die Position braucht er, um sich abzunutzen.
+        this.ui.openScreen('anvil', { type: 'anvil', a: null, b: null, out: null,
+                                      name: '', pos: { x: t.x, y: t.y, z: t.z } });
         return;
       }
       if (b.name === 'enchanting_table') {
@@ -1060,6 +1067,26 @@
     }
   };
 
+  // Amboss nutzt sich ab: angeschlagen, beschädigt, dann ist er hin
+  Game.prototype.amboss = function (pos) {
+    var w = this.world;
+    var cur = B.byId[w.getBlock(pos.x, pos.y, pos.z)];
+    if (!cur || cur.shape !== B.SHAPE_ANVIL) return;
+    var kette = ['anvil', 'anvil_chipped', 'anvil_damaged'];
+    var i = kette.indexOf(cur.name);
+    if (i < 0) return;
+    if (i === kette.length - 1) {
+      w.setBlock(pos.x, pos.y, pos.z, 0, 0);
+      this.particles.blockBreak(pos.x, pos.y, pos.z, cur.id, 0);
+      this.audio.breakBlock('stone');
+      this.ui.toast('Der Amboss ist zerbrochen.');
+      this.ui.close();
+    } else {
+      w.setBlock(pos.x, pos.y, pos.z, B.id(kette[i + 1]), 0);
+      this.audio.play('thud');
+    }
+  };
+
   Game.prototype.throwPearl = function () {
     var p = this.player;
     if (p.pearlCd > 0) return;
@@ -1244,7 +1271,7 @@
     var s = p.inventory.selectedStack();
     if (!s) return;
     var n = all ? s.count : 1;
-    this.throwStack({ id: s.id, count: n, dur: s.dur, ench: s.ench });
+    this.throwStack(I.copyStack(s, n));
     s.count -= n;
     if (s.count <= 0) p.inventory.slots[p.inventory.selected] = null;
     this.ui.updateHotbar();

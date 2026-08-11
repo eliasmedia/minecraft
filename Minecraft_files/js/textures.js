@@ -704,6 +704,29 @@
   });
   tex('tnt_bottom', function (g) { g.qn(TNT, [46, 38, 16]); });
 
+  // Amboss: dunkles, unregelmäßig gehämmertes Eisen. Die Bahn oben ist heller
+  // und bekommt mit jedem Zustand mehr Kerben.
+  var AMB = [[36, 36, 40], [52, 52, 58], [68, 68, 76], [88, 88, 98]];
+  tex('anvil_side', function (g) {
+    g.qn(AMB, [22, 38, 28, 12]);
+    for (var x = 0; x < 16; x++) { g.set(x, 0, AMB[0]); g.set(x, 15, mul(AMB[0], 0.8)); }
+    for (var i = 0; i < 10; i++) g.set((g.r() * 16) | 0, 2 + ((g.r() * 12) | 0), AMB[0]);
+  });
+  [0, 1, 2].forEach(function (stufe) {
+    tex('anvil_top' + (stufe ? '_' + stufe : ''), function (g) {
+      g.qn(AMB.slice(1), [26, 42, 32]);
+      g.frame(0, 0, 16, 16, AMB[0]);
+      g.rect(3, 3, 10, 10, AMB[3]);
+      // Kerben: je beschädigter, desto mehr
+      var n = stufe * 9;
+      for (var i = 0; i < n; i++) {
+        var kx = 2 + ((g.r() * 12) | 0), ky = 2 + ((g.r() * 12) | 0);
+        g.set(kx, ky, AMB[0]);
+        if (g.r() < 0.6) g.set(kx + 1, ky, mul(AMB[0], 0.8));
+      }
+    });
+  });
+
   // Zaubertisch: Obsidianblock, oben mit einer roten Buchdecke, an den Seiten
   // ein schmaler Streifen aus demselben Rot – so ist er von weitem zu erkennen.
   var BUCH = [[74, 16, 20], [110, 26, 30], [146, 40, 44], [178, 62, 62]];

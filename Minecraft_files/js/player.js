@@ -40,11 +40,9 @@
     for (i = 0; i < this.size; i++) {
       if (!this.slots[i]) {
         var put = Math.min(max, stack.count);
-        var ns = { id: stack.id, count: put };
-        if (stack.dur !== undefined) ns.dur = stack.dur;
-        // Ohne das ginge jede Verzauberung beim Aufheben verloren
-        if (stack.ench) ns.ench = stack.ench;
-        this.slots[i] = ns;
+        // Kopie über I.copyStack: sonst ginge beim Aufheben jede Verzauberung
+        // und jede Amboss-Vorarbeit verloren
+        this.slots[i] = I.copyStack(stack, put);
         stack.count -= put;
         if (stack.count <= 0) return 0;
       }

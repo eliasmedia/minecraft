@@ -239,6 +239,20 @@
     return it.stack;
   };
 
+  // Ein Stack trägt inzwischen mehr als Name und Zahl: Haltbarkeit,
+  // Verzauberungen, Vorarbeit am Amboss, eigener Name. Kopiert wird deshalb
+  // über eine Stelle – jede handgeschriebene Kopie hätte irgendwann ein Feld
+  // vergessen und die Verzauberung stillschweigend verschluckt.
+  I.copyStack = function (s, count) {
+    if (!s) return null;
+    var n = { id: s.id, count: count === undefined ? s.count : count };
+    if (s.dur !== undefined) n.dur = s.dur;
+    if (s.ench) { n.ench = {}; for (var k in s.ench) n.ench[k] = s.ench[k]; }
+    if (s.pw) n.pw = s.pw;
+    if (s.eigenName) n.eigenName = s.eigenName;
+    return n;
+  };
+
   I.newStack = function (name, count) {
     var it = I.byName[name];
     if (!it) return null;

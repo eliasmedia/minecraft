@@ -285,6 +285,108 @@
   };
 
   // ============================================================
+  //  Amboss
+  // ============================================================
+  // Der Preis einer Verzauberung hängt an ihrer Seltenheit. Aus einem Buch ist
+  // sie halb so teuer wie von einem Werkzeug – so wie im Original.
+  var PREIS_ITEM = { 10: 1, 5: 2, 2: 4, 1: 8 };
+  var PREIS_BUCH = { 10: 1, 5: 1, 2: 2, 1: 4 };
+  E.ZU_TEUER = 40;
+
+  // Womit sich ein Stück reparieren lässt: mit dem Material, aus dem es besteht
+  E.reparaturMaterial = function (itemName) {
+    var teil = itemName.lastIndexOf('_');
+    if (teil < 0) return null;
+    var mat = itemName.slice(0, teil), rest = itemName.slice(teil + 1);
+    if (rest === 'helmet' || rest === 'chestplate' || rest === 'leggings' || rest === 'boots') {
+      return I.ARMOR[mat] ? I.ARMOR[mat].mat : null;
+    }
+    if (I.TIERS[mat]) {
+      // Holzwerkzeug flickt man mit Brettern – das Rezept nimmt jede Sorte,
+      // hier genügt die Eiche
+      return I.TIERS[mat].mat;
+    }
+    return null;
+  };
+
+  // Verzauberungen von `quelle` auf `ziel` übertragen, gibt die Kosten zurück
+  function mischen(ziel, quelle) {
+    if (!quelle.ench) return 0;
+    var ausBuch = quelle.id === 'enchanted_book';
+    var tabelle = ausBuch ? PREIS_BUCH : PREIS_ITEM;
+    var kosten = 0;
+    if (!ziel.ench) ziel.ench = {};
+    for (var k in quelle.ench) {
+      var en = NACH_KEY[k];
+      if (!en) continue;
+      // Auf ein Buch passt alles, auf ein Werkzeug nur, was dorthin gehört
+      if (ziel.id !== 'enchanted_book' && !E.passt(en.ziel, ziel.id)) continue;
+      // Unverträgliches kostet trotzdem einen Punkt, wie im Original
+      if (en.streit && en.streit.some(function (s) { return ziel.ench[s] !== undefined; })) { kosten++; continue; }
+      var alt = ziel.ench[k] || 0, neu = quelle.ench[k];
+      var stufe = (alt === neu) ? Math.min(en.max, alt + 1) : Math.max(alt, neu);
+      if (stufe === alt) { kosten++; continue; }
+      ziel.ench[k] = stufe;
+      kosten += stufe * (tabelle[en.gewicht] || 1);
+    }
+    return kosten;
+  }
+
+  // links = das Stück, das bleibt. rechts = Opfergabe. name = neuer Name oder null.
+  // Gibt null zurück, wenn die Kombination nichts ergibt.
+  E.amboss = function (links, rechts, name) {
+    if (!links) return null;
+    var itL = I.get(links.id);
+    if (!itL) return null;
+    var out = I.copyStack(links, 1);
+    var vorarbeit = (links.pw || 0) + (rechts ? (rechts.pw || 0) : 0);
+    var kosten = (Math.pow(2, links.pw || 0) - 1) + (rechts ? Math.pow(2, rechts.pw || 0) - 1 : 0);
+    var getan = false;
+    var verbraucht = 1;
+
+    if (rechts) {
+      var mat = E.reparaturMaterial(links.id);
+      if (mat && rechts.id === mat && links.dur !== undefined && links.dur < itL.durability) {
+        // Reparieren mit Material: ein Stück flickt ein Viertel
+        var proStueck = Math.ceil(itL.durability / 4);
+        var n = Math.min(rechts.count, Math.ceil((itL.durability - links.dur) / proStueck));
+        out.dur = Math.min(itL.durability, links.dur + n * proStueck);
+        kosten += n; verbraucht = n; getan = true;
+      } else if (rechts.id === links.id && links.dur !== undefined) {
+        // Zwei gleiche Stücke: Resthaltbarkeit plus 12 % Bonus, dann mischen
+        var rest = (rechts.dur === undefined ? itL.durability : rechts.dur) + Math.floor(itL.durability * 0.12);
+        if (links.dur < itL.durability) { out.dur = Math.min(itL.durability, links.dur + rest); kosten += 2; getan = true; }
+        var m1 = mischen(out, rechts);
+        if (m1 > 0) getan = true;
+        kosten += m1;
+      } else if (rechts.id === 'enchanted_book') {
+        var m2 = mischen(out, rechts);
+        if (m2 > 0) getan = true;
+        kosten += m2;
+      } else {
+        return null;
+      }
+    }
+
+    if (name !== null && name !== undefined && name !== (links.eigenName || itL.title)) {
+      out.eigenName = name.trim() ? name.trim().slice(0, 32) : null;
+      if (!out.eigenName) delete out.eigenName;
+      kosten += 1; getan = true;
+    }
+    if (!getan) return null;
+    out.pw = Math.max(links.pw || 0, rechts ? (rechts.pw || 0) : 0) + 1;
+    return { out: out, kosten: Math.max(1, Math.round(kosten)), verbraucht: verbraucht,
+             zuTeuer: kosten >= E.ZU_TEUER, vorarbeit: vorarbeit };
+  };
+
+  E.anzeigeName = function (stack) {
+    if (!stack) return '';
+    if (stack.eigenName) return stack.eigenName;
+    var it = I.get(stack.id);
+    return it ? it.title : stack.id;
+  };
+
+  // ============================================================
   //  Wirkung
   // ============================================================
 

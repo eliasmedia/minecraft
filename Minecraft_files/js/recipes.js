@@ -68,6 +68,8 @@
   shaped(['PPP', 'BBB', 'PPP'], { P: '#planks', B: 'book' }, 'bookshelf', 1);
   // Zaubertisch wie im Original: Buch oben, Diamanten neben dem Obsidian
   shaped([' B ', 'DOD', 'OOO'], { B: 'book', D: 'diamond', O: 'obsidian' }, 'enchanting_table', 1);
+  // Amboss: drei Eisenblöcke obendrauf, vier Barren darunter
+  shaped(['BBB', ' I ', 'III'], { B: 'iron_block', I: 'iron_ingot' }, 'anvil', 1);
 
   // Türen, Leitern, Zäune, Treppen
   shaped(['PP', 'PP', 'PP'], { P: '#planks' }, 'door_oak', 3);

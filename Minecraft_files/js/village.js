@@ -948,7 +948,11 @@
       { give: [['book', 4]], get: ['emerald', 1], max: 10 },
       { give: [['emerald', 1]], get: ['glass', 4], max: 12 },
       { give: [['emerald', 3]], get: ['bookshelf', 1], max: 8 },
-      { give: [['emerald', 5]], get: ['glowstone', 1], max: 4 }
+      { give: [['emerald', 5]], get: ['glowstone', 1], max: 4 },
+      // Verzauberungsbücher sind der eigentliche Grund, einen Bibliothekar
+      // aufzusuchen – welches man bekommt, entscheidet der Handel selbst.
+      { give: [['emerald', 14]], get: ['enchanted_book', 1], max: 2, zauber: true },
+      { give: [['emerald', 22], ['book', 1]], get: ['enchanted_book', 1], max: 1, zauber: true }
     ] },
     { key: 'schmied', title: 'Schmied', robe: 'mob_villager_schmied', trades: [
       { give: [['coal', 16]], get: ['emerald', 1], max: 14 },
@@ -985,7 +989,14 @@
     for (var i = 0; i < n && pool.length; i++) {
       var k = (rnd() * pool.length) | 0;
       var t = pool.splice(k, 1)[0];
-      offers.push({ give: t.give, get: t.get, uses: 0, max: t.max });
+      var o = { give: t.give, get: t.get, uses: 0, max: t.max };
+      // Ein Buchangebot bekommt seine Verzauberung fest zugeteilt, damit derselbe
+      // Bewohner nach dem Entladen wieder dasselbe Buch anbietet.
+      if (t.zauber && MC.Ench) {
+        o.ench = MC.Ench.wuerfeln('enchanted_book', 8 + ((rnd() * 22) | 0),
+                                  U.rng(U.hashString('buch:' + villageId + ':' + slot + ':' + i)));
+      }
+      offers.push(o);
     }
     return { profession: prof.key, title: prof.title, robe: prof.robe, offers: offers };
   };

@@ -31,6 +31,15 @@
   B.SHAPE_BUTTON = 20; // Knopf an Wand oder Boden
   B.SHAPE_LEVER = 21;  // Hebel
   B.SHAPE_REPEATER = 22; // Verstärker
+  B.SHAPE_ANVIL = 23;    // gestapelte Quader: Fuß, Taille, Hals, Bahn
+
+  // Silhouette des Ambosses in Sechzehnteln: x0,y0,z0,x1,y1,z1
+  B.ANVIL_LAYERS = [
+    [2, 0, 2, 14, 4, 14],      // Fuß
+    [4, 4, 3, 12, 5, 13],      // Absatz
+    [6, 5, 4, 10, 10, 12],     // Hals
+    [3, 10, 0, 13, 16, 16]     // Bahn
+  ].map(function (b) { return b.map(function (v) { return v / 16; }); });
 
   // Silhouette des Dracheneis in Sechzehnteln, von unten nach oben
   B.EGG_LAYERS = [
@@ -195,6 +204,17 @@
   define('tnt', {
     title: 'TNT', tex: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
     hardness: 0, sound: 'grass', group: 'werkzeug'
+  });
+  // Amboss. Wie im Original fällt er, wenn ihm der Boden abhandenkommt, und
+  // nutzt sich beim Arbeiten ab – drei Zustände, alle lassen einen Amboss fallen.
+  ['', '_chipped', '_damaged'].forEach(function (suf, i) {
+    define('anvil' + suf, {
+      title: 'Amboss' + ['', ' (angeschlagen)', ' (beschädigt)'][i],
+      shape: B.SHAPE_ANVIL, opaque: false,
+      tex: { top: 'anvil_top' + (i ? '_' + i : ''), bottom: 'anvil_side', side: 'anvil_side' },
+      hardness: 5, tool: 'pickaxe', level: 1, gravity: true, sound: 'stone',
+      drop: 'anvil', item: i === 0, group: 'werkzeug'
+    });
   });
   define('enchanting_table', {
     title: 'Zaubertisch',
@@ -600,6 +620,8 @@
       case B.SHAPE_EGG:
         // eine Box reicht für die Kollision, die Feinform bleibt Optik
         return [[0.0625, 0, 0.0625, 0.9375, 1, 0.9375]];
+      case B.SHAPE_ANVIL:
+        return [[0.125, 0, 0.0625, 0.875, 1, 0.9375]];
       case B.SHAPE_PLATE:
         return [[0, 0, 0, 1, 0.0625, 1]];
       case B.SHAPE_REPEATER:
@@ -635,6 +657,7 @@
       case B.SHAPE_CROP: return [0.05, 0, 0.05, 0.95, 0.7, 0.95];
       case B.SHAPE_BED: return [0, 0, 0, 1, 0.5625, 1];
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
+      case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
       case B.SHAPE_LIQUID: return null;
       case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_FENCE: return [0.375, 0, 0.375, 0.625, 1.5, 0.625];
