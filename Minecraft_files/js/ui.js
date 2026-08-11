@@ -49,6 +49,9 @@
     this.statsEl = document.getElementById('stats');
     this.itemNameEl = document.getElementById('itemname');
     this.effectsEl = document.getElementById('effects');
+    this.mapEl = document.getElementById('mapview');
+    this.mapCanvas = document.getElementById('mapcanvas');
+    this.mapMark = document.getElementById('mapmark');
 
     // Hotbar aufbauen
     this.hotbarSlots = [];
@@ -414,6 +417,32 @@
     }
   };
 
+  // Karte in der Hand: kleiner Ausschnitt unten rechts, mit M gross
+  UI.prototype.updateMap = function () {
+    var g = this.game, p = g.player;
+    if (!this.mapEl || !MC.Karte) return;
+    var st = p.inventory.selectedStack();
+    var an = !!(st && st.id === 'map' && !this.isOpen());
+    this.mapEl.classList.toggle('show', an);
+    this.mapEl.classList.toggle('big', an && !!this.mapGross);
+    if (!an) return;
+    if (!st.karte) st.karte = MC.Karte.neu(Math.floor(p.x), Math.floor(p.z));
+    var neu = MC.Karte.erkunden(st.karte, Math.floor(p.x), Math.floor(p.z), 26);
+    // Neu zeichnen nur, wenn sich etwas geaendert hat - die Karte ist 128x128
+    // Spalten, das will man nicht jeden Frame durchrechnen.
+    this._mapT = (this._mapT || 0) + 1;
+    var sig = st.karte.x + ':' + st.karte.z;
+    if (neu || this._mapSig !== sig || (this._mapT % 90) === 0) {
+      MC.Karte.zeichnen(g.world, st.karte, this.mapCanvas);
+      this._mapSig = sig;
+    }
+    var z = MC.Karte.zeiger(st.karte, p.x, p.z);
+    if (!z) { this.mapMark.style.display = 'none'; return; }
+    this.mapMark.style.display = 'block';
+    this.mapMark.style.left = (z.x * 100) + '%';
+    this.mapMark.style.top = (z.z * 100) + '%';
+  };
+
   UI.prototype.renderSlot = function (dom, stack) {
     if (!stack || stack.count <= 0) {
       dom.style.backgroundImage = '';
@@ -446,6 +475,7 @@
     if (!this.game.player) return;
     var p = this.game.player, g = this.game;
     this.updateEffects(p);
+    this.updateMap();
     var creative = g.mode === 'creative';
     document.getElementById('survivalhud').style.display = creative ? 'none' : '';
 

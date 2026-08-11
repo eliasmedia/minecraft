@@ -1281,6 +1281,8 @@
       // M öffnet jetzt das Menü; die Musik schaltet J um und steht weiter im Pausenmenü
       case 'KeyJ': this.audio.musicOn = !this.audio.musicOn; this.ui.toast('Musik ' + (this.audio.musicOn ? 'an' : 'aus')); break;
       case 'KeyR': this.saveWorld(); break;
+      // N vergroessert die Karte in der Hand - M ist schon die Pause
+      case 'KeyN': this.ui.mapGross = !this.ui.mapGross; break;
     }
     if (code.indexOf('Digit') === 0) {
       var n = parseInt(code.slice(5), 10);

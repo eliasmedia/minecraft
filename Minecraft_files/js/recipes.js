@@ -190,6 +190,8 @@
   // Ambrosiumfackel: leuchtet wie eine normale
   shaped(['A', 'S'], { A: 'ambrosium_shard', S: 'stick' }, 'torch', 4);
   shaped(['MM', 'MM'], { M: 'magma_block' }, 'magma_block', 1);
+  // Karte: Papier um einen Kompass – der zeigt dem Blatt, wo es liegt
+  shaped(['PPP', 'PCP', 'PPP'], { P: 'paper', C: 'compass' }, 'map', 1);
   // Kompass wie im Original: Eisen ringsum, Redstone in der Mitte
   shaped(['.I.', 'IRI', '.I.'], { I: 'iron_ingot', R: 'redstone' }, 'compass', 1);
   // Enderauge: eine Lohenrute gibt zwei Staub, Staub plus Perle gibt das Auge

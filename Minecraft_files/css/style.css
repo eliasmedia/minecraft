@@ -229,6 +229,21 @@ canvas#gl {
 .progress { width: 90px; height: 14px; background: #555; position: relative; overflow: hidden; }
 .progress i { position: absolute; left: 0; top: 0; bottom: 0; background: #dedede; width: 0%; }
 
+/* ---- Karte ---- */
+#mapview {
+  position: fixed; right: 10px; bottom: 96px;
+  width: 152px; height: 152px; display: none;
+  background: #2b2b2b; border: 3px solid; border-color: #6b5a3e #3a3024 #3a3024 #6b5a3e;
+  padding: 3px;
+}
+#mapview.show { display: block; }
+#mapview.big { width: 384px; height: 384px; right: 50%; bottom: 50%; transform: translate(50%, 50%); }
+#mapcanvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+#mapmark {
+  position: absolute; width: 7px; height: 7px; margin: -3px 0 0 -3px;
+  background: #e04040; border: 1px solid #fff; display: block;
+}
+
 #effects {
   position: fixed; right: 8px; top: 8px;
   display: flex; flex-direction: column; gap: 3px; align-items: flex-end;

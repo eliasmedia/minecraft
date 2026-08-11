@@ -166,6 +166,8 @@
   // In der Hand blendet der Kompass oben ein Band mit Himmelsrichtung und
   // Koordinaten ein – die Nadel selbst steckt in der Oberfläche, nicht im Item.
   define('compass', { title: 'Kompass', stack: 1, group: 'werkzeug' });
+  // Karte: der Ausschnitt wird beim ersten Tragen festgelegt und bleibt dann
+  define('map', { title: 'Karte', stack: 1, group: 'werkzeug' });
   // Verzauberungsbuch: trägt seine Verzauberung, bis der Amboss sie weitergibt
   define('enchanted_book', { title: 'Verzaubertes Buch', stack: 1, tex: 'book', group: 'material' });
 
@@ -266,6 +268,7 @@
     if (s.ench) { n.ench = {}; for (var k in s.ench) n.ench[k] = s.ench[k]; }
     if (s.pw) n.pw = s.pw;
     if (s.eigenName) n.eigenName = s.eigenName;
+    if (s.karte) n.karte = s.karte;
     return n;
   };
 
