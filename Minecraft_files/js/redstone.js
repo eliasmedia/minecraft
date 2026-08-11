@@ -39,7 +39,8 @@
       torch: B.id('redstone_torch'), torchOff: B.id('redstone_torch_off'),
       block: B.id('redstone_block'), lever: B.id('lever'), button: B.id('stone_button'),
       plate: B.id('pressure_plate'), lamp: B.id('redstone_lamp'), lampLit: B.id('redstone_lamp_lit'),
-      repeater: B.id('repeater'), tnt: B.id('tnt')
+      repeater: B.id('repeater'), tnt: B.id('tnt'),
+      obs: B.id('observer'), obsLit: B.id('observer_lit')
     });
   }
 
@@ -60,7 +61,8 @@
     if (!id) return false;
     if (id === d.wire || id === d.torch || id === d.torchOff || id === d.repeater ||
         id === d.lever || id === d.button || id === d.plate ||
-        id === d.lamp || id === d.lampLit || id === d.block) return false;
+        id === d.lamp || id === d.lampLit || id === d.block ||
+        id === d.obs || id === d.obsLit) return false;
     var b = B.byId[id];
     return !!(b && b.opaque);
   }
@@ -96,6 +98,11 @@
       if (!R.repOn(m)) return 0;
       var rd = R.repDir(m);
       return (ty === sy && tx === sx + rd[0] && tz === sz + rd[1]) ? R.MAX : 0;
+    }
+    // Der Beobachter gibt nach hinten ab, also entgegen seiner Blickrichtung
+    if (id === d.obsLit) {
+      var od = R.kolbenRichtung(m);
+      return (tx === sx - od[0] && ty === sy - od[1] && tz === sz - od[2]) ? R.MAX : 0;
     }
     return 0;
   }
@@ -133,6 +140,11 @@
       if (id === d.repeater && R.repOn(m)) {
         var rd = R.repDir(m);
         if (ny === y && nx + rd[0] === x && nz + rd[1] === z) return R.MAX;
+      }
+      // Beobachter lädt den Block hinter sich
+      if (id === d.obsLit) {
+        var od2 = R.kolbenRichtung(m);
+        if (nx - od2[0] === x && ny - od2[1] === y && nz - od2[2] === z) return R.MAX;
       }
     }
     return 0;
@@ -334,14 +346,17 @@
       w._rsWecken = null;
       for (var i = 0; i < wecken.length; i++) applyConsumer(w, wecken[i][0], wecken[i][1], wecken[i][2]);
     }
-    var p = w._rsPlan;
-    if (!p) return;
-    var faellig = null, k;
-    for (k in p) { if (p[k].t <= w.ticks) (faellig || (faellig = [])).push(p[k]); }
+    var faellig = null, k, q, j;
+    var plaene = [w._rsPlan, w._rsPlan2];
+    for (j = 0; j < 2; j++) {
+      var p = plaene[j];
+      if (!p) continue;
+      for (k in p) { if (p[k].t <= w.ticks) (faellig || (faellig = [])).push([p, p[k]]); }
+    }
     if (!faellig) return;
     for (var i = 0; i < faellig.length; i++) {
-      var q = faellig[i];
-      delete p[q.x + ',' + q.y + ',' + q.z];
+      q = faellig[i][1];
+      delete faellig[i][0][q.x + ',' + q.y + ',' + q.z];
       R.schalte(w, q.x, q.y, q.z, q.an);
     }
   };
@@ -362,6 +377,12 @@
       var m = w.getMeta(x, y, z);
       if (repInput(w, x, y, z, m) !== an || an === R.repOn(m)) return;
       w.setMetaOnly(x, y, z, an ? (m | 16) : (m & ~16));
+      R.onChange(w, x, y, z);
+      return;
+    }
+    if (id === d.obs || id === d.obsLit) {
+      if (an === (id === d.obsLit)) return;
+      w.setBlock(x, y, z, an ? d.obsLit : d.obs, w.getMeta(x, y, z), { noUpdate: true, noRedstone: true });
       R.onChange(w, x, y, z);
     }
   };
@@ -389,6 +410,11 @@
       return;
     }
 
+    // Der Beobachter gehoert zur Kolbenfamilie nur, was die Blickrichtung
+    // angeht - geschaltet wird er von Blockaenderungen, nicht von Strom.
+    if (id === d.obs || id === d.obsLit) return;
+    if (b.piston6 && b.name !== 'piston_head') { kolbenPruefen(w, x, y, z, id); return; }
+
     var an = R.powered(w, x, y, z);
 
     if (id === d.lamp && an) { w.setBlock(x, y, z, d.lampLit, 0, { noUpdate: true }); return; }
@@ -414,6 +440,147 @@
       game.audio.play('fizz');
       return;
     }
+  }
+
+  // ============================================================
+  //  Kolben
+  // ============================================================
+  // Bewegt wird sofort, ohne Zwischenbild. Das Original schiebt in zwei Ticks
+  // sichtbar hinaus; das nachzubauen hieße, für jeden Block eine eigene
+  // Entität mitzuführen – der Ertrag stünde in keinem Verhältnis.
+  R.SCHIEBE_MAX = 12;
+
+  // Was ein Kolben nicht anrührt
+  var UNBEWEGLICH = null;
+  function unbeweglich(w, x, y, z, id) {
+    if (!UNBEWEGLICH) {
+      UNBEWEGLICH = {};
+      ['bedrock', 'obsidian', 'chest', 'furnace', 'furnace_lit', 'spawner', 'enchanting_table',
+       'anvil', 'anvil_chipped', 'anvil_damaged', 'end_portal_frame', 'dragon_egg',
+       'piston_head', 'piston_ext', 'sticky_piston_ext'
+      ].forEach(function (n) { var i = B.id(n); if (i) UNBEWEGLICH[i] = true; });
+    }
+    if (UNBEWEGLICH[id]) return true;
+    var b = B.byId[id];
+    if (!b) return true;
+    if (b.hardness < 0) return true;
+    if (b.liquid) return true;
+    // Alles mit eigenem Inhalt bleibt, wo es ist
+    if (w.tileEntities && w.tileEntities[x + ',' + y + ',' + z]) return true;
+    return false;
+  }
+
+  // Zerbricht beim Schieben statt mitzugehen (Pflanzen, Fackeln, Leitungen)
+  function zerbricht(id) {
+    var b = B.byId[id];
+    if (!b) return false;
+    return b.shape === B.SHAPE_CROSS || b.shape === B.SHAPE_TORCH ||
+           b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_PLATE ||
+           b.shape === B.SHAPE_CROP || b.replaceable;
+  }
+
+  R.kolbenRichtung = function (m) { return B.DIR6[m & 7] || B.DIR6[0]; };
+
+  // Die Blöcke vor dem Kolben einsammeln. null heißt: geht nicht.
+  function schiebeListe(w, x, y, z, d) {
+    var liste = [];
+    var cx = x + d[0], cy = y + d[1], cz = z + d[2];
+    for (var n = 0; n <= R.SCHIEBE_MAX; n++) {
+      if (cy < 0 || cy >= MC.WORLD_HEIGHT) return null;
+      var id = w.getBlock(cx, cy, cz);
+      if (id === 0) return liste;                     // hier ist Platz
+      if (zerbricht(id)) return liste;                // das gibt einfach nach
+      if (unbeweglich(w, cx, cy, cz, id)) return null;
+      if (liste.length >= R.SCHIEBE_MAX) return null;
+      liste.push({ x: cx, y: cy, z: cz, id: id, meta: w.getMeta(cx, cy, cz) });
+      cx += d[0]; cy += d[1]; cz += d[2];
+    }
+    return null;
+  }
+
+  function ausfahren(w, x, y, z, id, m) {
+    var d = R.kolbenRichtung(m);
+    var liste = schiebeListe(w, x, y, z, d);
+    if (!liste) return false;
+    // Von hinten nach vorne umsetzen, sonst überschreibt man sich selbst
+    for (var i = liste.length - 1; i >= 0; i--) {
+      var s = liste[i];
+      w.setBlock(s.x + d[0], s.y + d[1], s.z + d[2], s.id, s.meta, { noUpdate: true });
+    }
+    if (liste.length) {
+      var e = liste[0];
+      w.setBlock(e.x, e.y, e.z, 0, 0, { noUpdate: true });
+    } else {
+      // Ein zerbrechlicher Block direkt davor wird abgeräumt
+      var vx = x + d[0], vy = y + d[1], vz = z + d[2];
+      if (w.getBlock(vx, vy, vz) !== 0) w.setBlock(vx, vy, vz, 0, 0, { noUpdate: true });
+    }
+    var klebrig = B.byId[id].sticky;
+    w.setBlock(x, y, z, B.id(klebrig ? 'sticky_piston_ext' : 'piston_ext'), m, { noUpdate: true });
+    w.setBlock(x + d[0], y + d[1], z + d[2], B.id('piston_head'), m, { noUpdate: true });
+    return true;
+  }
+
+  function einfahren(w, x, y, z, id, m) {
+    var d = R.kolbenRichtung(m);
+    var hx = x + d[0], hy = y + d[1], hz = z + d[2];
+    if (w.getBlock(hx, hy, hz) === B.id('piston_head')) {
+      w.setBlock(hx, hy, hz, 0, 0, { noUpdate: true });
+    }
+    var klebrig = B.byId[id].sticky;
+    if (klebrig) {
+      // Der Klebkolben zieht den Block hinter dem Kopf wieder mit
+      var zx = hx + d[0], zy = hy + d[1], zz = hz + d[2];
+      var zid = w.getBlock(zx, zy, zz);
+      if (zid !== 0 && !zerbricht(zid) && !unbeweglich(w, zx, zy, zz, zid)) {
+        var zm = w.getMeta(zx, zy, zz);
+        w.setBlock(zx, zy, zz, 0, 0, { noUpdate: true });
+        w.setBlock(hx, hy, hz, zid, zm, { noUpdate: true });
+      }
+    }
+    w.setBlock(x, y, z, B.id(klebrig ? 'sticky_piston' : 'piston'), m, { noUpdate: true });
+    return true;
+  }
+
+  // ============================================================
+  //  Beobachter
+  // ============================================================
+  // Er hängt nicht an der Aufladung, sondern an der Veränderung: sobald sich
+  // der Block vor ihm ändert, gibt er nach hinten einen kurzen Impuls ab.
+  // Aufgerufen wird das aus world.setBlock, also von jeder Blockänderung.
+  R.beobachtet = function (w, x, y, z) {
+    var d = ids();
+    if (!d.obs) return;
+    for (var i = 0; i < 6; i++) {
+      var n = NEI[i];
+      var ox = x - n[0], oy = y - n[1], oz = z - n[2];
+      var id = w.getBlock(ox, oy, oz);
+      if (id !== d.obs) continue;
+      var od = R.kolbenRichtung(w.getMeta(ox, oy, oz));
+      // Nur wenn er wirklich auf diesen Block schaut
+      if (ox + od[0] !== x || oy + od[1] !== y || oz + od[2] !== z) continue;
+      plane(w, ox, oy, oz, true, 1);
+      plane2(w, ox, oy, oz, false, 3);
+    }
+  };
+
+  // Zweiter Plan für das Abschalten: `plane` würde den Einschalttermin
+  // überschreiben, weil es je Position nur einen Eintrag führt.
+  function plane2(w, x, y, z, an, delay) {
+    var p = w._rsPlan2 || (w._rsPlan2 = {});
+    p[x + ',' + y + ',' + z] = { x: x, y: y, z: z, t: w.ticks + delay, an: an };
+  }
+
+  // Wird aus applyConsumer gerufen: Zustand mit der Aufladung abgleichen
+  function kolbenPruefen(w, x, y, z, id) {
+    var b = B.byId[id];
+    var m = w.getMeta(x, y, z);
+    var an = R.powered(w, x, y, z);
+    var ausgefahren = (b.name === 'piston_ext' || b.name === 'sticky_piston_ext');
+    if (an === ausgefahren) return;
+    var game = MC.game;
+    var ok = an ? ausfahren(w, x, y, z, id, m) : einfahren(w, x, y, z, id, m);
+    if (ok && game && game.world === w) game.audio.play('click');
   }
 
   // ============================================================

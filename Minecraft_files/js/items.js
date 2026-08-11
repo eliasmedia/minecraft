@@ -71,6 +71,8 @@
     ['bowl', 'Schüssel', 'material', 200],
     // Nether
     ['quartz', 'Netherquarz', 'material', 0],
+    // Aus dem Magmawürfel: das klebrige Zeug, das den Klebkolben klebrig macht
+    ['slimeball', 'Schleimball', 'material', 0],
     ['nether_brick', 'Netherziegelstein', 'material', 0],
     // Aether
     ['zanite_gemstone', 'Zanit', 'material', 0],

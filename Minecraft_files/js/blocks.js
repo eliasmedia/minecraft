@@ -94,6 +94,8 @@
       soft: !!o.soft,              // dämpft den Fallschaden (goldene Wolke)
       gravityUp: !!o.gravityUp,    // steigt auf statt zu fallen (Gravitit)
       portal: o.portal || null,    // Zieldimension einer Portalfläche
+      piston6: !!o.piston6,        // Kolbenfamilie: Blickrichtung in Meta-Bit 0..2
+      sticky: !!o.sticky,          // Klebkolben: zieht beim Einfahren mit
       group: o.group || 'natur'
     };
     if (b.opacity === undefined) b.opacity = b.opaque ? 15 : (b.liquid ? 2 : (b.shape === B.SHAPE_CROSS ? 0 : 1));
@@ -216,6 +218,55 @@
       drop: 'anvil', item: i === 0, group: 'werkzeug'
     });
   });
+  // ---------- Kolben ----------
+  // Sechs Richtungen statt vier, darum ein eigenes Kennzeichen: die
+  // Texturauswahl im Mesher liest die Blickrichtung dann aus Meta-Bit 0..2.
+  B.DIR6 = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 1, 0], [0, -1, 0]];
+  B.FACE6 = [5, 0, 4, 1, 2, 3];     // Richtung -> Flächennummer im Mesher
+
+  define('piston', {
+    title: 'Kolben', piston6: true, sticky: false,
+    tex: { front: 'piston_face', back: 'piston_back', side: 'piston_side', top: 'piston_side' },
+    hardness: 1.5, sound: 'stone', group: 'redstone'
+  });
+  define('sticky_piston', {
+    title: 'Klebkolben', piston6: true, sticky: true,
+    tex: { front: 'piston_face_sticky', back: 'piston_back', side: 'piston_side', top: 'piston_side' },
+    hardness: 1.5, sound: 'stone', group: 'redstone'
+  });
+  // Der ausgefahrene Körper: sieht vorne offen aus, weil der Kopf davorsitzt
+  define('piston_ext', {
+    title: 'Kolben (ausgefahren)', piston6: true,
+    tex: { front: 'piston_inner', back: 'piston_back', side: 'piston_side', top: 'piston_side' },
+    hardness: 1.5, sound: 'stone', drop: 'piston', item: false
+  });
+  define('sticky_piston_ext', {
+    title: 'Klebkolben (ausgefahren)', piston6: true, sticky: true,
+    tex: { front: 'piston_inner', back: 'piston_back', side: 'piston_side', top: 'piston_side' },
+    hardness: 1.5, sound: 'stone', drop: 'sticky_piston', item: false
+  });
+  // Der Kopf. Im Original ist er dünner als ein Block – bei uns füllt er die
+  // Zelle aus, die er im Original ohnehin belegt.
+  define('piston_head', {
+    title: 'Kolbenkopf', piston6: true,
+    tex: { front: 'piston_face', back: 'piston_arm', side: 'piston_arm', top: 'piston_arm' },
+    hardness: 1.5, sound: 'stone', drop: null, item: false
+  });
+
+  // Beobachter: merkt sich, was vor ihm liegt, und gibt einen kurzen Impuls
+  // nach hinten ab, sobald sich das ändert. Damit lässt sich automatisieren,
+  // ohne einen Fackeltaktgeber danebenzustellen.
+  define('observer', {
+    title: 'Beobachter', piston6: true,
+    tex: { front: 'observer_face', back: 'observer_back', side: 'observer_side', top: 'observer_side' },
+    hardness: 3, tool: 'pickaxe', sound: 'stone', group: 'redstone'
+  });
+  define('observer_lit', {
+    title: 'Beobachter (an)', piston6: true,
+    tex: { front: 'observer_face', back: 'observer_back_lit', side: 'observer_side', top: 'observer_side' },
+    hardness: 3, tool: 'pickaxe', sound: 'stone', drop: 'observer', item: false
+  });
+
   define('enchanting_table', {
     title: 'Zaubertisch',
     tex: { top: 'enchanting_table_top', bottom: 'obsidian', side: 'enchanting_table_side' },

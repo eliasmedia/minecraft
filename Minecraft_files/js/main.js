@@ -985,6 +985,16 @@
       } else if (B.isSolid(w.getBlock(nx, ny - 1, nz))) {
         meta = 4;
       } else return;
+    } else if (block.piston6) {
+      // Der Kolben zeigt zum Spieler, wie im Original. Steht man deutlich
+      // darüber oder darunter, fährt er senkrecht aus.
+      var pd = p.lookDir();
+      if (pd.y > 0.68) meta = 5;            // von unten gesetzt -> Kopf nach unten
+      else if (pd.y < -0.68) meta = 4;      // von oben gesetzt -> Kopf nach oben
+      else meta = this.facingFromYaw();
+      // Der Beobachter ist umgekehrt herum: er schaut in Blickrichtung, damit
+      // er den Block im Auge hat, den man gerade ansieht.
+      if (block.name === 'observer') meta = meta < 4 ? ((meta + 2) & 3) : (meta === 4 ? 5 : 4);
     } else if (block.name.indexOf('log_') === 0) {
       meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
     } else if (typeof block.tex === 'object' && block.tex.front) {

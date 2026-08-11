@@ -88,6 +88,16 @@
                   (axis === 2 && (face === 4 || face === 5));
       return T.layer(isEnd ? tex.top : tex.side);
     }
+    // Kolben zeigen in sechs Richtungen, nicht nur in vier
+    if (block.piston6) {
+      var pd = meta & 7;
+      var pf = B.FACE6[pd];
+      if (face === pf) return T.layer(tex.front);
+      // die Rückseite ist die gegenüberliegende Fläche
+      var gegen = B.FACE6[pd < 4 ? ((pd + 2) & 3) : (pd === 4 ? 5 : 4)];
+      if (face === gegen) return T.layer(tex.back || tex.side);
+      return T.layer(tex.side);
+    }
     if (tex.front) {
       var facing = meta & 3;
       var frontFace = facing === 0 ? 5 : facing === 1 ? 0 : facing === 2 ? 4 : 1;

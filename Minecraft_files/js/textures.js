@@ -704,6 +704,71 @@
   });
   tex('tnt_bottom', function (g) { g.qn(TNT, [46, 38, 16]); });
 
+  tex('slimeball', function (g) {
+    g.fill([0, 0, 0], 0);
+    var S = [[104, 168, 92], [130, 196, 114], [86, 142, 78], [160, 214, 140]];
+    for (var y = 3; y < 13; y++) {
+      for (var x = 3; x < 13; x++) {
+        var dx = x - 8, dy = y - 8;
+        if (dx * dx + dy * dy > 26) continue;
+        g.set(x, y, S[(g.r() * 3) | 0]);
+      }
+    }
+    g.set(6, 6, S[3]); g.set(7, 6, S[3]); g.set(6, 7, S[3]);
+  });
+
+  // Kolben: Fichtenholz mit Eisenbeschlag
+  var KOLB = [[126, 106, 74], [148, 126, 90], [168, 146, 106], [188, 166, 124]];
+  var EISEN = [[92, 92, 98], [116, 116, 124], [140, 140, 150]];
+  tex('piston_side', function (g) {
+    g.qn(KOLB, [20, 36, 30, 14]);
+    for (var y = 0; y < 16; y++) { g.set(0, y, mul(KOLB[0], 0.8)); g.set(15, y, mul(KOLB[0], 0.8)); }
+    g.rect(0, 0, 16, 3, EISEN[1]); g.rect(0, 13, 16, 3, EISEN[1]);
+    for (var i = 0; i < 12; i++) g.set((g.r() * 16) | 0, (g.r() * 3) | 0, EISEN[0]);
+  });
+  tex('piston_back', function (g) { g.qn(KOLB, [24, 34, 28, 14]); g.frame(0, 0, 16, 16, mul(KOLB[0], 0.8)); });
+  tex('piston_inner', function (g) { g.qn(KOLB.slice(0, 2), [40, 60]); g.frame(0, 0, 16, 16, [70, 58, 40]); });
+  tex('piston_arm', function (g) {
+    g.qn(KOLB.slice(1), [30, 40, 30]);
+    g.rect(5, 0, 6, 16, EISEN[1]);
+    g.rect(5, 0, 1, 16, EISEN[0]); g.rect(10, 0, 1, 16, EISEN[2]);
+  });
+  tex('piston_face', function (g) {
+    g.qn(KOLB.slice(1), [28, 40, 32]);
+    g.frame(0, 0, 16, 16, EISEN[0]);
+    g.frame(1, 1, 14, 14, EISEN[1]);
+    for (var i = 0; i < 4; i++) g.frame(3 + i, 3 + i, 10 - 2 * i, 10 - 2 * i, i % 2 ? KOLB[1] : KOLB[3]);
+  });
+  tex('piston_face_sticky', function (g) {
+    g.copyFrom(data('piston_face'));
+    // Klebefläche: grüner Schleim in der Mitte
+    var S = [[104, 168, 92], [130, 196, 114], [86, 142, 78]];
+    for (var y = 3; y < 13; y++) for (var x = 3; x < 13; x++) g.set(x, y, S[(g.r() * 3) | 0]);
+    g.frame(3, 3, 10, 10, S[2]);
+  });
+
+  // Beobachter: dunkler Stein, vorne das Auge, hinten die Kontaktflaeche
+  tex('observer_side', function (g) {
+    g.qn([[58, 58, 64], [72, 72, 80], [88, 88, 96]], [26, 40, 30]);
+    g.rect(0, 6, 16, 4, [46, 46, 52]);
+  });
+  tex('observer_face', function (g) {
+    g.qn([[58, 58, 64], [72, 72, 80]], [40, 40]);
+    g.rect(3, 3, 10, 10, [34, 34, 40]);
+    g.rect(5, 6, 6, 4, [212, 212, 220]);
+    g.rect(7, 7, 2, 2, [30, 30, 34]);
+  });
+  tex('observer_back', function (g) {
+    g.qn([[58, 58, 64], [72, 72, 80]], [40, 40]);
+    g.rect(6, 6, 4, 4, [120, 40, 40]);
+    g.frame(6, 6, 4, 4, [70, 24, 24]);
+  });
+  tex('observer_back_lit', function (g) {
+    g.copyFrom(data('observer_back'));
+    g.rect(6, 6, 4, 4, [244, 72, 60]);
+    g.frame(6, 6, 4, 4, [180, 40, 34]);
+  });
+
   // Spinnwebe: ein Netz aus hellen Fäden auf durchsichtigem Grund
   tex('cobweb', function (g) {
     g.fill([0, 0, 0], 0);

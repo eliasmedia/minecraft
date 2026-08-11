@@ -280,6 +280,9 @@
       var tk = x + ',' + y + ',' + z;
       if (this.tileEntities[tk] && !opts.keepTile) delete this.tileEntities[tk];
     }
+    // Beobachter hängen an der Veränderung selbst, nicht an der Aufladung –
+    // sie müssen darum auch dann anspringen, wenn Redstone gerade rechnet.
+    if (MC.Redstone && old !== id) MC.Redstone.beobachtet(this, x, y, z);
     // Redstone neu durchrechnen. Der Wächter in onChange verhindert, dass die
     // Blöcke, die dabei selbst gesetzt werden, eine neue Runde auslösen.
     if (MC.Redstone && !opts.noRedstone) MC.Redstone.onChange(this, x, y, z);

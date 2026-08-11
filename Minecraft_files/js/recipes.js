@@ -205,6 +205,12 @@
   shaped(['.R.', 'RGR', '.R.'], { R: 'redstone', G: 'glowstone' }, 'redstone_lamp', 1);
   shaped(['RRR', 'RRR', 'RRR'], { R: 'redstone' }, 'redstone_block', 1);
   shaped(['TRT', 'SSS'], { T: 'redstone_torch', R: 'redstone', S: 'stone' }, 'repeater', 1);
+  // Kolben wie im Original: Bretter oben, Stein und Eisen darunter, Redstone hinten
+  shaped(['PPP', 'CIC', 'CRC'], { P: '#planks', C: 'cobblestone', I: 'iron_ingot', R: 'redstone' }, 'piston', 1);
+  // Klebrig wird er mit einem Klumpen Schleim – bei uns tut es Zuckerrohrsaft
+  shaped(['S', 'P'], { S: 'slimeball', P: 'piston' }, 'sticky_piston', 1);
+  // Beobachter: Bruchstein, Redstone und Netherquarz
+  shaped(['CCC', 'RRQ', 'CCC'], { C: 'cobblestone', R: 'redstone', Q: 'quartz' }, 'observer', 1);
 
   // ---------------- Schmelzen ----------------
   smelt('cobblestone', 'stone');
