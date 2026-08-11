@@ -458,8 +458,8 @@ Kunstrichtung**, nicht optionale Feinarbeit.
 ```js
 gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
-gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LOD, 2.0);   // NEU
-// Anisotropie auf das Gerätemaximum, nicht fest auf 4
+gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LOD, 2.0);
+// KEINE anisotrope Filterung - Begründung unten
 ```
 
 Und im Fragmentshader eine leichte Schärfeverschiebung:
@@ -472,6 +472,24 @@ vec4 c = texture(uTex, vUVW, -0.5);
 1². Ab Stufe 3 ist nichts mehr da als eine Mischfarbe. `TEXTURE_MAX_LOD = 2`
 kappt die Kette bei 4 × 4 — flimmerfrei, aber nicht matschig.
 `MAG_FILTER = NEAREST` ist bereits richtig und bleibt.
+
+> ### ⚠ Anisotrope Filterung ist verboten
+>
+> `EXT_texture_filter_anisotropic` darf **nicht** benutzt werden, auch nicht
+> mit kleinen Werten.
+>
+> Direct3D 11 kennt keinen „anisotropen Nearest"-Filter. Es gibt nur
+> `D3D11_FILTER_ANISOTROPIC`, und der ist in min, mag **und** mip immer
+> linear. Sobald `TEXTURE_MAX_ANISOTROPY > 1` gesetzt wird, verwirft ANGLE
+> auf Windows das `NEAREST` und filtert bilinear.
+>
+> Folge: auf Windows (Chrome/Edge → ANGLE → D3D11) sind alle Texturen weich
+> und die Blockkanten rund, auf macOS (ANGLE Metal) und Linux bleibt alles
+> scharf. Dasselbe Spiel sieht auf zwei Rechnern unterschiedlich aus — und
+> der Fehler ist auf einem Mac nicht zu sehen.
+>
+> Der Schärfegewinn kommt aus `TEXTURE_MAX_LOD` und der LOD-Verschiebung,
+> nicht aus der Anisotropie. Sie wird nicht gebraucht.
 
 ### 11.2 Farbraum
 
@@ -497,11 +515,18 @@ ein Symptom davon und kann danach entfallen.
 - `antialias: true` beim Kontext. Ein Voxelspiel besteht aus harten Kanten;
   ohne Mehrfachabtastung kriechen sie bei jeder Bewegung. Als Einstellung
   abschaltbar machen.
-- Gerätepixelverhältnis bleibt auf 2 begrenzt — das ist richtig.
-- `canvas#gl { image-rendering: pixelated; }` → **auf `auto` ändern**. Die
-  Zeichenfläche wird in Gerätepixeln gerendert; greift die Begrenzung auf 2
-  (etwa auf einem 3×-Bildschirm), wäre `pixelated` eine ungleichmäßige
-  Verdopplung. `pixelated` bleibt für die DOM-Symbole richtig.
+- Gerätepixelverhältnis wird begrenzt, aber **nur auf einen ganzzahligen
+  Teiler** (`dpr / ceil(dpr / 2)`). Bei dpr 3 wird also mit 1,5 gerendert und
+  exakt verdoppelt. Ein krummer Faktor würde einzelne Pixelreihen doppelt so
+  breit machen wie ihre Nachbarn.
+- Größe der Zeichenfläche mit **`Math.round`**, nicht `Math.floor`. Bei
+  Windows-Skalierung (125 %, 150 %) verfehlt `floor` die physische Pixelzahl
+  fast immer um ein Pixel — und dann rechnet der Browser das **gesamte** Bild
+  neu.
+- `canvas#gl { image-rendering: pixelated; }` **bleibt**. Mit `auto` wäre eine
+  solche Neuberechnung bilinear, also das ganze Bild weich und alle Kanten
+  rund. Genau dieser Fehler ist am 2026-08-11 auf Windows aufgefallen,
+  während er auf dem Mac (dpr genau 2, kein Neurechnen) unsichtbar war.
 
 ### 11.4 Symbolerzeugung
 

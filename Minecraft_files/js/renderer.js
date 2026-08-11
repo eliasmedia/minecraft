@@ -206,11 +206,19 @@
     // Ab Stufe 3 ist von der Textur nichts mehr uebrig als eine Mischfarbe.
     // Kappen bei Stufe 2 haelt die Ferne scharf, ohne Flimmern zuzulassen.
     gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LOD, 2.0);
-    var ext = gl.getExtension('EXT_texture_filter_anisotropic');
-    if (ext) {
-      var maxAniso = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-      gl.texParameterf(gl.TEXTURE_2D_ARRAY, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(16, maxAniso));
-    }
+
+    // KEINE anisotrope Filterung. Das ist Absicht und kein Versehen:
+    //
+    // Direct3D 11 kennt keinen "anisotropen Nearest"-Filter - es gibt nur
+    // D3D11_FILTER_ANISOTROPIC, und der ist in min, mag UND mip immer
+    // linear. Sobald TEXTURE_MAX_ANISOTROPY groesser 1 gesetzt wird, wirft
+    // ANGLE auf Windows das NEAREST weg und filtert bilinear. Ergebnis:
+    // auf Windows sind alle Texturen weich und die Blockkanten rund,
+    // auf macOS (ANGLE Metal) und Linux bleibt NEAREST erhalten.
+    //
+    // Dieselbe Grafik muss auf jedem Rechner gleich aussehen. Der
+    // Schaerfegewinn kommt ohnehin aus TEXTURE_MAX_LOD und der
+    // LOD-Verschiebung im Shader, nicht aus der Anisotropie.
     this.texArray = tex;
   };
 
@@ -297,8 +305,20 @@
 
   Renderer.prototype.resize = function () {
     var c = this.canvas;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var w = Math.floor(c.clientWidth * dpr), h = Math.floor(c.clientHeight * dpr);
+    var roh = window.devicePixelRatio || 1;
+    // Bei hoher Pixeldichte begrenzen - aber nur auf einen GANZZAHLIGEN
+    // Teiler. Sonst muss der Browser die Zeichenflaeche um einen krummen
+    // Faktor hochrechnen, und dabei werden mit 'pixelated' einzelne
+    // Pixelreihen doppelt so breit wie ihre Nachbarn.
+    //   dpr 3   -> Teiler 2 -> 1,5 gerendert, exakt x2 hochskaliert
+    //   dpr 1,25/1,5/2 -> Teiler 1 -> unveraendert
+    var teiler = Math.max(1, Math.ceil(roh / 2));
+    var dpr = roh / teiler;
+    // Runden statt Abschneiden: floor() verfehlt die physische Pixelzahl
+    // bei Windows-Skalierung (125 %, 150 %) fast immer um ein Pixel, und
+    // dann skaliert der Browser das GESAMTE Bild neu.
+    var w = Math.max(1, Math.round(c.clientWidth * dpr));
+    var h = Math.max(1, Math.round(c.clientHeight * dpr));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     this.gl.viewport(0, 0, c.width, c.height);
     this.aspect = c.width / Math.max(1, c.height);

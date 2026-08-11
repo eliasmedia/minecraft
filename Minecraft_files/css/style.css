@@ -29,9 +29,15 @@ canvas#gl {
   position: fixed; inset: 0;
   width: 100%; height: 100%;
   display: block;
-  /* Die Zeichenflaeche wird in Geraetepixeln gerendert. Greift die
-     Begrenzung auf dpr 2, waere 'pixelated' eine ungleiche Verdopplung. */
-  image-rendering: auto;
+  /* Muss 'pixelated' bleiben. Auf Windows laeuft der Bildschirm meist mit
+     125 % oder 150 % Skalierung; die Zeichenflaeche trifft die physische
+     Pixelzahl dann nicht immer exakt und der Browser rechnet sie neu.
+     Mit 'auto' ist das eine bilineare Neuberechnung des GESAMTEN Bildes -
+     alles wird weich und die Blockkanten rund. Mit 'pixelated' bleibt es
+     scharf. Die Begrenzung des Pixelverhaeltnisses in renderer.js laesst
+     dabei nur ganzzahlige Faktoren zu, damit keine ungleich breiten
+     Pixelreihen entstehen. */
+  image-rendering: pixelated;
   cursor: crosshair;
 }
 
