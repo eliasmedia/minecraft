@@ -118,6 +118,24 @@ MC.SEA_LEVEL = 62;
     return s / n;
   };
 
+  // Kammrauschen. `1 - |n|` faltet das Rauschen an der Null und macht aus
+  // runden Buckeln scharfe Grate – das ist der Unterschied zwischen Hügeln und
+  // einem Gebirge. Jede Oktave wird mit der vorigen gewichtet, sonst zerfasert
+  // der Kamm in Kies. Ergebnis 0..1.
+  Noise.prototype.ridge2 = function (x, y, oct) {
+    oct = oct || 4;
+    var sum = 0, norm = 0, amp = 1, freq = 1, w = 1;
+    for (var i = 0; i < oct; i++) {
+      var v = 1 - Math.abs(this.n2(x * freq, y * freq)) * 1.7;
+      if (v < 0) v = 0;
+      v = v * v * w;
+      w = v * 2; if (w > 1) w = 1;
+      sum += v * amp; norm += amp;
+      amp *= 0.5; freq *= 2;
+    }
+    return sum / norm;
+  };
+
   Noise.prototype.fbm3 = function (x, y, z, oct, lac, gain) {
     oct = oct || 4; lac = lac || 2; gain = gain === undefined ? 0.5 : gain;
     var a = 1, f = 1, s = 0, n = 0;

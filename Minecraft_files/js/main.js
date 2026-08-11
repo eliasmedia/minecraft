@@ -1482,7 +1482,9 @@
     var self = this;
     this.mode = data.mode || 'survival';
     this.seed = data.seed >>> 0;
-    this.worldSettings = MC.normalizeWorldOpts(data.settings);
+    // `|| {}` ist wichtig: ein Spielstand ganz ohne Einstellungen ist alt und
+    // muss den alten Generator behalten, sonst steht sein Haus im Nichts.
+    this.worldSettings = MC.normalizeWorldOpts(data.settings || {});
     // Spielstände vor Version 3 kannten nur die Oberwelt
     this.savedDims = data.dims || {
       overworld: { chunks: data.chunks || {}, tileEntities: data.tileEntities || {}, time: data.time }

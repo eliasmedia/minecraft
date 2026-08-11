@@ -987,7 +987,7 @@
   UI.prototype.updateCraft = function () {
     this.craftResult = null;
     var m = R.match(this.craftGrid, this.craftSize);
-    if (m) this.craftResult = I.newStack(m.id, m.count);
+    if (m) this.craftResult = R.carryOver(m.keep, I.newStack(m.id, m.count));
     if (this.resultSlot) this.renderSlot(this.resultSlot, this.craftResult);
   };
 

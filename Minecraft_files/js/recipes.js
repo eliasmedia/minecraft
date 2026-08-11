@@ -25,7 +25,8 @@
     return !!(tag && tag.indexOf(id) >= 0);
   };
 
-  function shaped(pattern, key, result, count) {
+  // opts.keep = Zutat, deren Zustand ins Ergebnis übergeht (Aufwertungsrezepte)
+  function shaped(pattern, key, result, count, opts) {
     var rows = pattern.length, cols = 0;
     for (var i = 0; i < rows; i++) cols = Math.max(cols, pattern[i].length);
     var grid = [];
@@ -37,7 +38,10 @@
       }
       grid.push(row);
     }
-    R.shaped.push({ w: cols, h: rows, grid: grid, out: { id: result, count: count || 1 } });
+    R.shaped.push({
+      w: cols, h: rows, grid: grid, out: { id: result, count: count || 1 },
+      keep: (opts && opts.keep) || null
+    });
   }
 
   function shapeless(ing, result, count) {
@@ -97,16 +101,31 @@
   });
 
   // ---------------- Rüstung ----------------
+  // Zanit und Gravitit fehlen hier bewusst: die beiden besten Sätze gibt es
+  // nicht mehr aus dem Nichts, sondern nur noch durch Aufwerten (siehe unten).
+  var ARMOR_PIECES = ['helmet', 'chestplate', 'leggings', 'boots'];
+  var ARMOR_CRAFTED = { helmet: ['MMM', 'M M'], chestplate: ['M M', 'MMM', 'MMM'],
+                        leggings: ['MMM', 'M M', 'M M'], boots: ['M M', 'M M'] };
   Object.keys(MC.Items.ARMOR).forEach(function (m) {
+    if (m === 'zanite' || m === 'gravitite') return;
     var M = MC.Items.ARMOR[m].mat;
-    shaped(['MMM', 'M M'], { M: M }, m + '_helmet', 1);
-    shaped(['M M', 'MMM', 'MMM'], { M: M }, m + '_chestplate', 1);
-    shaped(['MMM', 'M M', 'M M'], { M: M }, m + '_leggings', 1);
-    shaped(['M M', 'M M'], { M: M }, m + '_boots', 1);
+    ARMOR_PIECES.forEach(function (p) { shaped(ARMOR_CRAFTED[p], { M: M }, m + '_' + p, 1); });
+  });
+
+  // Aufwertung. Ein Diamantteil, ringsum mit vier Zaniten belegt, wird zum
+  // Zanitteil; ein Zanitteil mit vier Gravititen zum Gravititteil. Der Zustand
+  // des eingesetzten Teils geht mit über – wer einen halb durchgeschlagenen
+  // Panzer aufwertet, bekommt keinen fabrikneuen zurück.
+  ARMOR_PIECES.forEach(function (p) {
+    shaped(['.Z.', 'ZDZ', '.Z.'], { Z: 'zanite_gemstone', D: 'diamond_' + p },
+           'zanite_' + p, 1, { keep: 'diamond_' + p });
+    shaped(['.G.', 'GZG', '.G.'], { G: 'gravitite', Z: 'zanite_' + p },
+           'gravitite_' + p, 1, { keep: 'zanite_' + p });
   });
 
   // Zanithelm, rundum mit Diamanten belegt – der Detektorhelm
-  shaped(['DDD', 'DHD', 'DDD'], { D: 'diamond', H: 'zanite_helmet' }, 'detector_helmet', 1);
+  shaped(['DDD', 'DHD', 'DDD'], { D: 'diamond', H: 'zanite_helmet' }, 'detector_helmet', 1,
+         { keep: 'zanite_helmet' });
 
   // ---------------- Diverse Werkzeuge ----------------
   shaped([' I', 'I '], { I: 'iron_ingot' }, 'shears', 1);
@@ -245,7 +264,7 @@
       var r = R.shaped[i];
       if (!r.out || r.w !== w || r.h !== h) continue;
       if (matchShaped(r, grid, size, minX, minY, false) || matchShaped(r, grid, size, minX, minY, true)) {
-        return { id: r.out.id, count: r.out.count };
+        return { id: r.out.id, count: r.out.count, keep: r.keep ? findStack(grid, r.keep) : null };
       }
     }
 
@@ -266,6 +285,26 @@
       if (ok && pool.length === 0) return { id: sr.out.id, count: sr.out.count };
     }
     return null;
+  };
+
+  function findStack(grid, id) {
+    for (var i = 0; i < grid.length; i++) if (grid[i] && grid[i].id === id) return grid[i];
+    return null;
+  }
+
+  // Aufwertung: was das eingesetzte Teil an Zustand mitbringt, nimmt das
+  // Ergebnis mit. Haltbarkeit anteilig, weil das neue Teil mehr aushält.
+  R.carryOver = function (from, to) {
+    if (!from || !to) return to;
+    var src = MC.Items.get(from.id), dst = MC.Items.get(to.id);
+    if (src && dst && src.durability > 0 && dst.durability > 0 && from.dur !== undefined) {
+      to.dur = Math.max(1, Math.round(dst.durability * (from.dur / src.durability)));
+    }
+    if (from.ench) {
+      to.ench = {};
+      for (var k in from.ench) to.ench[k] = from.ench[k];
+    }
+    return to;
   };
 
   function matchShaped(r, grid, size, ox, oy, mirror) {
