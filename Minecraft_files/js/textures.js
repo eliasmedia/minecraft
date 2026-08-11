@@ -704,6 +704,42 @@
   });
   tex('tnt_bottom', function (g) { g.qn(TNT, [46, 38, 16]); });
 
+  // Spinnwebe: ein Netz aus hellen Fäden auf durchsichtigem Grund
+  tex('cobweb', function (g) {
+    g.fill([0, 0, 0], 0);
+    var F = [[214, 214, 220], [166, 166, 176]];
+    var mitte = 8;
+    for (var a = 0; a < 8; a++) {
+      var w = a / 8 * Math.PI * 2;
+      for (var r = 0; r < 9; r++) {
+        g.set(mitte + Math.round(Math.cos(w) * r), mitte + Math.round(Math.sin(w) * r), F[r % 2]);
+      }
+    }
+    // Querfäden als grobe Ringe
+    [3, 6, 8].forEach(function (r) {
+      for (var s = 0; s < 32; s++) {
+        var w2 = s / 32 * Math.PI * 2;
+        g.set(mitte + Math.round(Math.cos(w2) * r), mitte + Math.round(Math.sin(w2) * r), F[1]);
+      }
+    });
+  });
+
+  // Spawner: dunkles Gitter, dahinter Schwärze
+  tex('spawner', function (g) {
+    g.fill([16, 18, 20], 255);
+    var S = [[52, 58, 62], [72, 80, 86], [38, 42, 46]];
+    for (var i = 0; i < 16; i += 3) {
+      for (var k = 0; k < 16; k++) {
+        g.set(i, k, S[(g.r() * 2) | 0]);
+        g.set(k, i, S[(g.r() * 2) | 0]);
+      }
+    }
+    g.frame(0, 0, 16, 16, S[2]);
+    // die Figur im Käfig, angedeutet
+    g.rect(6, 6, 4, 3, [56, 96, 60]);
+    g.rect(7, 9, 2, 3, [48, 72, 110]);
+  });
+
   // Amboss: dunkles, unregelmäßig gehämmertes Eisen. Die Bahn oben ist heller
   // und bekommt mit jedem Zustand mehr Kerben.
   var AMB = [[36, 36, 40], [52, 52, 58], [68, 68, 76], [88, 88, 98]];

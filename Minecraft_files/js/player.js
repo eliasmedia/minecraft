@@ -289,6 +289,11 @@
     if (this.flying) speed = this.sprinting ? 21 : 10.5;
     if (this.inWater && !this.flying) speed *= 0.62;
     if (this.onGround && !this.flying && groundB && groundB.slow) speed *= (1 - groundB.slow);
+    // In einer Spinnwebe kommt man kaum vorwärts – anders als Seelensand
+    // bremst sie, wenn man drinsteckt, nicht wenn man darauf steht.
+    var drin = B.byId[world.getBlock(Math.floor(this.x), Math.floor(this.y + 0.6), Math.floor(this.z))];
+    this.inWebe = !!(drin && drin.name === 'cobweb');
+    if (this.inWebe && !this.flying) { speed *= 0.22; if (this.vy < 0) this.vy = Math.max(this.vy, -1.2); }
     if (this.gravLegs && !this.flying) speed *= 1.28;   // Hose: leichtfüßig
 
     var len = Math.sqrt(fwd * fwd + side * side);

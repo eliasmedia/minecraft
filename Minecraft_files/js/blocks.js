@@ -248,6 +248,17 @@
     title: 'Zuckerrohr', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
     hardness: 0, sound: 'grass', drop: 'sugar_cane_item', group: 'natur'
   });
+  // Spinnwebe: bremst, wer hindurchgeht, und gibt Faden. Nur in verlassenen Minen.
+  define('cobweb', {
+    title: 'Spinnwebe', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
+    hardness: 4, tool: 'shears', drop: 'string', sound: 'grass', group: 'natur'
+  });
+  // Monsterspawner: Gitterkäfig, in dem eine kleine Figur kreist. Er lässt sich
+  // abbauen, gibt aber nichts her – wie im Original.
+  define('spawner', {
+    title: 'Monsterspawner', opaque: false, cutout: true,
+    hardness: 5, tool: 'pickaxe', level: 1, drop: null, sound: 'stone', item: false
+  });
 
   // ---------- Ackerbau ----------
   define('farmland', {

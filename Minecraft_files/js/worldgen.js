@@ -550,6 +550,8 @@
       }
     }
 
+    // Höhlenstrukturen liegen tief unten und stören den Bewuchs nicht
+    if (this.genV >= 2 && MC.Caves) MC.Caves.decorate(this, cx, cz, blocks, meta);
     // Zuletzt das Dorf – es überschreibt Gelände und Bewuchs
     if (village) MC.Village.generate(this, cx, cz, blocks, meta);
     // Die Festung mit dem Endportal liegt tief darunter und gibt es genau

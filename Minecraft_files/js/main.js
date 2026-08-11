@@ -825,6 +825,7 @@
         if (w.dim === 'nether') loot = MC.Dim.fortressLoot(w.gen, x, y, z);
         else if (w.dim === 'overworld') {
           loot = MC.Stronghold.chestLoot(w.gen, x, y, z);
+          if (!loot && MC.Caves && w.gen.genV >= 2) loot = MC.Caves.chestLoot(w.gen, x, y, z);
           if (!loot && MC.Village && w.gen.o.structures) loot = MC.Village.chestLoot(w.gen, x, y, z);
         }
       } catch (e) { loot = null; }
@@ -1690,6 +1691,7 @@
       if ((this.tickCount % 4) === 0) this.tickFurnaces();
       // Druckplatten und gedrückte Knöpfe
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
+      if (MC.Caves) MC.Caves.tick(this, dt);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }
