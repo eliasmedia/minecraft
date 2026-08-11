@@ -1,5 +1,11 @@
 # Feature-Plan — die nächste Ausbaustufe
 
+> **Stand 11. August 2026: umgesetzt.** Alle zehn Features sind gebaut, bis auf
+> den Bilderrahmen aus Feature 10 — Begründung am Ende dieses Dokuments und im
+> README. Was hier steht, ist der Plan von vorher; die Umsetzung weicht an
+> wenigen Stellen davon ab (Zutaten fürs Brauen, Beobachter statt Werfer und
+> Trichter).
+
 Stand: 11. August 2026. Grundlage: das Spiel ist von der ersten Eiche bis zum
 Enderdrachen durchspielbar. Was jetzt fehlt, ist nicht mehr *Weg*, sondern
 *Tiefe*: mehr Gründe, in die Welt hinauszugehen, und mehr, was man mit dem

@@ -15,10 +15,10 @@ Kein Server, kein Build-Schritt, keine Abhängigkeiten, keine externen Assets.
 Minecraft.html            <- Einstiegspunkt (doppelklicken)
 Minecraft_files/
   css/style.css
-  js/  util · blocks · items · recipes · textures · glcore · mesher
-       particles · icons · worldgen · village · dimensions · world
-       entities · theend · achievements · player · renderer · redstone
-       audio · ui · main
+  js/  util · blocks · potions · items · enchant · recipes · textures
+       glcore · mesher · particles · icons · worldgen · village · caves
+       map · dimensions · world · redstone · entities · theend
+       achievements · player · renderer · audio · ui · main
 ```
 
 ## Steuerung
@@ -34,6 +34,7 @@ Minecraft_files/
 | `Strg` / `Doppel-W` | Sprinten | `P` | Spielmodus wechseln |
 | | | `J` | Musik an/aus |
 | `Doppel-Leertaste` | Fliegen (Kreativ) | `R` | Speichern |
+| `N` | Karte groß/klein | | |
 | `M` / `Esc` | Pause / Menü | | |
 
 `Esc` fängt der Browser oft selbst ab — es gibt den Mauszeiger frei und verlässt
@@ -54,18 +55,50 @@ Zeigers — normale Bewegung bleibt unverändert.
 Erzverteilung nach Tiefe, drei Baumarten, Blumen, Kakteen, Zuckerrohr, Kürbisse,
 Seen und Lavaseen.
 
+**Geländemodell** — die dritte Klimaachse neben Temperatur und Feuchte ist die
+**Erosion**: sie entscheidet, ob eine Gegend alt und abgetragen ist oder jung und
+schroff, läuft auf einer gröberen Skala als die Biome und zieht ein Gebirge
+darum quer durch mehrere hindurch. Die Berge selbst entstehen aus
+**Kammrauschen** — `1 - |n|` faltet das Rauschen an der Null und macht aus
+runden Buckeln scharfe Grate. Ergebnis: zusammenhängende Massive mit Gipfeln bis
+y 110 statt überall etwas Hügel. Wüsten haben Dünenzüge, sichtbare Sandsteinbänke
+an den Abbruchkanten und Baumgerippe. Die Oberfläche richtet sich nach der
+Hangneigung: an einer Steilwand hält kein Gras, und die Schneekappe fängt auf
+ihrer Höhe an, nicht an einer Biomgrenze.
+
+Weil nur der Unterschied zur Generierung gespeichert wird, trägt jede Welt die
+**Version** mit, unter der sie entstanden ist. Ältere Spielstände laufen darum
+weiter über das alte Modell — sonst stünde jedes gebaute Haus plötzlich in einer
+anderen Landschaft.
+
+**Bäume** — nicht mehr pro Block gewürfelt, sondern höchstens einer je Zelle von
+5×5 Blöcken an einer aus der Zellkoordinate gehashten Stelle. Der Mindestabstand
+kommt damit von selbst, und Wälder wachsen nicht mehr zu Wänden zusammen. Große
+Eichen und Fichten haben einen 2×2-Stamm, Äste und eine Krone aus mehreren
+Laubballen; ein grobes Rauschen legt Lichtungen und Dickichte darüber. Auf zu
+steilem Hang wächst statt eines großen ein kleiner Baum.
+
 **Welt anpassen** — vor dem Start lässt sich die Generierung einstellen: Welttyp
 (Standard, Verstärkt, Große Biome, Flachland), Bergigkeit, Höhlenanteil,
 Meeresspiegel, Biomgröße, Bewuchs, Erzhäufigkeit und ob Dörfer entstehen. Die
 Werte wandern in den Spielstand; ältere Spielstände laufen mit den Standardwerten
 weiter.
 
-**Dörfer** — deterministisch aus dem Seed, etwa alle 700 Blöcke auf ebenem Grund
-außerhalb von Ozean, Strand, Sumpf und Bergen. Wegkreuz mit Laternen, Brunnen,
-Wohnhäuser, Schmiede, Bibliothek und Weizenfelder hinter Zaun und Zauntor;
-Baumaterial richtet sich nach dem Biom. Truhen in Häusern und Schmiede sind
-gefüllt — Brot, Werkzeug, Erz, gelegentlich ein Smaragd. Das Dorf steht auf einem
-eingeebneten Plateau, dessen Rand ins Gelände ausläuft.
+**Dörfer** — deterministisch aus dem Seed, etwa alle 320 Blöcke außerhalb von
+Ozean, Strand, Sumpf und Bergen. Brunnen, Wohnhäuser, Schmiede, Bibliothek und
+Weizenfelder hinter Zaun und Zauntor; Baumaterial richtet sich nach dem Biom.
+Truhen in Häusern und Schmiede sind gefüllt — Brot, Werkzeug, Erz, gelegentlich
+ein Smaragd.
+
+Kein Plateau mehr: **Bauplätze werden gesucht, nicht zugeteilt**. Jedes Haus
+bekommt seine eigene Höhe und einen Sockel aus Bruch- oder Sandstein bis zum
+Boden; zu steile oder nasse Plätze fallen durch. Verbunden wird über eine
+Dijkstra-Suche vom Brunnen über das ganze Dorffeld: Steigung kostet,
+Hausgrundstücke sind gesperrt, und Kanten über einen Block Höhenunterschied gibt
+es gar nicht — jeder gefundene Weg ist damit auch begehbar. Weil alle Wege
+denselben Baum benutzen, laufen sie von selbst zusammen; Laternen stehen an den
+Verzweigungen. Ein Dorf auf welligem Gelände zieht sich dadurch den Hang
+entlang, statt ihn wegzuplanieren, und der Wald wächst bis an die Häuser heran.
 
 **Der Weg nach oben** — die vier Welten bauen aufeinander auf: in der Oberwelt
 sucht man Obsidian für das Netherportal, im Nether die Bastionen, weil nur dort
@@ -109,7 +142,7 @@ darüber selbst ab und wieder an; die Periode ist 2 × (2 + 2 × Stufe) Ticks, a
 bis 1,0 s. Wichtig ist nur, dass die Schleife dem Trägerblock nicht zu nahe kommt —
 liegt Staub direkt neben ihm, hält sich das Signal selbst und der Takt bleibt stehen.
 
-**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 187
+**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 196
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
 Sammelbegriffe wie „jede Brettersorte" zeigen einen Vertreter.
 
@@ -146,6 +179,18 @@ Aetherrahmen; die Truhe im Inneren ist der Puffer.
 Jedes getragene Teil nimmt ein Viertel des Hitzeschadens weg, alle vier machen
 gegen Lava, Feuer und Magma vollständig immun. Gegen einen Kaktus hilft sie
 nicht.
+
+**Aufwertung statt Herstellung** — die beiden besten Rüstungen fallen nicht mehr
+aus dem Nichts an. Ein **Diamantteil**, in der Werkbank ringsum mit vier Zaniten
+belegt, wird zum Zanitteil; ein Zanitteil mit vier Gravititen zum Gravititteil.
+Der Zustand des eingesetzten Stücks geht anteilig mit über — wer einen halb
+durchgeschlagenen Panzer aufwertet, bekommt keinen fabrikneuen zurück. Ein
+vollständiger Gravititsatz kostet damit 24 Diamanten, 16 Zanit und 16 Gravitit.
+
+| Ziel | Diamant | Zanit | Gravitit |
+|---|---|---|---|
+| Zanitrüstung komplett | 24 | 16 | — |
+| Gravititrüstung komplett | 24 | 16 | 16 |
 
 **Detektorhelm** — ein Zanithelm, in der Werkbank rundum mit acht Diamanten
 belegt. Er schützt wie sein Vorgänger und meldet alle dreißig Sekunden, wenn im
@@ -214,12 +259,13 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — rund 155 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 170 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
-Truhe, Bett, TNT und Ackerboden. Rund 260 Items: Werkzeuge und Waffen in 8
-Materialstufen, Rüstung in 6 Stufen, Nahrung, Rohstoffe, Kompass.
+Truhe, Bett, TNT, Ackerboden, Zaubertisch, Amboss, Braustand, Kolben und
+Beobachter. Rund 300 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
+6 Stufen, Nahrung, Rohstoffe, Kompass, Karte, neun Tränke.
 
-**Spielschleife** — 187 Rezepte (2×2 und 3×3, geformt und ungeformt);
+**Spielschleife** — 196 Rezepte (2×2 und 3×3, geformt und ungeformt);
 Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
@@ -255,6 +301,92 @@ Grasausbreitung, Blattzerfall, Explosionen mit Blockschaden und Rückstoß.
 Feld dazwischen selbst zur Quelle. Damit lässt sich ein Becken bauen, aus dem man
 beliebig oft schöpfen kann. Für Lava gilt das wie im Original *nicht*.
 
+**Verzauberung** — Zaubertisch aus einem Buch, zwei Diamanten und vier Obsidian.
+**Bücherregale** zählen nach der Originalregel: genau zwei Blöcke entfernt auf
+einer Waagerechten, bis zu zwei auf der anderen, auf Tischhöhe oder einen
+darüber, und dazwischen muss Luft sein. Fünfzehn davon heben den unteren Platz
+verlässlich auf Stufe 30 — der Regalkreis ist damit ein Bauprojekt, kein Detail.
+
+Gewürfelt wird wie im Original: eine Grundzahl aus Regalen und Zufall, daraus die
+drei Plätze, dann der Verzauberungswert aus der **Verzauberbarkeit** des
+Materials mit dreieckigem Streufaktor, Auswahl nach Gewicht, Halbieren und
+Nachziehen mit `(Wert+1)/50`. Bezahlt werden nur **1 bis 3 Stufen und ebenso viel
+Lapis** — die angezeigte Stufe ist bloß die Voraussetzung. (Das überrascht viele
+und ist genau deshalb wichtig, es richtig zu machen.) Für Heiligstein, Zanit und
+Gravitit, die es im Original nicht gibt, sind eigene Werte gesetzt: Zanit ist das
+magischere Material, Gravitit hart wie Diamant.
+
+23 Verzauberungen, und jede wirkt wirklich:
+
+| Bereich | Verzauberung |
+|---|---|
+| Werkzeug | Effizienz I–V, Behutsamkeit, Glück I–III |
+| Waffe | Schärfe I–V, Bann I–V, Nemesis I–V, Rückstoß I–II, Verbrennung I–II, Plünderung I–III |
+| Bogen | Stärke I–V, Schlag I–II, Flamme, Unendlichkeit |
+| Rüstung | Schutz I–IV, Feuerschutz, Explosionsschutz, Geschossschutz, Federfall, Atmung I–III, Wasseraffinität, Dornen I–III |
+| überall | Haltbarkeit I–III, Reparatur |
+
+**Amboss** — drei Eisenblöcke auf vier Barren. Er macht aus der Verzauberung erst
+einen Kreislauf: reparieren mit Material oder mit einem zweiten Stück
+(Resthaltbarkeit plus zwölf Prozent), Bücher übertragen, gleiche Verzauberungen
+zu einer höheren Stufe verschmelzen, umbenennen. Die Preise hängen an der
+Seltenheit und sind aus einem Buch halb so hoch; die **Vorarbeitsstrafe**
+verdoppelt sich mit jedem Vorgang und läuft bei vierzig Stufen in *Zu teuer!*.
+Der Amboss nutzt sich in drei Stufen ab und fällt wie Sand, wenn ihm der Boden
+fehlt.
+
+**Verzauberungsbücher** kommen aus dem Zaubertisch (ein Buch statt eines
+Werkzeugs hineingelegt), vom **Bibliothekar** — dessen Angebot fest an Dorf und
+Platznummer hängt, sodass derselbe Bewohner nach dem Entladen wieder dasselbe
+Buch anbietet — und aus den Truhen in Monsterräumen und Minen.
+
+**Monsterräume** — höchstens einer je Chunk, und nur dort, wo er eine Höhle
+anschneidet: ein Verlies, das man nur durch Zufall angräbt, ist keins. Sieben mal
+sieben aus Bruch- und Moosstein, ein **Spawner** in der Mitte, ein bis zwei
+Truhen. Welcher Mob aus dem Käfig kommt, steckt in seiner Position statt in einem
+Blockzustand und übersteht damit jedes Speichern von selbst. Er speit nur im
+Dunkeln und hört bei sechs Mobs in der Nähe auf — mit Fackeln legt man ihn still.
+
+**Verlassene Minen** — ein Gangnetz als Irrfahrt aus geraden Stücken über acht
+mal acht Chunks: drei Blöcke breit, Stützgerüst aus Zaun und Planken alle fünf
+Schritt, Fackeln, Spinnweben und gelegentlich eine Truhe. Wer in einer Spinnwebe
+steckt, kommt kaum vorwärts.
+
+**Kolben** — in sechs Richtungen, geschoben werden bis zu zwölf Blöcke. Obsidian,
+Truhen, Öfen und alles mit eigenem Inhalt bleiben stehen, Pflanzen und Fackeln
+geben nach. Der **Klebkolben** zieht beim Einfahren wieder mit; klebrig wird er
+mit einem Schleimball vom Magmawürfel. Bewegt wird ohne Zwischenbild — das
+Original schiebt sichtbar in zwei Ticks hinaus, dafür bräuchte jeder Block eine
+eigene Entität.
+
+**Beobachter** — hängt nicht an der Aufladung, sondern an der Veränderung: er
+merkt sich den Block vor sich und gibt nach hinten einen kurzen Impuls ab, sobald
+der wechselt. Damit lässt sich automatisieren, ohne einen Fackeltaktgeber
+danebenzustellen. Er zeigt beim Setzen in Blickrichtung, der Kolben umgekehrt zum
+Spieler — beides wie im Original.
+
+**Statuseffekte** — acht Stück mit Stufe und Restzeit, angezeigt am rechten Rand
+und im Spielstand gespeichert: Regeneration, Stärke, Schnelligkeit,
+Feuerresistenz, Nachtsicht, Sprungkraft, Heilung und Schaden. Der goldene Apfel
+gibt seitdem Regeneration statt vier Herzen pauschal.
+
+**Brauen** — **Nethergewächs** wächst im Nether auf den Seelensandnestern; das
+ist endlich ein Grund, dort nach etwas anderem als Glowstone zu suchen. Der
+**Braustand** entsteht aus einer Lohenrute auf drei Bruchsteinen, brennt mit
+Lohenstaub und füllt drei Gläser auf einmal. Neun Tränke, jeder streckbar mit
+Redstone und verstärkbar mit Glowstone. Drei Zutaten weichen vom Original ab,
+weil es Glitzermelone, Magmacreme und goldene Karotte bei uns nicht gibt — dafür
+haben wir Ambrosium, Magmablöcke und Blaubeeren, die dasselbe erzählen. Die
+Ghastträne für die Regeneration lässt der Ghast fallen.
+
+**Karte** — Papier um einen Kompass. Der Ausschnitt wird beim ersten Tragen
+festgelegt und rastet auf ein Vielfaches von 128 Blöcken ein; zwei Karten aus
+derselben Gegend zeigen also denselben Ausschnitt. Erkundet wird, worüber man
+gelaufen ist, der Rest bleibt dunkel. Gezeichnet wird aus geladenen Chunks, wo es
+sie gibt — so tauchen gebaute Häuser auf — und sonst aus dem Generator; die Höhe
+der Nachbarspalte gibt die Schattierung. In der Hand liegt sie klein unten
+rechts, **N** macht sie groß.
+
 **Technik** — eigener WebGL2-Renderer mit Texture-Array, Chunk-Meshing mit Ambient
 Occlusion und weichem Licht, Flood-Fill-Lichtengine für Sonnen- und Blocklicht,
 Frustum-Culling, Tag/Nacht-Zyklus mit Sonne, Mond, Sternen und Wolken, Partikel,
@@ -274,14 +406,17 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 ## Noch offen
 
-**Als Nächstes:** Karten — ein Item, das das erkundete Gelände von oben zeigt und
-sich in einem Rahmen an die Wand hängen lässt. Der Kompass ist die Vorstufe davon.
+**Als Nächstes:** der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
+zur Laufzeit ändert, und dafür eine eigene Ebene im Texturarray — das ist ein
+Umbau am Renderer, kein Nachmittag.
 
-Kolben, Loren, Verzauberung, Brauen, Mehrspieler. Im Ende fehlen die äußeren
-Inseln und das Wiederbeleben des Drachen. Im Aether fehlen die drei Dungeons und reitbare Moas. Dorfbewohner
-laufen geradlinig auf ihr Ziel zu statt einen Weg zu suchen; ein Haus hinter einer
-Mauer erreichen sie nicht. Ihre schon getätigten Handelszüge überleben das
-Entladen des Dorfes nicht — der Vorrat eines Angebots füllt sich dann wieder auf.
+Loren, Werfer und Trichter, Wurftränke, Tierzucht, Angeln, Mehrspieler. Im Ende
+fehlen die äußeren Inseln und das Wiederbeleben des Drachen. Im Aether fehlen die
+drei Dungeons und reitbare Moas. Dorfbewohner laufen geradlinig auf ihr Ziel zu
+statt einen Weg zu suchen; mit dem neuen Wegenetz kommen sie zwar meist an, ein
+Haus hinter einer Mauer erreichen sie aber weiterhin nicht. Ihre schon getätigten
+Handelszüge überleben das Entladen des Dorfes nicht — der Vorrat eines Angebots
+füllt sich dann wieder auf.
 
 ## Voraussetzungen
 
