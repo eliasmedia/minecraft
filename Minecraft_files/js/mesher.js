@@ -230,6 +230,15 @@
             case B.SHAPE_CROSS: {
               var lay = T.layer(typeof block.tex === 'string' ? block.tex : block.tex.side);
               emitCross(buf, x, y, z, lay, gl(x, y, z), 1.0);
+              // Wasserdurchlässige Pflanzen tragen ihr Wasser selbst. Vorher
+              // wurde nur verhindert, dass die Nachbarn eine Wand gegen sie
+              // ziehen – in der Zelle selbst stand aber gar kein Wasser. In
+              // tiefem Wasser fiel das nicht auf, in einem Block flachem Wasser
+              // klaffte genau dort ein Loch in der Oberfläche.
+              if (block.nass) {
+                var wB = B.byId[B.id('water')];
+                emitLiquid(wB.alphaPass ? alpha : opaque, x, y, z, wB, 0);
+              }
               break;
             }
 
@@ -724,11 +733,15 @@
 
     function liquidHeight(bx, by, bz, id) {
       if (gb(bx, by + 1, bz) === id) return 1.0;
+      // Über einer wasserdurchlässigen Pflanze steht ebenfalls Wasser
+      if (id === B.id('water') && B.zaehltAlsWasser(gb(bx, by + 1, bz))) return 1.0;
       // Unter einem undurchsichtigen Block steht die Flüssigkeit randvoll. Sonst
       // bliebe zwischen ihrer Oberfläche und der Blockdecke ein Spalt – und weil
       // die Oberseite dort weggelassen wird (der Block darüber verdeckt sie ja),
       // sähe man von der Seite durch die Flüssigkeit ins Leere.
       if (B.isOpaque(gb(bx, by + 1, bz))) return 1.0;
+      // Die Pflanze selbst hat kein Flüssigkeits-Meta – sie zählt als Quelle
+      if (id === B.id('water') && gb(bx, by, bz) !== id && B.zaehltAlsWasser(gb(bx, by, bz))) return 0.875;
       var m = gm(bx, by, bz);
       if (m === 0 || m === 8) return 0.875;
       return 0.875 - (m / 8) * 0.75;

@@ -15,7 +15,10 @@
     { key: 'type', title: 'Welttyp', kind: 'choice', def: 'default',
       options: [['default', 'Standard'], ['amplified', 'Verstärkt'], ['largebiomes', 'Große Biome'], ['flat', 'Flachland']] },
     { key: 'mountains', title: 'Bergigkeit', kind: 'range', def: 1, min: 0, max: 2, step: 0.1 },
-    { key: 'caves', title: 'Höhlen', kind: 'range', def: 1, min: 0, max: 2, step: 0.1 },
+    // Bei 100 % waren die Gänge so weit, dass sich alles zu Sälen öffnete.
+    // 50 % trifft es: enge, begehbare Röhren. Der alte Wert bleibt für alte
+    // Spielstände gültig, sonst stünde jedes gebaute Haus über anderen Höhlen.
+    { key: 'caves', title: 'Höhlen', kind: 'range', def: 0.5, defAlt: 1, min: 0, max: 2, step: 0.1 },
     { key: 'seaLevel', title: 'Meeresspiegel', kind: 'range', def: 62, min: 32, max: 92, step: 1, unit: '' },
     { key: 'biomeSize', title: 'Biomgröße', kind: 'range', def: 1, min: 0.4, max: 3, step: 0.1 },
     { key: 'vegetation', title: 'Bewuchs', kind: 'range', def: 1, min: 0, max: 3, step: 0.1 },
@@ -34,7 +37,8 @@
   //   5 = große Bastionen, Meeresgrund und Strände
   //   6 = tiefe Meeresbecken, Wracks als Schiffe, Riffe tiefer
   //   7 = Höhlen als getrennte Röhrensysteme statt einem Weltgerüst
-  MC.GEN_VERSION = 7;
+  //   8 = Höhlen enger als Vorgabe (50 %), dazu Wurmlöcher als Struktur
+  MC.GEN_VERSION = 8;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -58,6 +62,14 @@
     // Ein Spielstand, der von Einstellungen weiß, aber keine Generatorversion
     // nennt, stammt aus der Zeit davor – der bekommt den alten Generator.
     out.gen = (+o.gen > 0) ? Math.min(+o.gen, MC.GEN_VERSION) : 1;
+    // Wo ein Standardwert mit der Generatorversion gewechselt hat, gilt für
+    // ältere Welten weiter der alte – aber nur, wenn die Welt den Wert nicht
+    // selbst nennt.
+    MC.WORLD_OPTS.forEach(function (s2) {
+      if (s2.defAlt === undefined) return;
+      if (o[s2.key] !== undefined && o[s2.key] !== null) return;
+      if (out.gen < 8) out[s2.key] = s2.defAlt;
+    });
     return out;
   };
 
@@ -524,6 +536,173 @@
     }
   };
 
+  // ---------- Wurmlöcher ----------
+  // Kein Höhlensystem, sondern eine eigene Struktur – so selten wie eine
+  // verlassene Mine und genauso wiedererkennbar. Ein Wurmloch windet sich ein
+  // paar hundert Blöcke durch den Fels, und was es unheimlich macht, ist seine
+  // Gleichförmigkeit: der Querschnitt bleibt über die ganze Strecke derselbe,
+  // als hätte etwas es gebohrt. Es endet entweder oben an der Oberfläche –
+  // dann findet man den Eingang als Loch im Boden – oder unten am
+  // Grundgestein, wo es einfach aufhört.
+  var WURM_REGION = 16;                      // Chunks je Seite = 256 Blöcke
+  var WURM_SPAN = WURM_REGION * CS;
+  var WURM_CHANCE = 0.30;
+  var WURM_RAND = 200;                       // so weit greift eines über seine Mitte hinaus
+
+  Gen.prototype.wurmAt = function (rx, rz) {
+    if (this.genV < 8) return null;
+    if (!this._wuermer) this._wuermer = {};
+    var key = rx + ',' + rz;
+    if (key in this._wuermer) return this._wuermer[key];
+    var w = null;
+    try { w = wurmLayout(this, rx, rz); } catch (e) { w = null; }
+    this._wuermer[key] = w;
+    return w;
+  };
+
+  function wurmLayout(gen, rx, rz) {
+    var rnd = U.rng(U.hashString('wurmloch:' + gen.seed + ':' + rx + ':' + rz));
+    if (rnd() > WURM_CHANCE) return null;
+    var x = rx * WURM_SPAN + 40 + rnd() * (WURM_SPAN - 80);
+    var z = rz * WURM_SPAN + 40 + rnd() * (WURM_SPAN - 80);
+
+    // Der Radius wird einmal gewürfelt und bleibt dann. Genau das ist der Reiz.
+    var r = 1.8 + rnd() * 1.4;
+    // Wohin es endet: nach oben durch die Oberfläche oder nach unten aufs
+    // Grundgestein. Beides zu haben macht den Fund erst interessant.
+    var nachOben = rnd() < 0.45;
+    var y = nachOben ? 10 + rnd() * 10 : 40 + rnd() * 14;
+    var gier = rnd() * Math.PI * 2;
+    var neig = (rnd() - 0.5) * 0.06;
+
+    var glieder = [];
+    var minX = x, maxX = x, minZ = z, maxZ = z;
+    // Ein paar hundert Blöcke: bei gut zwei Blöcken je Schritt sind das
+    // zweihundert bis fuenfhundert Schritte.
+    var schritte = 200 + ((rnd() * 300) | 0);
+    for (var i = 0; i < schritte; i++) {
+      // Nur die Richtung wandert, nicht der Querschnitt
+      gier += (rnd() - 0.5) * 0.30;
+      // Senkrecht bleibt es flach: ein Wurmloch läuft im Wesentlichen waagerecht
+      // und zieht nur ganz langsam zu seinem Ende. Mit stärkerer Neigung war es
+      // nach siebzig Schritten unten und damit viel zu kurz.
+      neig += (rnd() - 0.5) * 0.02;
+      neig += nachOben ? 0.0012 : -0.0012;
+      if (neig > 0.16) neig = 0.16;
+      if (neig < -0.16) neig = -0.16;
+
+      var schritt = 1.7 + rnd() * 0.8;
+      var nx = x + Math.cos(gier) * Math.cos(neig) * schritt;
+      var ny = y + Math.sin(neig) * schritt;
+      var nz = z + Math.sin(gier) * Math.cos(neig) * schritt;
+
+      glieder.push({ ax: x, ay: y, az: z, bx: nx, by: ny, bz: nz });
+      x = nx; y = ny; z = nz;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+
+      // Ende: oben bricht es durch, unten steht es auf dem Grundgestein
+      if (nachOben && y > gen.heightAt(Math.round(x), Math.round(z)) - 1) break;
+      if (!nachOben && y < 7) break;
+    }
+    if (glieder.length < 20) return null;
+    return {
+      glieder: glieder, r: r, nachOben: nachOben,
+      minX: minX - r - 2, maxX: maxX + r + 2,
+      minZ: minZ - r - 2, maxZ: maxZ + r + 2
+    };
+  }
+
+  Gen.prototype.wuermerNah = function (wx0, wz0) {
+    var rx = Math.floor(wx0 / WURM_SPAN), rz = Math.floor(wz0 / WURM_SPAN);
+    var spanne = Math.ceil(WURM_RAND / WURM_SPAN) + 1;
+    var liste = null;
+    for (var dx = -spanne; dx <= spanne; dx++) {
+      for (var dz = -spanne; dz <= spanne; dz++) {
+        var w = this.wurmAt(rx + dx, rz + dz);
+        if (!w) continue;
+        if (w.maxX < wx0 || w.minX > wx0 + CS - 1) continue;
+        if (w.maxZ < wz0 || w.minZ > wz0 + CS - 1) continue;
+        (liste || (liste = [])).push(w);
+      }
+    }
+    return liste;
+  };
+
+  Gen.prototype.imWurm = function (px, py, pz) {
+    var liste = this.wuermerNah(Math.floor(px / CS) * CS, Math.floor(pz / CS) * CS);
+    if (!liste) return false;
+    for (var i = 0; i < liste.length; i++) {
+      var g = liste[i].glieder;
+      // Der Querschnitt gehört dem Wurm, nicht dem einzelnen Glied – und er
+      // hängt nicht am Höhlenregler, denn ein Wurmloch ist keine Höhle.
+      var r = liste[i].r;
+      for (var j = 0; j < g.length; j++) {
+        var s = g[j];
+        if (px < Math.min(s.ax, s.bx) - r || px > Math.max(s.ax, s.bx) + r) continue;
+        if (pz < Math.min(s.az, s.bz) - r || pz > Math.max(s.az, s.bz) + r) continue;
+        if (py < Math.min(s.ay, s.by) - r || py > Math.max(s.ay, s.by) + r) continue;
+        var dx = s.bx - s.ax, dy = s.by - s.ay, dz = s.bz - s.az;
+        var l2 = dx * dx + dy * dy + dz * dz;
+        var t = l2 > 0 ? ((px - s.ax) * dx + (py - s.ay) * dy + (pz - s.az) * dz) / l2 : 0;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+        var qx = s.ax + dx * t - px, qy = s.ay + dy * t - py, qz = s.az + dz * t - pz;
+        if (qx * qx + qy * qy + qz * qz <= r * r) return true;
+      }
+    }
+    return false;
+  };
+
+  // Trägt die Würmer aus dem Chunk aus. Gerechnet wird je Glied nur in seinem
+  // eigenen Kasten – ein Wurm von zweihundert Gliedern berührt einen Chunk
+  // meist mit einer Handvoll davon.
+  Gen.prototype.grabeWuermer = function (cx, cz, blocks) {
+    if (this.genV < 8) return;
+    var wx0 = cx * CS, wz0 = cz * CS;
+    var liste = this.wuermerNah(wx0, wz0);
+    if (!liste) return;
+    var bedrock = ID.bedrock, waterId = ID.water, lavaId = ID.lava;
+
+    for (var i = 0; i < liste.length; i++) {
+      var g = liste[i].glieder;
+      var r = liste[i].r;
+      for (var j = 0; j < g.length; j++) {
+        var s = g[j];
+        var lo_x = Math.floor(Math.min(s.ax, s.bx) - r) - wx0;
+        var hi_x = Math.ceil(Math.max(s.ax, s.bx) + r) - wx0;
+        if (hi_x < 0 || lo_x >= CS) continue;
+        var lo_z = Math.floor(Math.min(s.az, s.bz) - r) - wz0;
+        var hi_z = Math.ceil(Math.max(s.az, s.bz) + r) - wz0;
+        if (hi_z < 0 || lo_z >= CS) continue;
+        var lo_y = Math.floor(Math.min(s.ay, s.by) - r);
+        var hi_y = Math.ceil(Math.max(s.ay, s.by) + r);
+        if (lo_x < 0) lo_x = 0; if (hi_x > CS - 1) hi_x = CS - 1;
+        if (lo_z < 0) lo_z = 0; if (hi_z > CS - 1) hi_z = CS - 1;
+        if (lo_y < 5) lo_y = 5; if (hi_y > WH - 2) hi_y = WH - 2;
+
+        var dx = s.bx - s.ax, dy = s.by - s.ay, dz = s.bz - s.az;
+        var l2 = dx * dx + dy * dy + dz * dz;
+        var r2 = r * r;
+        for (var y = lo_y; y <= hi_y; y++) {
+          for (var z = lo_z; z <= hi_z; z++) {
+            for (var x = lo_x; x <= hi_x; x++) {
+              var px = wx0 + x + 0.5, py = y + 0.5, pz = wz0 + z + 0.5;
+              var t = l2 > 0
+                ? ((px - s.ax) * dx + (py - s.ay) * dy + (pz - s.az) * dz) / l2 : 0;
+              if (t < 0) t = 0; else if (t > 1) t = 1;
+              var qx = s.ax + dx * t - px, qy = s.ay + dy * t - py, qz = s.az + dz * t - pz;
+              if (qx * qx + qy * qy + qz * qz > r2) continue;
+              var k = x | (z << 4) | (y << 8);
+              var alt = blocks[k];
+              if (alt === bedrock || alt === waterId || alt === lavaId) continue;
+              blocks[k] = 0;
+            }
+          }
+        }
+      }
+    }
+  };
+
   // ---------- Höhlen ----------
   // Das 3D-Rauschen wird auf einem groben Gitter (4 Blöcke Kantenlänge) gesampelt
   // und trilinear interpoliert. Das ist ~60x schneller als pro Block und sieht
@@ -539,6 +718,10 @@
     // und zwar für die ganze Säule. Eine ebene Niveaumenge hängt erst ab der
     // Hälfte der Fläche zusammen – deshalb trennt sie zuverlässig, während
     // dieselbe Maske in drei Dimensionen längst durchgehend wäre.
+    // Vierte Ebene: wie weit der Gang an dieser Stelle ist. Ohne sie hat jede
+    // Röhre überall denselben Querschnitt – das sah aus wie gebohrt, nicht wie
+    // ausgewaschen.
+    var d = new Float32Array(GN * GN * GYN);
     var m = new Float32Array(GN * GN);
     for (var mz = 0; mz < GN; mz++) {
       for (var mx = 0; mx < GN; mx++) {
@@ -556,10 +739,11 @@
           a[k] = this.nCave.fbm3(x / 44, y / 26, z / 44, 3);
           b[k] = this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3);
           c[k] = (y < 48) ? this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) : -1;
+          d[k] = this.nCave.fbm3(x / 62 + 800, y / 30 + 800, z / 62 - 800, 2);
         }
       }
     }
-    return { a: a, b: b, c: c, m: m };
+    return { a: a, b: b, c: c, d: d, m: m };
   };
 
   function sampleGrid(g, lx, y, lz) {
@@ -596,8 +780,19 @@
   // GEBIET über dem Median (0,000) liegt: eine ebene Niveaumenge hängt genau ab
   // der halben Fläche zusammen, darüber zerfällt sie in getrennte Inseln. Bei
   // 0,066 bleiben rund 35 % der Karte Höhlengebiet.
-  var TUN_A = 0.24, TUN_B = 0.25, HALLE = 0.470, GEBIET = 0.066;
+  var TUN_A = 0.24, TUN_B = 0.25, HALLE = 0.52, GEBIET = 0.066;
   var GEBIET_RAND = 0.09;             // so weit läuft ein Gang am Gebietsrand aus
+  var WEIT_MIN = 0.4, WEIT_MAX = 1.35;
+
+  // Aus dem Weitenrauschen wird ein Faktor auf die Gangschwelle. Unter WEIT_MIN
+  // zieht sich der Gang auf einen Kriechgang zusammen, bei WEIT_MAX öffnet er
+  // sich zu einer kleinen Kammer – und weil das Rauschen entlang des Gangs
+  // langsam wandert, wechselt beides einander ab, statt überall gleich zu sein.
+  function weitenFaktor(n) {
+    var t = n * 1.9 + 0.5;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return WEIT_MIN + (WEIT_MAX - WEIT_MIN) * t * t;
+  }
 
   // Der Regler skaliert die Schwellen: 0 = keine Höhlen, 2 = doppelt so weite Gänge
   Gen.prototype.isCaveAt = function (grid, lx, y, lz) {
@@ -617,10 +812,11 @@
       if (maske < GEBIET) return false;
       var rand = (maske - GEBIET) / GEBIET_RAND;
       if (rand > 1) rand = 1;
-      if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < TUN_A * c * rand &&
-          Math.abs(sampleGrid(grid.b, lx, y, lz)) < TUN_B * c * rand) return true;
+      var f = weitenFaktor(sampleGrid(grid.d, lx, y, lz)) * rand * c;
+      if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < TUN_A * f &&
+          Math.abs(sampleGrid(grid.b, lx, y, lz)) < TUN_B * f) return true;
       // Einzelne Hallen tief unten, aber nur im Kern eines Gebiets
-      if (y < 44 && rand > 0.5 && sampleGrid(grid.c, lx, y, lz) > HALLE / c) return true;
+      if (y < 44 && rand > 0.7 && sampleGrid(grid.c, lx, y, lz) > HALLE / c) return true;
       return false;
     }
 
@@ -630,17 +826,20 @@
     return false;
   };
 
-  // Einzelabfrage (für Werkzeuge außerhalb der Chunk-Generierung)
+  // Einzelabfrage (für Werkzeuge außerhalb der Chunk-Generierung).
+  // Ab Version 8 heißt das: liegt der Punkt in einem Wurm?
   Gen.prototype.isCave = function (x, y, z) {
     var c = this.o.caves;
     if (c <= 0 || y < 4 || y > 118) return false;
+    if (this.genV >= 8 && this.imWurm(x, y, z)) return true;
     if (this.genV >= 7) {
       var maske = this.nCave.fbm2(x / 40 - 3000, z / 40 + 3000, 3);
       if (maske < GEBIET) return false;
       var rand = Math.min(1, (maske - GEBIET) / GEBIET_RAND);
-      if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < TUN_A * c * rand &&
-          Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < TUN_B * c * rand) return true;
-      if (y < 44 && rand > 0.5 &&
+      var f = weitenFaktor(this.nCave.fbm3(x / 62 + 800, y / 30 + 800, z / 62 - 800, 2)) * rand * c;
+      if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < TUN_A * f &&
+          Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < TUN_B * f) return true;
+      if (y < 44 && rand > 0.7 &&
           this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) > HALLE / c) return true;
       return false;
     }
@@ -753,6 +952,9 @@
 
     this.genOres(cx, cz, blocks);
     // Der Riss schneidet vor dem Bewuchs, sonst stünden Bäume in der Luft
+    // Die Würmer graben in das fertige Gelände, vor den Erdspalten – so kann
+    // eine Spalte einen Gang anschneiden und nicht umgekehrt.
+    if (this.genV >= 8) this.grabeWuermer(cx, cz, blocks);
     if (this.genV >= 4) this.schneideRisse(cx, cz, blocks);
     this.decorate(cx, cz, blocks, meta);
   };

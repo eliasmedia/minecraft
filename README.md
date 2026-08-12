@@ -89,10 +89,13 @@ sonst ragte es aus dem Meer. An den Ufern liegen Lehm- und Kiesnester statt
 reinem Sand. Fische ziehen in Schwärmen von vier bis zwölf durchs offene Wasser,
 in der Tiefe in größeren; an Land zappeln sie und ersticken.
 
-Tang, Seegras und Korallenfächer sind **wasserdurchlässig**: das Wasser schließt
-sich um sie, statt eine Wand gegen sie zu ziehen. Ohne das stand in jedem
-Tangwald ein Loch je Pflanze — in einem einzigen Chunk waren das über zweitausend
-überflüssige Wasserflächen.
+Tang, Seegras und Korallenfächer sind **wasserdurchlässig**: sie tragen ihr
+Wasser selbst, statt es zu verdrängen. Es reicht nicht, den Nachbarn das Ziehen
+einer Wand zu verbieten — in der Zelle mit der Pflanze muss auch wirklich Wasser
+stehen, sonst fehlt dort die Oberfläche. In tiefem Wasser fällt das nicht auf, in
+einem Block flachem Wasser klafft genau dort ein Loch: in einem Testbecken von
+49 Feldern mit drei Pflanzen waren nur 24 Felder von einer Wasseroberfläche
+bedeckt, jetzt sind es alle 49.
 
 **Schiffswracks** liegen halb im Sand: ein Rumpf, der zum Bug und zum Heck hin
 schmaler wird, der Kiel schräg im Grund, Reling mit Lücken, eine Kajüte am Heck
@@ -127,14 +130,30 @@ eine flache **Gebietsmaske**, die entscheidet, wo es überhaupt Höhlen gibt. Da
 sie flach ist, ist der Trick — eine ebene Niveaumenge hängt genau ab der halben
 Fläche zusammen, darüber zerfällt sie in getrennte Inseln, während dieselbe Maske
 in drei Dimensionen längst durchgehend wäre. Sie ist so gesetzt, dass rund 35 %
-der Karte Höhlengebiet sind, und am Gebietsrand laufen die Gänge aus.
+der Karte Höhlengebiet sind, und am Gebietsrand laufen die Gänge aus. Ein drittes
+Feld lässt die Gangweite entlang des Wegs wandern, damit sich ein Gang mal auf
+einen Kriechgang zusammenzieht und mal etwas öffnet.
 
-Das Ergebnis im selben Ausschnitt: **rund 90 getrennte Höhlensysteme** statt
-einem, das größte 227 statt 415 Blöcke weit, der Hohlraum unter Tage von 25 % auf
-14 %. Ein Schacht nach unten trifft noch in gut einem Drittel der Fälle auf eine
-Höhle. Weil die Gänge enger sind, setzen sich **Monsterräume** jetzt gezielt auf
-eine Höhle statt auf eine gewürfelte Tiefe — sonst wären sie von achtundzwanzig
-auf sieben je 768 Chunks eingebrochen.
+Der **Höhlenregler steht seit Version 8 auf 50 %** statt auf 100 %. Bei 100 %
+waren die Gänge so weit, dass sich zu viel zu Sälen öffnete: gemessen lagen 26 %
+der Höhlenluft dort, wo eine Kugel mit Radius 3 hineinpasst. Bei 50 % sind es
+**8 %**, der Hohlraum unter Tage fällt von 25 % (Version 6) über 11 % auf **3,8 %**,
+und die Weiten liegen zu drei Vierteln bei Radius 0 bis 1 — enge, begehbare
+Röhren mit gelegentlicher Kammer. Ein Schacht nach unten trifft in gut einem
+Viertel der Fälle etwas, statt wie früher immer. Alte Welten behalten ihren
+alten Wert, sonst stünde jedes gebaute Haus plötzlich über anderen Höhlen.
+
+Weil die Gänge enger sind, setzen sich **Monsterräume** gezielt auf eine Höhle
+statt auf eine gewürfelte Tiefe — sonst wären sie von achtundzwanzig auf sieben
+je 768 Chunks eingebrochen.
+
+**Wurmlöcher** sind keine Höhlen, sondern eine eigene Struktur — etwa alle 440
+Blöcke eine, also seltener als eine verlassene Mine. Was sie unheimlich macht,
+ist ihre Gleichförmigkeit: der Querschnitt bleibt über die ganze Strecke exakt
+derselbe, als hätte etwas sie gebohrt. Sie winden sich fast waagerecht **300 bis
+700 Blöcke** durch den Fels und enden entweder oben an der Oberfläche — dann
+findet man den Eingang als Loch im Boden — oder unten am Grundgestein, wo sie
+einfach aufhören. Vom Höhlenregler bleiben sie unberührt.
 
 Jeder Spielstand merkt sich zusätzlich die **Generatorversion**, mit der er
 angelegt wurde, denn gespeichert wird nur der Unterschied zur Generierung. Ein
@@ -144,7 +163,8 @@ vorher; die neuen Landschaften gibt es nur in einer neu angelegten Welt. Version
 3 die Biome in Nether und Aether, 4 die Hochgebirgsgegenden, Erdrisse und
 geglätteten Wüstenkanten, 5 die großen Bastionen samt Meeresgrund und Stränden,
 6 die tiefen Meeresbecken, die Schiffswracks mit echtem Rumpf und die Riffe in
-tieferem Wasser, 7 die getrennten Höhlensysteme.
+tieferem Wasser, 7 die getrennten Höhlensysteme, 8 die engeren Gänge und die
+Wurmlöcher.
 
 **Dörfer** — deterministisch aus dem Seed, etwa alle 320 Blöcke außerhalb von
 Ozean, Strand, Sumpf und Bergen. Brunnen, Wohnhäuser, Schmiede, Bibliothek und

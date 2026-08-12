@@ -68,10 +68,14 @@
 
   C.raumAt = function (gen, cx, cz) {
     var rnd = U.rng(U.hashString('verlies:' + gen.seed + ':' + cx + ':' + cz));
-    // Ab Version 7 fällt gut die Hälfte der Kandidaten weg, weil die Säule gar
-    // keine Höhle hat. Die Grundchance steigt entsprechend, damit unter dem
-    // Strich wieder gleich viele Verliese entstehen wie vorher.
-    if (rnd() > (gen.genV >= 7 ? RAUM_CHANCE * 2.6 : RAUM_CHANCE)) return null;
+    // Ab Version 7 fällt der Großteil der Kandidaten weg, weil die Säule gar
+    // keine Höhle hat – ab Version 8 mit den engeren Gängen noch mehr. Die
+    // Grundchance steigt entsprechend, damit unter dem Strich wieder gleich
+    // viele Verliese entstehen wie vorher.
+    var chance = RAUM_CHANCE;
+    if (gen.genV >= 8) chance *= 4.2;
+    else if (gen.genV >= 7) chance *= 2.6;
+    if (rnd() > chance) return null;
     var w = 7, d = 7, h = 4;
     var x = cx * CS + 2 + ((rnd() * (CS - w - 3)) | 0);
     var z = cz * CS + 2 + ((rnd() * (CS - d - 3)) | 0);
