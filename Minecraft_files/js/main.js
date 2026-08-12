@@ -158,7 +158,7 @@
     var sp = this.world.gen.findSpawn();
     this.player = new MC.Player(this.world, sp.x, sp.y, sp.z);
     this.player.spawnPoint = { x: sp.x, y: sp.y, z: sp.z };
-    if (this.mode === 'creative') this.player.flying = true;
+    if (this.mode === 'creative' || this.mode === 'spectator') this.player.flying = true;
 
     this.ensureChunksAround(this.player.x, this.player.z, 2);
     this.settleSpawn();
@@ -185,7 +185,22 @@
     w = w || this.world;
     w.onChunkUnload = function (c) { if (c.world === self.world) self.renderer.dropChunk(c); };
     w.onBlockBreak = function (x, y, z, id, meta, tool) { self.dropBlock(x, y, z, id, meta, tool); };
-    w.onFizz = function (x, y, z) { self.audio.play('fizz'); self.particles.smoke(x, y + 1, z, 8); };
+    // Beim Fluten eines Höhlensystems verwandeln sich in einem Tick hunderte
+    // Lavablöcke auf einmal. Vorher war der Klang weder ortsgebunden noch
+    // begrenzt – man hörte das Zischen minutenlang aus der ganzen Welt.
+    w.onFizz = function (x, y, z) {
+      var jetzt = self.tickCount || 0;
+      if (jetzt !== self._fizzTick) { self._fizzTick = jetzt; self._fizzN = 0; }
+      if (self._fizzN >= 3) return;
+      self._fizzN++;
+      var p = self.player;
+      if (p) {
+        var dx = x - p.x, dy = y - p.y, dz = z - p.z;
+        if (dx * dx + dy * dy + dz * dz > 26 * 26) return;
+      }
+      self.audio.play3d('fizz', x + 0.5, y + 0.5, z + 0.5, p);
+      self.particles.smoke(x, y + 1, z, 8);
+    };
   };
 
   // ---------- Dimensionen ----------
@@ -588,6 +603,7 @@
   };
 
   Game.prototype.attackEntity = function (e) {
+    if (this.mode === 'spectator') return;
     var p = this.player;
     if (p.attackCd > 0) return;
     p.attackCd = 0.25;
@@ -626,6 +642,7 @@
   };
 
   Game.prototype.startMining = function () {
+    if (this.mode === 'spectator') return;
     var t = this.target;
     if (!t) return;
     var b = B.byId[t.id];
@@ -642,6 +659,7 @@
   };
 
   Game.prototype.breakBlock = function (x, y, z) {
+    if (this.mode === 'spectator') return;
     var id = this.world.getBlock(x, y, z);
     if (!id) return;
     var meta = this.world.getMeta(x, y, z);
@@ -692,6 +710,8 @@
   };
 
   Game.prototype.useItem = function () {
+    // Der Zuschauer fasst nichts an: kein Abbauen, kein Setzen, kein Benutzen
+    if (this.mode === 'spectator') return;
     var p = this.player, w = this.world;
     this.updateTarget();
     var st = p.inventory.selectedStack();
@@ -963,6 +983,7 @@
   };
 
   Game.prototype.placeBlock = function (it) {
+    if (this.mode === 'spectator') return;
     var w = this.world, p = this.player, t = this.target;
     if (!t) return;
     var block = B.byName[it.block];
@@ -1323,14 +1344,15 @@
 
     switch (code) {
       case 'KeyE': case 'KeyI':
+        // Der Zuschauer trägt nichts bei sich – ein Inventar wäre sinnlos
+        if (this.mode === 'spectator') break;
         this.ui.openScreen(this.mode === 'creative' ? 'creative' : 'inventory');
         break;
       case 'KeyQ': this.dropSelected(e.shiftKey); break;
       case 'F3': this.ui.debugVisible = !this.ui.debugVisible; break;
       case 'KeyP':
-        this.mode = this.mode === 'creative' ? 'survival' : 'creative';
-        if (this.mode !== 'creative') this.player.flying = false;
-        this.ui.toast('Modus: ' + (this.mode === 'creative' ? 'Kreativ' : 'Überleben'));
+        this.setMode(MC.MODI[(MC.MODI.indexOf(this.mode) + 1) % MC.MODI.length]);
+        this.ui.toast('Modus: ' + MC.MODUS_NAME[this.mode]);
         break;
       case 'F5': this.hideHand = !this.hideHand; break;
       case 'Space':
@@ -1420,6 +1442,19 @@
     if (el) el.style.display = on ? 'flex' : 'none';
   };
 
+  // Ein Moduswechsel zieht mehr nach sich als das Feld selbst: der Zuschauer
+  // fliegt immer, der Überlebende nie, und offene Fenster passen dann nicht mehr.
+  Game.prototype.setMode = function (m) {
+    if (MC.MODI.indexOf(m) < 0) m = 'survival';
+    this.mode = m;
+    this.player.flying = (m !== 'survival');
+    if (m === 'spectator') {
+      this.mining = null;
+      this.bowCharge = 0;
+      if (this.ui && this.ui.isOpen()) this.ui.close();
+    }
+  };
+
   Game.prototype.pause = function (on) {
     this.paused = on;
     if (on) { this.exitPointerLock(); this.showMenu('pause'); }
@@ -1468,7 +1503,8 @@
       row.appendChild(seed);
       var modeSel = document.createElement('select');
       modeSel.className = 'minput';
-      modeSel.innerHTML = '<option value="survival">Überleben</option><option value="creative">Kreativ</option>';
+      modeSel.innerHTML = '<option value="survival">Überleben</option><option value="creative">Kreativ</option>'
+                       + '<option value="spectator">Zuschauer</option>';
       modeSel.value = this.newWorldMode || 'survival';
       modeSel.addEventListener('change', function () { self.newWorldMode = modeSel.value; });
       row.appendChild(modeSel);
@@ -1494,9 +1530,8 @@
         var v = self.audio.volume + 0.2; if (v > 1.01) v = 0;
         self.audio.setVolume(v); self.showMenu('pause');
       });
-      btn('Modus: ' + (this.mode === 'creative' ? 'Kreativ' : 'Überleben'), function () {
-        self.mode = self.mode === 'creative' ? 'survival' : 'creative';
-        if (self.mode !== 'creative') self.player.flying = false;
+      btn('Modus: ' + MC.MODUS_NAME[this.mode], function () {
+        self.setMode(MC.MODI[(MC.MODI.indexOf(self.mode) + 1) % MC.MODI.length]);
         self.showMenu('pause');
       });
       btn('Welt exportieren (.json)', function () { self.exportWorld(); });

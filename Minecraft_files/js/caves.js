@@ -68,11 +68,28 @@
 
   C.raumAt = function (gen, cx, cz) {
     var rnd = U.rng(U.hashString('verlies:' + gen.seed + ':' + cx + ':' + cz));
-    if (rnd() > RAUM_CHANCE) return null;
+    // Ab Version 7 fällt gut die Hälfte der Kandidaten weg, weil die Säule gar
+    // keine Höhle hat. Die Grundchance steigt entsprechend, damit unter dem
+    // Strich wieder gleich viele Verliese entstehen wie vorher.
+    if (rnd() > (gen.genV >= 7 ? RAUM_CHANCE * 2.6 : RAUM_CHANCE)) return null;
     var w = 7, d = 7, h = 4;
     var x = cx * CS + 2 + ((rnd() * (CS - w - 3)) | 0);
     var z = cz * CS + 2 + ((rnd() * (CS - d - 3)) | 0);
     var y = 9 + ((rnd() * 36) | 0);
+    // Ab Version 7 wird die Höhe nicht mehr blind gewürfelt: die Röhren
+    // treffen eine zufällige Tiefe viel seltener als das alte Höhlengerüst,
+    // und ein Verlies ohne Zugang ist verschwendete Arbeit. Darum wird die
+    // Säule nach Höhlenluft abgesucht und der Raum dorthin gesetzt.
+    if (gen.genV >= 7) {
+      var treffer = [];
+      for (var py = 9; py <= 46; py++) {
+        if (gen.isCave(x + (w >> 1), py, z + (d >> 1))) treffer.push(py);
+      }
+      if (!treffer.length) return null;
+      y = treffer[(rnd() * treffer.length) | 0];
+      if (y > 46 - h) y = 46 - h;
+      if (y < 9) y = 9;
+    }
     var mob = MOBS[(rnd() * MOBS.length) | 0];
     return { x: x, y: y, z: z, w: w, d: d, h: h, mob: mob,
              truhen: 1 + ((rnd() < 0.45) ? 1 : 0), saat: (rnd() * 4294967295) >>> 0 };
@@ -97,7 +114,12 @@
         }
       }
     }
-    if (geprueft === 0 || offen / geprueft < 0.12) return false;
+    // Seit Version 7 sind die Höhlen Röhren statt weiter Hallen – an einer
+    // Raumwand liegt darum viel weniger offene Fläche an. Mit der alten Schwelle
+    // von 12 % entstanden nur noch sieben statt achtundzwanzig Verliesen je
+    // 768 Chunks; ein angeschnittener Gang reicht als Zugang völlig aus.
+    var noetig = gen.genV >= 7 ? 0.03 : 0.12;
+    if (geprueft === 0 || offen / geprueft < noetig) return false;
 
     for (var z = -1; z <= r.d; z++) {
       for (var x = -1; x <= r.w; x++) {
@@ -581,35 +603,62 @@
     }
   };
 
-  var SPAWNER_R = 8;          // so weit vom Käfig erscheinen sie
-  var SPAWNER_TAKT = 2.2;     // Sekunden zwischen zwei Versuchen
+  // Werte nach dem Vorbild: der Käfig erfasst einen Umkreis von vier Blöcken,
+  // nicht acht. Mit acht landeten die meisten Versuche in der Wand des sieben
+  // mal sieben Blöcke großen Verlieses, und bei nur sechs Versuchen je Takt
+  // kam so gut wie nie eine Kreatur heraus.
+  var SPAWNER_R = 4;          // so weit vom Käfig erscheinen sie
+  var SPAWNER_TAKT = 1.6;     // Sekunden zwischen zwei Versuchen
   var SPAWNER_MAX = 6;        // mehr als das erzeugt ein Käfig nicht
+  var SPAWNER_SICHT = 16;     // ab hier läuft er an, wie im Original
 
   C.tick = function (game, dt) {
     var w = game.world;
     // Bastionen haben seit Version 5 eigene Lohenspawner – der Nether gehört
     // deshalb dazu, nicht mehr nur die Oberwelt.
-    if ((w.dim !== 'overworld' && w.dim !== 'nether') || game.mode === 'creative') return;
-    C.timer = (C.timer || 0) + dt;
-    if (C.timer < SPAWNER_TAKT) return;
-    C.timer = 0;
+    if (w.dim !== 'overworld' && w.dim !== 'nether') return;
     var p = game.player;
     if (!p || p.dead) return;
+
+    // Die Flammen laufen in jedem Bild, nicht nur im Spawntakt – sonst sieht
+    // man dem Käfig nicht an, dass er scharf ist.
     var spawnerId = B.id('spawner');
     var px = Math.floor(p.x), py = Math.floor(p.y), pz = Math.floor(p.z);
-    // Nur ein Kasten um den Spieler wird abgesucht – ein Käfig weiter weg
-    // interessiert niemanden, und der Kasten ist billiger als eine Liste,
-    // die beim Laden und Abbauen gepflegt werden müsste.
-    for (var dy = -6; dy <= 6; dy++) {
+    var kaefige = [];
+    for (var dy = -8; dy <= 8; dy++) {
       var y = py + dy;
       if (y < 1 || y >= WH) continue;
-      for (var dz = -9; dz <= 9; dz++) {
-        for (var dx = -9; dx <= 9; dx++) {
+      for (var dz = -SPAWNER_SICHT; dz <= SPAWNER_SICHT; dz++) {
+        for (var dx = -SPAWNER_SICHT; dx <= SPAWNER_SICHT; dx++) {
           if (w.getBlock(px + dx, y, pz + dz) !== spawnerId) continue;
-          C.speien(game, px + dx, y, pz + dz);
+          kaefige.push([px + dx, y, pz + dz]);
         }
       }
     }
+    if (!kaefige.length) return;
+
+    for (var i = 0; i < kaefige.length; i++) {
+      var k = kaefige[i];
+      C.funken(game, k[0], k[1], k[2], dt);
+    }
+    if (game.mode === 'creative' || game.mode === 'spectator') return;
+    C.timer = (C.timer || 0) + dt;
+    if (C.timer < SPAWNER_TAKT) return;
+    C.timer = 0;
+    for (var j = 0; j < kaefige.length; j++) {
+      C.speien(game, kaefige[j][0], kaefige[j][1], kaefige[j][2]);
+    }
+  };
+
+  // Sichtbares Zeichen, dass der Käfig arbeitet: ein Flämmchen im Inneren und
+  // ab und zu ein Funke, der herausstiebt.
+  C.funken = function (game, x, y, z, dt) {
+    if (!game.particles) return;
+    C.funkTimer = (C.funkTimer || 0) + dt;
+    if (C.funkTimer < 0.12) return;
+    C.funkTimer = 0;
+    game.particles.flame(x + 0.5, y + 0.35, z + 0.5, 1);
+    if (Math.random() < 0.25) game.particles.smoke(x + 0.5, y + 0.7, z + 0.5, 1);
   };
 
   function speien(game, x, y, z) {
@@ -624,10 +673,13 @@
     }
     if (nah >= SPAWNER_MAX) return;
     var art = C.spawnerMob(game.seed, x, y, z, w.getMeta(x, y, z));
-    for (var t = 0; t < 6; t++) {
+    // Deutlich mehr Versuche: ein Verlies bietet nur wenige freie Felder, und
+    // ein Fehlversuch kostet nichts.
+    for (var t = 0; t < 24; t++) {
       var sx = x + ((Math.random() * (SPAWNER_R * 2 + 1)) | 0) - SPAWNER_R;
       var sz = z + ((Math.random() * (SPAWNER_R * 2 + 1)) | 0) - SPAWNER_R;
       var sy = y + ((Math.random() * 3) | 0) - 1;
+      if (sx === x && sz === z && sy === y) continue;
       if (w.getBlock(sx, sy, sz) !== 0 || w.getBlock(sx, sy + 1, sz) !== 0) continue;
       var unten = w.getBlock(sx, sy - 1, sz);
       if (unten === 0) continue;
@@ -635,7 +687,8 @@
       if (!ub || ub.solid === false) continue;
       var mob = new MC.Mob(w, art, sx + 0.5, sy + 0.05, sz + 0.5);
       w.entities.push(mob);
-      game.particles.smoke(sx + 0.5, sy + 0.5, sz + 0.5, 2);
+      game.particles.smoke(sx + 0.5, sy + 0.5, sz + 0.5, 6);
+      game.particles.flame(sx + 0.5, sy + 0.5, sz + 0.5, 4);
       return;
     }
   }

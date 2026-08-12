@@ -370,6 +370,8 @@
     // Nachtsicht hebt den Sockel an, statt eine eigene Beleuchtung zu bauen
     var nacht = (MC.Effekte && MC.game && MC.game.player)
       ? MC.Effekte.stufe(MC.game.player, 'nachtsicht') : 0;
+    // Im Zuschauermodus soll man die Welt ansehen können, auch tief im Fels
+    if (MC.game && MC.game.mode === 'spectator') return Math.max(0.78, this.ambientRoh(world));
     if (nacht) return Math.max(0.72, this.ambientRoh(world));
     return this.ambientRoh(world);
   };

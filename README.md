@@ -31,9 +31,9 @@ Minecraft_files/
 | `Rechtsklick` | Platzieren / Benutzen / Handeln | `Mausrad-Klick` | Block aufnehmen |
 | `Leertaste` | Springen / Auftauchen | `F3` | Debug-Overlay |
 | `Shift` | Schleichen (kantensicher) | `F` | Sichtweite |
-| `Strg` / `Doppel-W` | Sprinten | `P` | Spielmodus wechseln |
+| `Strg` / `Doppel-W` | Sprinten | `P` | Modus: Überleben/Kreativ/Zuschauer |
 | | | `J` | Musik an/aus |
-| `Doppel-Leertaste` | Fliegen (Kreativ) | `R` | Speichern |
+| `Doppel-Leertaste` | Fliegen (Kreativ/Zuschauer) | `R` | Speichern |
 | `N` | Karte groß/klein | | |
 | `M` / `Esc` | Pause / Menü | | |
 
@@ -113,6 +113,29 @@ Meeresspiegel, Biomgröße, Bewuchs, Erzhäufigkeit und ob Dörfer entstehen. Di
 Werte wandern in den Spielstand; ältere Spielstände laufen mit den Standardwerten
 weiter.
 
+**Höhlen** — die alten Höhlen entstanden, indem drei Rauschfelder dort ausgehöhlt
+wurden, wo sie nahe null lagen, und die Ergebnisse *vereinigt* wurden. Die
+Nullfläche eines 3D-Rauschens hängt aber zusammen, und die Vereinigung dreier
+solcher Flächen erst recht: gemessen lagen **99,8 % aller Höhlenluft in einer
+einzigen Komponente**, die in einem Ausschnitt von 416 Blöcken 415 Blöcke weit
+reichte. Wer runtergrub, landete zu 100 % in genau diesem einen weltumspannenden
+Gerüst — Sackgassen gab es nicht.
+
+Seit Version 7 werden zwei Felder stattdessen **geschnitten**: zwei Flächen
+schneiden sich in einer Kurve, und daraus werden Röhren statt Hallen. Dazu kommt
+eine flache **Gebietsmaske**, die entscheidet, wo es überhaupt Höhlen gibt. Dass
+sie flach ist, ist der Trick — eine ebene Niveaumenge hängt genau ab der halben
+Fläche zusammen, darüber zerfällt sie in getrennte Inseln, während dieselbe Maske
+in drei Dimensionen längst durchgehend wäre. Sie ist so gesetzt, dass rund 35 %
+der Karte Höhlengebiet sind, und am Gebietsrand laufen die Gänge aus.
+
+Das Ergebnis im selben Ausschnitt: **rund 90 getrennte Höhlensysteme** statt
+einem, das größte 227 statt 415 Blöcke weit, der Hohlraum unter Tage von 25 % auf
+14 %. Ein Schacht nach unten trifft noch in gut einem Drittel der Fälle auf eine
+Höhle. Weil die Gänge enger sind, setzen sich **Monsterräume** jetzt gezielt auf
+eine Höhle statt auf eine gewürfelte Tiefe — sonst wären sie von achtundzwanzig
+auf sieben je 768 Chunks eingebrochen.
+
 Jeder Spielstand merkt sich zusätzlich die **Generatorversion**, mit der er
 angelegt wurde, denn gespeichert wird nur der Unterschied zur Generierung. Ein
 alter Spielstand läuft darum weiter über den alten Codepfad und sieht aus wie
@@ -121,7 +144,7 @@ vorher; die neuen Landschaften gibt es nur in einer neu angelegten Welt. Version
 3 die Biome in Nether und Aether, 4 die Hochgebirgsgegenden, Erdrisse und
 geglätteten Wüstenkanten, 5 die großen Bastionen samt Meeresgrund und Stränden,
 6 die tiefen Meeresbecken, die Schiffswracks mit echtem Rumpf und die Riffe in
-tieferem Wasser.
+tieferem Wasser, 7 die getrennten Höhlensysteme.
 
 **Dörfer** — deterministisch aus dem Seed, etwa alle 320 Blöcke außerhalb von
 Ozean, Strand, Sumpf und Bergen. Brunnen, Wohnhäuser, Schmiede, Bibliothek und
@@ -345,6 +368,13 @@ Kettenreaktion.
 Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respawn,
 Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 
+**Drei Spielmodi**, mit `P` der Reihe nach durchzuschalten oder im Pausenmenü zu
+wählen: **Überleben**, **Kreativ** und **Zuschauer**. Der Zuschauer fliegt durch
+jede Wand, nimmt keinen Schaden, baut nichts ab und setzt nichts, hat kein
+Inventar und wird von keiner Kreatur beachtet; die Grundhelligkeit steigt so weit,
+dass man auch tief im Fels noch etwas sieht. Gedacht zum Ansehen der Welt — der
+schnellste Weg, sich ein Höhlensystem oder eine Bastion von innen anzuschauen.
+
 **Kreaturen der Biome** — jedes neue Biom hat seinen eigenen Bewohner. Im
 **Seelensandtal** steht das **Witherskelett**: sein Treffer überträgt
 *Verdorren*, und Verdorren hebt die Regeneration auf — mit einem Regenerationstrank
@@ -435,6 +465,11 @@ sieben aus Bruch- und Moosstein, ein **Spawner** in der Mitte, ein bis zwei
 Truhen. Welcher Mob aus dem Käfig kommt, steckt in seiner Position statt in einem
 Blockzustand und übersteht damit jedes Speichern von selbst. Er speit nur im
 Dunkeln und hört bei sechs Mobs in der Nähe auf — mit Fackeln legt man ihn still.
+Im Käfig brennt ein **Flämmchen**, solange er scharf ist; das ist von außen das
+einzige Zeichen, dass er arbeitet. Sein Umkreis ist vier Blöcke wie im Vorbild —
+mit den früheren acht landeten fast alle Versuche in der Wand des sieben mal
+sieben Blöcke großen Raums, und es kam so gut wie nie etwas heraus. Jetzt steht
+die erste Kreatur nach knapp zwei Sekunden da, der Käfig ist nach zehn voll.
 
 **Verlassene Minen** — ein Gangnetz als Irrfahrt aus geraden Stücken über acht
 mal acht Chunks: drei Blöcke breit, Stützgerüst aus Zaun und Planken alle fünf

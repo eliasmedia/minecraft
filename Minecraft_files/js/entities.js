@@ -363,7 +363,7 @@
     game.particles.crit(p.x, p.eyeY(), p.z);
     game.audio.play('enderman');
     game.ensureChunksAround(p.x, p.z, 1);
-    if (game.mode !== 'creative') p.hurt(5, null, game);
+    if (!MC.friedlichFuer(game)) p.hurt(5, null, game);
   };
 
   // ============================================================
@@ -980,7 +980,7 @@
     // eine Wand hindurch wurde jeder aggro, der zufällig nah genug stand.
     var foe = null, foeDist = 9999;
     if (this.hostile) {
-      if (p && !p.dead && dist < 16 && game.mode !== 'creative') {
+      if (p && !p.dead && dist < 16 && !MC.friedlichFuer(game)) {
         this.seeCd = (this.seeCd === undefined ? 0 : this.seeCd) - dt;
         if (this.seeCd <= 0) {
           this.seeCd = 0.35;                        // Sichtprüfung ist ein Raycast
@@ -1128,7 +1128,7 @@
     if (!mob.hostile) return null;
     var p = game.player;
     var best = null, bestD = 9999;
-    if (p && !p.dead && game.mode !== 'creative') {
+    if (p && !p.dead && !MC.friedlichFuer(game)) {
       var d = mob.distTo(p);
       if (d < 28 && (d < 8 || mob.canSee(p))) { best = p; bestD = d; }
     }
@@ -1377,7 +1377,7 @@
     // Blickkontakt: Fadenkreuz auf dem Kopf, Sichtlinie frei. Ein kurzer Blick
     // stört ihn nicht – erst wer knapp eine Sekunde hinsieht, macht ihn wütend.
     this.stareTime = this.stareTime || 0;
-    if (!this.hostile && p && !p.dead && game.mode !== 'creative') {
+    if (!this.hostile && p && !p.dead && !MC.friedlichFuer(game)) {
       var dx = p.x - this.x, dy = p.eyeY() - (this.y + this.height * 0.9), dz = p.z - this.z;
       var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       var angestarrt = false;

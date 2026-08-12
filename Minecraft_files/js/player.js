@@ -254,7 +254,11 @@
     var world = this.world;
     this.inWater = P.inLiquid(world, this, 'water');
     var inLava = P.inLiquid(world, this, 'lava');
-    var creative = game.mode === 'creative';
+    // Der Zuschauer ist in allem, was wehtut oder kostet, wie der Kreativmodus –
+    // dazu geht er durch Wände und wird von keiner Kreatur beachtet.
+    var zuschauer = game.mode === 'spectator';
+    var creative = game.mode === 'creative' || zuschauer;
+    if (zuschauer) { this.flying = true; this.onGround = false; }
 
     // ---- Eingabe -> Bewegung ----
     var fwd = 0, side = 0;
@@ -317,7 +321,15 @@
       if (this.sneaking) vy -= 1;
       this.vx = wx * speed; this.vz = wz * speed;
       this.vy = vy * speed * 0.8;
-      P.move(world, this, this.vx * dt, this.vy * dt, this.vz * dt);
+      if (zuschauer) {
+        // Ohne P.move, also ohne jede Kollision – das ist der ganze Sinn
+        this.x += this.vx * dt;
+        this.y = U.clamp(this.y + this.vy * dt, 1, MC.WORLD_HEIGHT - 1);
+        this.z += this.vz * dt;
+        this.collidedH = false;
+      } else {
+        P.move(world, this, this.vx * dt, this.vy * dt, this.vz * dt);
+      }
       this.fallStart = null;
     } else {
       var accel = this.onGround ? 42 : 12;
@@ -569,6 +581,7 @@
   // art: 'feuer' | 'explosion' | 'geschoss' | 'fall' | undefined
   Player.prototype.hurt = function (amount, source, game, art) {
     if (this.dead) return;
+    if (game.mode === 'spectator') return;
     if (game.mode === 'creative' && amount < 900) return;
     if (this.hurtTime > 0.35 && amount < 900) return;
     var def = this.inventory.defense();

@@ -311,4 +311,17 @@ MC.SEA_LEVEL = 62;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   };
 
+  // Die drei Spielmodi an einer Stelle. „Friedlich" heißt: keine Kreatur
+  // greift an, nichts tut weh, nichts wird verbraucht. Vorher stand überall
+  // einzeln mode !== 'creative' – beim Zuschauer hätte man jede Stelle
+  // einzeln nachziehen müssen.
+  MC.MODI = ['survival', 'creative', 'spectator'];
+  MC.MODUS_NAME = { survival: 'Überleben', creative: 'Kreativ', spectator: 'Zuschauer' };
+  MC.friedlichFuer = function (game) {
+    return !!game && (game.mode === 'creative' || game.mode === 'spectator');
+  };
+  MC.istZuschauer = function (game) {
+    return !!game && game.mode === 'spectator';
+  };
+
 })();

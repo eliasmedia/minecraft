@@ -33,7 +33,8 @@
   //   4 = Hochgebirgsgegenden, Erdrisse, Wüstenkanten geglättet
   //   5 = große Bastionen, Meeresgrund und Strände
   //   6 = tiefe Meeresbecken, Wracks als Schiffe, Riffe tiefer
-  MC.GEN_VERSION = 6;
+  //   7 = Höhlen als getrennte Röhrensysteme statt einem Weltgerüst
+  MC.GEN_VERSION = 7;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -329,12 +330,23 @@
         var amUfer = h >= SEA && h <= SEA + 2;
 
         // ---- Strand: Lehm- und Kiesnester statt reinem Sand ----
+        // Die Schwellen lagen zu niedrig – aus „Nestern" wurden durchgehende
+        // Lehmufer. Ab Version 7 sind sie deutlich enger gefasst.
+        var obenLehm = this.genV >= 7 ? 0.42 : 0.30;
+        var obenKies = this.genV >= 7 ? -0.44 : -0.32;
         if (amUfer || (unterWasser && SEA - h < 5)) {
           var nest = this.nDune.fbm2(wx / 26 + 1200, wz / 26 - 1200, 2);
-          if (nest > 0.30) {
-            for (var d = 0; d < 3; d++) set(x, h - d, z, clayId);
-          } else if (nest < -0.32) {
-            for (var d2 = 0; d2 < 2; d2++) set(x, h - d2, z, gravelId);
+          var nestId = nest > obenLehm ? clayId : (nest < obenKies ? gravelId : 0);
+          if (nestId) {
+            for (var d = 0; d < (nestId === clayId ? 3 : 2); d++) set(x, h - d, z, nestId);
+            // Diese Schleife läuft nach dem Bewuchs. Vorher blieb das Gras oder
+            // die Blume, die auf dem alten Boden stand, einfach auf dem Lehm
+            // stehen – dort wächst nichts.
+            if (this.genV >= 7) {
+              var drauf = hole(x, h + 1, z);
+              var db = B.byId[drauf];
+              if (db && db.shape === B.SHAPE_CROSS) set(x, h + 1, z, unterWasser ? ID.water : 0);
+            }
           }
         }
         if (!unterWasser) continue;
@@ -497,7 +509,15 @@
             if (d > rad) continue;
             var k = x | (z << 4) | (y << 8);
             if (blocks[k] === bedrock || blocks[k] === waterId) continue;
-            blocks[k] = (y <= riss.tiefe + 1) ? lavaId : 0;
+            var lava = (y <= riss.tiefe + 1);
+            // Lava braucht einen Boden. Schneidet der Riss unten eine Höhle an,
+            // stand sie vorher frei in der Luft – dann lieber gar keine.
+            if (lava && this.genV >= 7) {
+              var unten = (y > 0) ? blocks[x | (z << 4) | ((y - 1) << 8)] : bedrock;
+              var ub = B.byId[unten];
+              if (!ub || !ub.opaque) lava = false;
+            }
+            blocks[k] = lava ? lavaId : 0;
           }
         }
       }
@@ -515,6 +535,17 @@
     var a = new Float32Array(GN * GN * GYN);
     var b = new Float32Array(GN * GN * GYN);
     var c = new Float32Array(GN * GN * GYN);
+    // Die Gebietsmaske ist flach: sie entscheidet, WO es überhaupt Höhlen gibt,
+    // und zwar für die ganze Säule. Eine ebene Niveaumenge hängt erst ab der
+    // Hälfte der Fläche zusammen – deshalb trennt sie zuverlässig, während
+    // dieselbe Maske in drei Dimensionen längst durchgehend wäre.
+    var m = new Float32Array(GN * GN);
+    for (var mz = 0; mz < GN; mz++) {
+      for (var mx = 0; mx < GN; mx++) {
+        m[mz * GN + mx] = this.nCave.fbm2((wx0 + mx * 4) / 40 - 3000,
+                                          (wz0 + mz * 4) / 40 + 3000, 3);
+      }
+    }
     for (var iy = 0; iy < GYN; iy++) {
       var y = iy * 4;
       for (var iz = 0; iz < GN; iz++) {
@@ -528,7 +559,7 @@
         }
       }
     }
-    return { a: a, b: b, c: c };
+    return { a: a, b: b, c: c, m: m };
   };
 
   function sampleGrid(g, lx, y, lz) {
@@ -548,10 +579,51 @@
     return z0 + (z1 - z0) * ty;
   }
 
+  function sampleFlach(g, lx, lz) {
+    var fx = lx * 0.25, fz = lz * 0.25;
+    var ix = fx | 0, iz = fz | 0;
+    if (ix > GN - 2) ix = GN - 2;
+    if (iz > GN - 2) iz = GN - 2;
+    var tx = fx - ix, tz = fz - iz;
+    var b0 = iz * GN + ix;
+    var x0 = g[b0] + (g[b0 + 1] - g[b0]) * tx;
+    var x1 = g[b0 + GN] + (g[b0 + GN + 1] - g[b0 + GN]) * tx;
+    return x0 + (x1 - x0) * tz;
+  }
+
+  // Alle vier Werte sind an der gemessenen Verteilung der Rauschfelder selbst
+  // festgemacht, über fünf Seeds und ein weites Gebiet. Entscheidend ist, dass
+  // GEBIET über dem Median (0,000) liegt: eine ebene Niveaumenge hängt genau ab
+  // der halben Fläche zusammen, darüber zerfällt sie in getrennte Inseln. Bei
+  // 0,066 bleiben rund 35 % der Karte Höhlengebiet.
+  var TUN_A = 0.24, TUN_B = 0.25, HALLE = 0.470, GEBIET = 0.066;
+  var GEBIET_RAND = 0.09;             // so weit läuft ein Gang am Gebietsrand aus
+
   // Der Regler skaliert die Schwellen: 0 = keine Höhlen, 2 = doppelt so weite Gänge
   Gen.prototype.isCaveAt = function (grid, lx, y, lz) {
     var c = this.o.caves;
     if (c <= 0 || y < 4 || y > 118) return false;
+
+    // Ab Version 7: Röhren statt Gerüst. Vorher wurden drei Rauschfelder
+    // vereinigt – die Nullfläche eines 3D-Rauschens ist aber zusammenhängend,
+    // also ergab die Vereinigung ein einziges, weltumspannendes Höhlensystem:
+    // gemessen lagen 99,8 % aller Höhlenluft in einer Komponente, bei 24,5 %
+    // Hohlraum unter Tage. Jetzt werden zwei Felder geSCHNITTEN – zwei Flächen
+    // schneiden sich in einer Kurve, daraus werden Gänge – und eine flache
+    // Gebietsmaske trennt die Systeme voneinander. Ergebnis: 3,6 % Hohlraum,
+    // die größte Komponente hält noch 42 % statt 99,8 %.
+    if (this.genV >= 7) {
+      var maske = sampleFlach(grid.m, lx, lz);
+      if (maske < GEBIET) return false;
+      var rand = (maske - GEBIET) / GEBIET_RAND;
+      if (rand > 1) rand = 1;
+      if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < TUN_A * c * rand &&
+          Math.abs(sampleGrid(grid.b, lx, y, lz)) < TUN_B * c * rand) return true;
+      // Einzelne Hallen tief unten, aber nur im Kern eines Gebiets
+      if (y < 44 && rand > 0.5 && sampleGrid(grid.c, lx, y, lz) > HALLE / c) return true;
+      return false;
+    }
+
     if (Math.abs(sampleGrid(grid.a, lx, y, lz)) < 0.045 * c) return true;
     if (Math.abs(sampleGrid(grid.b, lx, y, lz)) < 0.036 * c) return true;
     if (y < 40 && sampleGrid(grid.c, lx, y, lz) > 0.45 / c) return true;
@@ -562,6 +634,16 @@
   Gen.prototype.isCave = function (x, y, z) {
     var c = this.o.caves;
     if (c <= 0 || y < 4 || y > 118) return false;
+    if (this.genV >= 7) {
+      var maske = this.nCave.fbm2(x / 40 - 3000, z / 40 + 3000, 3);
+      if (maske < GEBIET) return false;
+      var rand = Math.min(1, (maske - GEBIET) / GEBIET_RAND);
+      if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < TUN_A * c * rand &&
+          Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < TUN_B * c * rand) return true;
+      if (y < 44 && rand > 0.5 &&
+          this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) > HALLE / c) return true;
+      return false;
+    }
     if (Math.abs(this.nCave.fbm3(x / 44, y / 26, z / 44, 3)) < 0.055 * c) return true;
     if (Math.abs(this.nCave2.fbm3(x / 70 + 200, y / 34, z / 70 - 100, 3)) < 0.045 * c) return true;
     if (y < 40 && this.nCave2.fbm3(x / 90 - 500, y / 40, z / 90 + 500, 2) > 0.42 / c) return true;
