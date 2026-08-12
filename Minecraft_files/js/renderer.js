@@ -325,10 +325,27 @@
   };
 
   // ---------- Farben für Himmel/Nebel ----------
-  Renderer.prototype.skyColors = function (world) {
-    // Der Nether hat keinen Himmel, nur roten Dunst. Im Aether ist immer Tag.
-    if (world.dim === 'nether') return { zenith: [0.22, 0.06, 0.05], horizon: [0.36, 0.11, 0.07] };
-    if (world.dim === 'aether') return { zenith: [0.42, 0.68, 0.98], horizon: [0.78, 0.90, 1.0] };
+  Renderer.prototype.skyColors = function (world, p) {
+    // Der Nether hat keinen Himmel, nur Dunst. Im Aether ist immer Tag. Ab
+    // Version 3 färbt das Biom den Dunst – der Wechsel soll auffallen, bevor
+    // man den ersten neuen Block sieht. Der Übergang wird geglättet, sonst
+    // springt die Farbe an der Biomgrenze.
+    if (world.dim === 'nether' || world.dim === 'aether') {
+      var basis = world.dim === 'nether'
+        ? { zenith: [0.22, 0.06, 0.05], horizon: [0.36, 0.11, 0.07] }
+        : { zenith: [0.42, 0.68, 0.98], horizon: [0.78, 0.90, 1.0] };
+      if (!p || !MC.Dim || world.gen.genV < 3) return basis;
+      var st = MC.Dim.stimmung(world, Math.floor(p.x), Math.floor(p.z));
+      if (!st) return basis;
+      var ziel = st.dunst;
+      var alt = this._dunst || ziel;
+      var f = 0.04;
+      var neu = [alt[0] + (ziel[0] - alt[0]) * f,
+                 alt[1] + (ziel[1] - alt[1]) * f,
+                 alt[2] + (ziel[2] - alt[2]) * f];
+      this._dunst = neu;
+      return { zenith: U.mixColor(basis.zenith, neu, 0.45), horizon: neu };
+    }
     // Das Ende hat keinen Himmel, nur die violette Leere
     if (world.dim === 'the_end') return { zenith: [0.035, 0.020, 0.055], horizon: [0.075, 0.045, 0.105] };
     var t = world.time;
@@ -388,7 +405,7 @@
     invertM4(this.invVP, this.vp);
     U.extractFrustum(this.vp, this.frustum);
 
-    var sc = this.skyColors(world);
+    var sc = this.skyColors(world, p);
     var daylight = world.daylight();
     var night = world.dim === 'overworld' ? U.clamp(1 - (daylight - 0.13) / 0.5, 0, 1) : 0;
     var underwater = p.headInWater ? 1 : 0;

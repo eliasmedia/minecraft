@@ -1754,6 +1754,7 @@
       if (this.autoSaveTimer > 120) { this.autoSaveTimer = 0; this.saveWorld(); }
       this.audio.tickMusic(dt);
       this.ambientParticles(dt);
+      this.biomParticles(dt);
     }
 
     // Hotbar nur neu zeichnen, wenn sich tatsächlich etwas geändert hat
@@ -1787,6 +1788,40 @@
     if (p.portalTime > 0.7) {
       p.portalTime = 0;
       this.usePortal(b.portal);
+    }
+  };
+
+  // Was in der Luft liegt: Asche im Basaltdelta, Sporen in den Pilzwäldern,
+  // Flirren über den Frostspitzen. Kostet fast nichts und macht mehr aus als
+  // ein weiterer Blocktyp.
+  Game.prototype.biomParticles = function (dt) {
+    var w = this.world, p = this.player;
+    if (!MC.Dim || w.gen.genV < 3) return;
+    if (w.dim !== 'nether' && w.dim !== 'aether') return;
+    this.biomTimer = (this.biomTimer || 0) + dt;
+    if (this.biomTimer < 0.12) return;
+    this.biomTimer = 0;
+    var st = MC.Dim.stimmung(w, Math.floor(p.x), Math.floor(p.z));
+    if (!st) return;
+    var NB = MC.Dim.NETHER_BIOME, AB = MC.Dim.AETHER_BIOME;
+    var n = 0, art = null;
+    if (w.dim === 'nether') {
+      if (st.key === NB.DELTA) { n = 6; art = 'asche'; }
+      else if (st.key === NB.CRIMSON || st.key === NB.WARPED) { n = 4; art = 'sporen'; }
+      else if (st.key === NB.SOUL) { n = 3; art = 'seelen'; }
+    } else {
+      if (st.key === AB.FROST) { n = 4; art = 'frost'; }
+      else if (st.key === AB.HAIN) { n = 3; art = 'gold'; }
+      else if (st.key === AB.FLUGSAND) { n = 3; art = 'sand'; }
+    }
+    if (!n) return;
+    for (var i = 0; i < n; i++) {
+      var x = p.x + (Math.random() - 0.5) * 22;
+      var y = p.y + 1 + (Math.random() - 0.4) * 10;
+      var z = p.z + (Math.random() - 0.5) * 22;
+      if (art === 'asche') this.particles.smoke(x, y, z, 1);
+      else if (art === 'seelen') this.particles.splash(x, y, z, 1);
+      else this.particles.crit(x, y, z);
     }
   };
 

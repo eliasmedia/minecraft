@@ -440,6 +440,32 @@
   define('soul_sand', { title: 'Seelensand', hardness: 0.5, tool: 'shovel', sound: 'sand', slow: 0.42, group: 'natur' });
   define('quartz_ore', { title: 'Netherquarzerz', hardness: 3, tool: 'pickaxe', level: 1, drop: 'quartz', sound: 'stone', group: 'natur' });
   define('nether_bricks', { title: 'Netherziegel', hardness: 2, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+
+  // ---------- Netherbiome ----------
+  // Seelenboden traegt die Talsohle, Nylium die beiden Pilzwaelder, Basalt und
+  // Schwarzstein das Deltagebiet. Alles bewusst als eigene Bloecke: ein Biom,
+  // das nur andere Streugroessen hat, sieht man nicht.
+  define('soul_soil', { title: 'Seelenerde', hardness: 0.5, tool: 'shovel', sound: 'sand', slow: 0.3, group: 'natur' });
+  define('bone_block', { title: 'Knochenblock', tex: { top: 'bone_block_top', bottom: 'bone_block_top', side: 'bone_block' }, hardness: 2, tool: 'pickaxe', sound: 'stone', group: 'bau' });
+  define('basalt', { title: 'Basalt', tex: { top: 'basalt_top', bottom: 'basalt_top', side: 'basalt' }, hardness: 1.25, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('blackstone', { title: 'Schwarzstein', hardness: 1.5, tool: 'pickaxe', level: 1, drop: 'blackstone', sound: 'stone', group: 'bau' });
+  define('crimson_nylium', { title: 'Karmesinnylium', tex: { top: 'crimson_nylium', bottom: 'netherrack', side: 'crimson_nylium_side' }, hardness: 0.4, tool: 'pickaxe', drop: 'netherrack', sound: 'stone', group: 'natur' });
+  define('warped_nylium', { title: 'Wirrnylium', tex: { top: 'warped_nylium', bottom: 'netherrack', side: 'warped_nylium_side' }, hardness: 0.4, tool: 'pickaxe', drop: 'netherrack', sound: 'stone', group: 'natur' });
+  define('crimson_stem', { title: 'Karmesinstamm', tex: { top: 'crimson_stem_top', bottom: 'crimson_stem_top', side: 'crimson_stem' }, hardness: 2, tool: 'axe', sound: 'wood', group: 'natur' });
+  define('warped_stem', { title: 'Wirrstamm', tex: { top: 'warped_stem_top', bottom: 'warped_stem_top', side: 'warped_stem' }, hardness: 2, tool: 'axe', sound: 'wood', group: 'natur' });
+  define('crimson_planks', { title: 'Karmesinbretter', hardness: 2, tool: 'axe', sound: 'wood', group: 'bau' });
+  define('warped_planks', { title: 'Wirrbretter', hardness: 2, tool: 'axe', sound: 'wood', group: 'bau' });
+  define('nether_wart_block', { title: 'Netherwarzenblock', hardness: 1, sound: 'grass', group: 'natur' });
+  define('warped_wart_block', { title: 'Wirrwarzenblock', hardness: 1, sound: 'grass', group: 'natur' });
+  // Leuchtpilz: die einzige Lichtquelle in den Pilzwaeldern, und die macht sie
+  define('shroomlight', { title: 'Leuchtpilz', hardness: 1, light: 15, sound: 'grass', group: 'natur' });
+  ['crimson_roots', 'warped_roots'].forEach(function (n) {
+    define(n, {
+      title: n === 'crimson_roots' ? 'Karmesinwurzeln' : 'Wirrwurzeln',
+      shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
+      hardness: 0, sound: 'grass', group: 'natur'
+    });
+  });
   define('magma_block', { title: 'Magmablock', hardness: 0.5, tool: 'pickaxe', light: 3, damage: 1, sound: 'stone', group: 'natur' });
   define('quartz_block', { title: 'Quarzblock', hardness: 0.8, tool: 'pickaxe', sound: 'stone', group: 'bau' });
 
@@ -457,6 +483,15 @@
   // Quicksoil ist spiegelglatt – man rutscht darüber hinweg
   define('quicksoil', { title: 'Flugsand', hardness: 0.5, tool: 'shovel', sound: 'sand', slippery: 0.995, group: 'natur' });
   define('icestone', { title: 'Eisstein', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'natur' });
+  // ---------- Aetherbiome ----------
+  define('frosted_grass', {
+    title: 'Frostgras', tex: { top: 'frosted_grass_top', bottom: 'aether_dirt', side: 'frosted_grass_side' },
+    hardness: 0.6, tool: 'shovel', drop: 'aether_dirt', sound: 'grass', group: 'natur'
+  });
+  define('leaves_crystal', {
+    title: 'Kristalllaub', hardness: 0.2, opaque: false, cutout: true, alphaPass: false,
+    drop: null, sound: 'grass', group: 'natur'
+  });
   define('ambrosium_ore', { title: 'Ambrosiumerz', hardness: 2, tool: 'pickaxe', light: 4, drop: 'ambrosium_shard', dropCount: 2, sound: 'stone', group: 'natur' });
   // Zanit gehört zum Nether – dort ist es die einzige Rüstungsstufe
   define('zanite_ore', { title: 'Zaniterz', hardness: 3, tool: 'pickaxe', level: 2, drop: 'zanite_gemstone', dropCount: 2, sound: 'stone', group: 'natur' });
@@ -487,7 +522,9 @@
   // oben liefen, bevor es diese Blöcke gab – darum hier nachgezogen.
   [['slab_planks_skyroot', 'Himmelswurzelstufe', 'planks_skyroot'],
    ['slab_holystone', 'Heiligsteinstufe', 'holystone'],
-   ['slab_nether_bricks', 'Netherziegelstufe', 'nether_bricks']
+   ['slab_nether_bricks', 'Netherziegelstufe', 'nether_bricks'],
+   ['slab_blackstone', 'Schwarzsteinstufe', 'blackstone'],
+   ['slab_basalt', 'Basaltstufe', 'basalt']
   ].forEach(function (s) {
     var src = B.byName[s[2]];
     define(s[0], {
@@ -497,7 +534,8 @@
   });
   [['stairs_skyroot', 'Himmelswurzeltreppe', 'planks_skyroot'],
    ['stairs_holystone', 'Heiligsteintreppe', 'holystone'],
-   ['stairs_nether_bricks', 'Netherziegeltreppe', 'nether_bricks']
+   ['stairs_nether_bricks', 'Netherziegeltreppe', 'nether_bricks'],
+   ['stairs_blackstone', 'Schwarzsteintreppe', 'blackstone']
   ].forEach(function (s) {
     var src = B.byName[s[2]];
     define(s[0], {
@@ -801,7 +839,9 @@
     if (!g) return false;
     if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB || g.shape === B.SHAPE_FENCE;
     if (b.name === 'wheat') return groundId === B.id('farmland');
-    if (b.name === 'nether_wart') return groundId === B.id('soul_sand');
+    if (b.name === 'nether_wart') return groundId === B.id('soul_sand') || groundId === B.id('soul_soil');
+    if (b.name === 'crimson_roots') return groundId === B.id('crimson_nylium') || groundId === B.id('netherrack');
+    if (b.name === 'warped_roots') return groundId === B.id('warped_nylium') || groundId === B.id('netherrack');
     if (b.name === 'sugar_cane') return groundId === B.id('sand') || groundId === B.id('dirt') || groundId === B.id('grass') || groundId === B.id('sugar_cane');
     if (b.name === 'cactus') return groundId === B.id('sand') || groundId === B.id('cactus');
     if (b.name === 'dead_bush') return groundId === B.id('sand') || groundId === B.id('dirt');

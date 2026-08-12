@@ -29,7 +29,8 @@
   // mit, unter der sie entstanden ist, und behält sie für immer.
   //   1 = bis August 2026: abs()-Rauschen, Baumteppich, flache Wüste
   //   2 = Erosionsachse, Gebirgskämme, Dünen, große Bäume
-  MC.GEN_VERSION = 2;
+  //   3 = Biome im Nether und im Aether
+  MC.GEN_VERSION = 3;
 
   MC.defaultWorldOpts = function () {
     var o = {};

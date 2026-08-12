@@ -1218,6 +1218,125 @@
   holz('skyroot', [166, 156, 140], [116, 106, 94], [92, 200, 164]);
   holz('golden_oak', [204, 172, 96], [154, 122, 60], [232, 204, 96]);
 
+  // ---- Netherbiome ----
+  // Alle sechs Bodenarten stammen aus derselben Rampenlogik wie der Rest: harte
+  // Quantisierung auf wenige Toene, damit sie auf Entfernung nicht verwaschen.
+  var SOUL2 = [[58, 44, 36], [72, 56, 44], [88, 68, 54], [46, 34, 28]];
+  tex('soul_soil', function (g) {
+    g.qn(SOUL2, [22, 36, 24, 18]);
+    for (var i = 0; i < 14; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [34, 24, 20]);
+  });
+  var KNOCH = [[214, 210, 186], [188, 182, 156], [232, 228, 208], [160, 154, 130]];
+  tex('bone_block', function (g) {
+    g.qn(KNOCH.slice(0, 2), [40, 40]);
+    for (var x = 0; x < 16; x++) { g.set(x, 0, KNOCH[3]); g.set(x, 15, KNOCH[3]); }
+    for (var i = 0; i < 4; i++) { var bx = 2 + i * 4; for (var y = 1; y < 15; y++) g.set(bx, y, KNOCH[3]); }
+  });
+  tex('bone_block_top', function (g) {
+    g.qn(KNOCH.slice(0, 2), [40, 40]);
+    g.frame(3, 3, 10, 10, KNOCH[3]);
+    g.rect(6, 6, 4, 4, KNOCH[2]);
+  });
+  var BAS = [[62, 60, 66], [78, 76, 84], [50, 48, 54], [94, 92, 100]];
+  tex('basalt', function (g) {
+    g.qn(BAS, [24, 34, 26, 16]);
+    // senkrechte Riefen: Basalt bricht in Saeulen
+    for (var x = 1; x < 16; x += 3) for (var y = 0; y < 16; y++) g.set(x, y, BAS[2]);
+  });
+  tex('basalt_top', function (g) {
+    g.qn(BAS, [26, 34, 24, 16]);
+    for (var i = 0; i < 5; i++) g.frame(2 + i, 2 + i, 12 - 2 * i, 12 - 2 * i, i % 2 ? BAS[2] : BAS[3]);
+  });
+  tex('blackstone', function (g) {
+    g.qn([[34, 30, 36], [44, 40, 48], [26, 24, 30], [56, 52, 60]], [24, 34, 26, 16]);
+    for (var i = 0; i < 10; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [20, 18, 24]);
+  });
+  // Nylium: Netherrack mit einem Belag obendrauf, wie Gras auf Erde
+  function nylium(g, tone, punkte) {
+    g.copyFrom(data('netherrack'));
+    g.qn(tone, [26, 36, 24]);
+    for (var i = 0; i < 18; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, punkte);
+  }
+  var KARM = [[122, 26, 30], [146, 34, 38], [96, 20, 24]];
+  var WIRR = [[22, 108, 106], [30, 130, 126], [16, 84, 84]];
+  tex('crimson_nylium', function (g) { nylium(g, KARM, [178, 58, 52]); });
+  tex('warped_nylium', function (g) { nylium(g, WIRR, [66, 168, 158]); });
+  function nyliumSide(g, tone) {
+    g.copyFrom(data('netherrack'));
+    for (var x = 0; x < 16; x++) {
+      var h = 3 + ((g.r() * 3) | 0);
+      for (var y = 0; y < h; y++) g.set(x, y, tone[(g.r() * tone.length) | 0]);
+    }
+  }
+  tex('crimson_nylium_side', function (g) { nyliumSide(g, KARM); });
+  tex('warped_nylium_side', function (g) { nyliumSide(g, WIRR); });
+
+  function stamm(g, tone, ring) {
+    g.qn(tone, [26, 36, 24]);
+    for (var x = 0; x < 16; x += 5) for (var y = 0; y < 16; y++) if (g.r() < 0.75) g.set(x, y, ring);
+  }
+  tex('crimson_stem', function (g) { stamm(g, [[96, 34, 52], [116, 42, 62], [78, 26, 42]], [58, 20, 32]); });
+  tex('warped_stem', function (g) { stamm(g, [[46, 84, 92], [56, 100, 108], [36, 66, 74]], [26, 48, 56]); });
+  tex('crimson_stem_top', function (g) {
+    g.qn([[142, 62, 60], [162, 74, 70]], [40, 40]);
+    for (var i = 0; i < 4; i++) g.frame(3 + i, 3 + i, 10 - 2 * i, 10 - 2 * i, [96, 34, 52]);
+  });
+  tex('warped_stem_top', function (g) {
+    g.qn([[56, 132, 130], [66, 150, 146]], [40, 40]);
+    for (var i = 0; i < 4; i++) g.frame(3 + i, 3 + i, 10 - 2 * i, 10 - 2 * i, [36, 66, 74]);
+  });
+  tex('crimson_planks', function (g) { g.copyFrom(data('planks_oak')); g.tint([255, 108, 130]); });
+  tex('warped_planks', function (g) { g.copyFrom(data('planks_oak')); g.tint([112, 246, 240]); });
+  tex('nether_wart_block', function (g) {
+    g.qn([[104, 14, 20], [126, 20, 26], [84, 10, 16], [148, 28, 32]], [24, 34, 26, 16]);
+    for (var i = 0; i < 16; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [66, 8, 12]);
+  });
+  tex('warped_wart_block', function (g) {
+    g.qn([[20, 120, 116], [28, 140, 134], [14, 96, 96], [46, 160, 150]], [24, 34, 26, 16]);
+    for (var i = 0; i < 16; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [10, 74, 76]);
+  });
+  tex('shroomlight', function (g) {
+    g.qn([[240, 160, 62], [252, 190, 90], [222, 132, 46]], [26, 38, 24]);
+    for (var i = 0; i < 12; i++) {
+      var sx = (g.r() * 16) | 0, sy = (g.r() * 16) | 0;
+      g.set(sx, sy, [255, 226, 150]); g.set(sx + 1, sy, [255, 226, 150]);
+    }
+  });
+  function wurzeln(g, tone) {
+    g.fill([0, 0, 0], 0);
+    for (var x = 2; x < 14; x++) {
+      if (g.r() < 0.35) continue;
+      var h = 3 + ((g.r() * 5) | 0);
+      for (var y = 16 - h; y < 16; y++) g.set(x, y, tone[(g.r() * tone.length) | 0]);
+    }
+  }
+  tex('crimson_roots', function (g) { wurzeln(g, [[152, 40, 62], [186, 54, 74]]); });
+  tex('warped_roots', function (g) { wurzeln(g, [[36, 150, 142], [52, 178, 166]]); });
+
+  // ---- Aetherbiome ----
+  tex('frosted_grass_top', function (g) {
+    g.copyFrom(data('aether_grass_top'));
+    g.qn([[228, 240, 248], [206, 224, 238], [244, 250, 254]], [26, 34, 24]);
+    for (var i = 0; i < 10; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [180, 206, 228]);
+  });
+  tex('frosted_grass_side', function (g) {
+    g.copyFrom(data('aether_dirt'));
+    for (var x = 0; x < 16; x++) {
+      var h = 3 + ((g.r() * 3) | 0);
+      for (var y = 0; y < h; y++) g.set(x, y, [[228, 240, 248], [206, 224, 238]][(g.r() * 2) | 0]);
+    }
+  });
+  tex('leaves_crystal', function (g) {
+    g.copyFrom(data('leaves_skyroot'));
+    g.tint([160, 232, 255]);
+    // ein paar Eiskristalle blitzen zwischen den Nadeln
+    for (var i = 0; i < 14; i++) {
+      var cx2 = (g.r() * 16) | 0, cy2 = (g.r() * 16) | 0;
+      if (g.alphaAt(cx2, cy2) > 0) g.set(cx2, cy2, [236, 250, 255]);
+    }
+  });
+
+
   function cloudTex(name, base) {
     tex(name, function (g) {
       var r = ramp(base, 0.22);

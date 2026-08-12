@@ -142,7 +142,7 @@ darüber selbst ab und wieder an; die Periode ist 2 × (2 + 2 × Stufe) Ticks, a
 bis 1,0 s. Wichtig ist nur, dass die Schleife dem Trägerblock nicht zu nahe kommt —
 liegt Staub direkt neben ihm, hält sich das Signal selbst und der Takt bleibt stehen.
 
-**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 196
+**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 202
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
 Sammelbegriffe wie „jede Brettersorte" zeigen einen Vertreter.
 
@@ -152,6 +152,20 @@ unserer eigenen Weltenfolge — Glowstone öffnet den Aether, Gravitit führt zu
 Helmkompass, der Kompass zur Festung, Lohenrute und Enderperle zum Auge, das Auge
 ins Ende. Wer einen Erfolg überspringt, bekommt seine Vorgeschichte rückwirkend
 angerechnet.
+
+**Netherbiome** — fünf Stück, auf einer viel kürzeren Skala als oben: ein Block
+im Nether sind acht in der Oberwelt, sonst liefe man eine halbe Stunde durch
+dasselbe. **Netherödland** ist der bekannte rote Fels. Das **Seelensandtal** ist
+eine weite, kalte Senke aus Seelenerde, in der Knochenrippen stehen und
+Nethergewächs von selbst wächst. **Karmesin-** und **Wirrwald** sind Pilzwälder
+auf Nylium, mit dicken Stämmen, breiten Warzenkappen und Leuchtpilzen als
+einziger Lichtquelle — der Wirrwald glimmt türkis, im Karmesinwald ist es dunkel
+und rot. Das **Basaltdelta** ist Bruchgelände aus Basaltsäulen, Schwarzstein und
+Magma.
+
+Der Belag liegt dabei auf der *begehbaren* Oberfläche, nicht auf der nominalen
+Bodenhöhe: die Netherrackbänke wachsen über den Boden hinaus, und ein Belag an
+der Bodenhöhe verschwände unter ihnen.
 
 **Nether** — Portal aus einem Obsidianrahmen (4×5, zehn Blöcke), gezündet mit dem
 Feuerzeug. Dahinter liegt eine geschlossene Höhlenwelt zwischen zwei
@@ -214,6 +228,20 @@ Sheepuffs als friedliche Bewohner, Cockatrices und Zephyre als Plage — letzter
 schießen Schneebälle, die einen von der Insel fegen. Wer durch die Leere fällt,
 kommt in der Oberwelt vom Himmel herunter.
 
+**Aetherbiome** — ebenfalls fünf, auf Inselgröße: **Aetherwiesen** wie bisher,
+der **Goldene Hain** mit dichten Goldeichen, viel Ambrosium und blühendem Boden,
+die **Frostspitzen** mit Frostgras über Eisstein und Kristalllaub an den Bäumen,
+die **Flugsandwüste**, die fast leer und spiegelglatt ist, und das
+**Wolkenmeer**, in dem die Bänke so dicht hängen, dass man kaum ohne sie von
+Insel zu Insel kommt.
+
+**Stimmung** — jedes Biom in beiden Dimensionen färbt den Dunst, und der
+Übergang wird geglättet, damit die Farbe an der Grenze nicht springt. Dazu liegt
+etwas in der Luft: Asche im Basaltdelta, Sporen in den Pilzwäldern, Flirren über
+den Frostspitzen. Auch die Bewohner richten sich nach dem Biom — das Seelensandtal
+gehört den Ghasts, das Basaltdelta den Magmawürfeln, der Wirrwald den Endermen,
+und im Goldenen Hain grasen Phygs.
+
 **Gravititrüstung** — jedes Teil bringt still eine eigene Eigenschaft mit, ohne
 dass es irgendwo draufsteht:
 
@@ -259,13 +287,13 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — rund 170 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 190 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
 Truhe, Bett, TNT, Ackerboden, Zaubertisch, Amboss, Braustand, Kolben und
-Beobachter. Rund 300 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
+Beobachter. Rund 320 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
 6 Stufen, Nahrung, Rohstoffe, Kompass, Karte, neun Tränke.
 
-**Spielschleife** — 196 Rezepte (2×2 und 3×3, geformt und ungeformt);
+**Spielschleife** — 202 Rezepte (2×2 und 3×3, geformt und ungeformt);
 Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
@@ -416,7 +444,8 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 ## Noch offen
 
-**Als Nächstes:** der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
+**Als Nächstes:** die neuen Biome bevölkern — Vorschlagsliste in
+`docs/MOB-PLAN.md`. Dazu der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
 zur Laufzeit ändert, und dafür eine eigene Ebene im Texturarray — das ist ein
 Umbau am Renderer, kein Nachmittag.
 

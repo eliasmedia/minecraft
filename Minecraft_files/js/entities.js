@@ -1528,11 +1528,41 @@
     // dazu Ghasts und Magmawürfel. Zombies und Endermen haben hier nichts
     // verloren. Die Lohe steht bewusst nicht in dieser Liste – sie spawnt
     // ausschließlich an den Festungen, damit sie ein Fund bleibt.
-    nether: { hostile: ['piglin', 'piglin', 'piglin', 'piglin', 'ghast', 'ghast', 'magma_cube'], passive: [], ground: ['netherrack', 'soul_sand', 'magma_block'] },
-    aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'], ground: ['aether_grass', 'quicksoil', 'holystone'] },
+    nether: { hostile: ['piglin', 'piglin', 'piglin', 'piglin', 'ghast', 'ghast', 'magma_cube'], passive: [],
+              ground: ['netherrack', 'soul_sand', 'soul_soil', 'magma_block', 'crimson_nylium', 'warped_nylium', 'basalt', 'blackstone'] },
+    aether: { hostile: ['cockatrice', 'zephyr'], passive: ['moa', 'phyg', 'sheepuff'],
+              ground: ['aether_grass', 'frosted_grass', 'quicksoil', 'holystone'] },
     // Im Ende soll der Drache die Hauptrolle behalten – Endermen bleiben selten
     the_end: { hostile: ['enderman'], passive: [], ground: ['end_stone'], rate: 0.25, max: 5 }
   };
+
+  // Welche Mobs passen in dieses Biom? null = die Tabelle der Dimension nehmen.
+  function biomMischung(world, x, z, feindlich) {
+    if (!MC.Dim || world.gen.genV < 3) return null;
+    var st = MC.Dim.stimmung(world, x, z);
+    if (!st) return null;
+    if (world.dim === 'nether') {
+      var NB = MC.Dim.NETHER_BIOME;
+      if (!feindlich) return null;
+      switch (st.key) {
+        case NB.SOUL: return ['ghast', 'ghast', 'piglin'];          // weit und offen
+        case NB.DELTA: return ['magma_cube', 'magma_cube', 'ghast'];
+        case NB.CRIMSON: return ['piglin', 'piglin', 'piglin', 'magma_cube'];
+        case NB.WARPED: return ['enderman', 'piglin'];              // still und fremd
+      }
+      return null;
+    }
+    var AB = MC.Dim.AETHER_BIOME;
+    if (feindlich) {
+      if (st.key === AB.FROST) return ['zephyr', 'zephyr', 'cockatrice'];
+      if (st.key === AB.WOLKEN) return ['zephyr'];
+      return null;
+    }
+    if (st.key === AB.HAIN) return ['moa', 'phyg', 'phyg', 'sheepuff'];
+    if (st.key === AB.FROST) return ['sheepuff', 'sheepuff', 'moa'];
+    if (st.key === AB.FLUGSAND) return ['moa'];
+    return null;
+  }
 
   Spawner.otherDim = function (game, world, p, hostiles, passives, maxHostile, maxPassive) {
     var table = DIM_MOBS[world.dim];
@@ -1563,6 +1593,11 @@
 
       var wantHostile = table.passive.length === 0 || Math.random() < 0.6;
       var kinds = wantHostile ? table.hostile : table.passive;
+      // Ab Version 3 hat jedes Biom seine eigene Mischung. Solange es keine
+      // eigenen Kreaturen gibt, verschiebt das nur die Gewichte - ein
+      // Basaltdelta gehoert den Magmawuerfeln, ein Seelensandtal den Ghasts.
+      var misch = biomMischung(world, x, z, wantHostile);
+      if (misch) kinds = misch;
       if (!kinds.length) continue;
       if (wantHostile && hostiles >= maxHostile) continue;
       if (!wantHostile && passives >= maxPassive) continue;

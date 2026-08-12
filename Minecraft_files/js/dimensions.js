@@ -34,7 +34,14 @@
       rock: B.id('netherrack'), soul: B.id('soul_sand'), lava: B.id('lava'),
       glow: B.id('glowstone'), quartz: B.id('quartz_ore'), bedrock: B.id('bedrock'),
       magma: B.id('magma_block'), gravel: B.id('gravel'), zanite: B.id('zanite_ore'),
-      bricks: B.id('nether_bricks'), fence: B.id('fence_oak'), chest: B.id('chest')
+      bricks: B.id('nether_bricks'), fence: B.id('fence_oak'), chest: B.id('chest'),
+      soilB: B.id('soul_soil'), bone: B.id('bone_block'),
+      basalt: B.id('basalt'), black: B.id('blackstone'),
+      cNyl: B.id('crimson_nylium'), wNyl: B.id('warped_nylium'),
+      cStem: B.id('crimson_stem'), wStem: B.id('warped_stem'),
+      cWart: B.id('nether_wart_block'), wWart: B.id('warped_wart_block'),
+      shroom: B.id('shroomlight'), cRoot: B.id('crimson_roots'), wRoot: B.id('warped_roots'),
+      wart: B.id('nether_wart')
     };
   }
 
@@ -42,6 +49,100 @@
   D.netherFloor = function (gen, wx, wz) {
     return 26 + gen.nDetail.fbm2(wx / 70, wz / 70, 4) * 22;
   };
+
+  // ============================================================
+  //  Netherbiome
+  // ============================================================
+  // Ein Block im Nether sind acht in der Oberwelt – die Biome laufen darum auf
+  // einer viel kürzeren Skala als oben, sonst liefe man eine halbe Stunde durch
+  // dasselbe. Zwei Rauschfelder reichen: eines für die Achse Ödland–Wald,
+  // eines für die Achse trocken–feucht.
+  D.NETHER_BIOME = { WASTE: 0, SOUL: 1, CRIMSON: 2, WARPED: 3, DELTA: 4 };
+  D.NETHER_BIOME_NAME = ['Netherödland', 'Seelensandtal', 'Karmesinwald', 'Wirrwald', 'Basaltdelta'];
+
+  D.netherBiome = function (gen, wx, wz) {
+    if (gen.genV < 3) return D.NETHER_BIOME.WASTE;
+    var key = (wx >> 2) + ',' + (wz >> 2);
+    if (!gen._nbC) { gen._nbC = {}; gen._nbN = 0; }
+    var c = gen._nbC[key];
+    if (c !== undefined) return c;
+    var a = gen.nTemp.fbm2(wx / 210 + 4000, wz / 210 - 4000, 3);
+    var b2 = gen.nHumid.fbm2(wx / 170 - 2500, wz / 170 + 2500, 3);
+    var NB = D.NETHER_BIOME;
+    var r;
+    if (a < -0.24) r = NB.SOUL;                       // ausgewaschene Senken
+    else if (a > 0.26) r = NB.DELTA;                  // frisch, vulkanisch
+    else if (b2 > 0.20) r = NB.CRIMSON;
+    else if (b2 < -0.20) r = NB.WARPED;
+    else r = NB.WASTE;
+    if (++gen._nbN > 60000) { gen._nbC = {}; gen._nbN = 0; }
+    gen._nbC[key] = r;
+    return r;
+  };
+
+  // Welcher Belag liegt in diesem Biom auf der Sohle?
+  //
+  // Wichtig ist das WO: gelegt wird auf die begehbare Oberfläche, nicht auf die
+  // nominale Bodenhöhe. Die Netherrackbänke wachsen über den Boden hinaus – ein
+  // Belag an der Bodenhöhe verschwindet darum unter ihnen, und man läuft weiter
+  // über Netherrack. Genau das war der erste Anlauf.
+  //   tiefe = 0 ist die Oberfläche, 1..3 darunter.
+  function netherBelag(gen, ID, biom, wx, y, wz, tiefe, alt) {
+    var NB = D.NETHER_BIOME;
+    switch (biom) {
+      case NB.SOUL:
+        // Seelensandtal: Seelenerde mit Seelensandadern
+        return U.hash3(wx, y + 7, wz) < 0.28 ? ID.soul : ID.soilB;
+      case NB.CRIMSON:
+        return tiefe === 0 ? ID.cNyl : alt;
+      case NB.WARPED:
+        return tiefe === 0 ? ID.wNyl : alt;
+      case NB.DELTA: {
+        // Basalt in Bänken, dazwischen Schwarzstein und etwas Magma
+        var n = gen.nDetail.fbm3(wx / 12, y / 9, wz / 12, 2);
+        if (n > 0.18) return ID.basalt;
+        if (tiefe > 0 && U.hash3(wx, y + 51, wz) < 0.12) return ID.magma;
+        return ID.black;
+      }
+    }
+    return alt;
+  }
+
+  // Pilzbaum: dicker Stamm, breite Kappe aus Warzenblock, darin Leuchtpilze.
+  // Sie sind die einzige Lichtquelle in den beiden Wäldern – ohne sie wäre ein
+  // Pilzwald ein dunkler Netherrackgang mit anderer Bodenfarbe.
+  function pilzbaum(set, hole, ID, karmesin, lx, ly, lz, wx, wz, seed) {
+    var rnd = U.rng(U.hashString('pilz:' + seed + ':' + wx + ':' + wz));
+    var stamm = karmesin ? ID.cStem : ID.wStem;
+    var kappe = karmesin ? ID.cWart : ID.wWart;
+    var h = 5 + ((rnd() * 8) | 0);
+    var dick = h > 9 && rnd() < 0.5;
+    var s = dick ? 2 : 1;
+    var x, y, z;
+    for (y = 0; y < h; y++) {
+      for (z = 0; z < s; z++) for (x = 0; x < s; x++) set(lx + x, ly + y, lz + z, stamm, true);
+    }
+    // Kappe: zwei bis drei Lagen, oben schmaler
+    var top = ly + h;
+    for (y = 0; y < 3; y++) {
+      var r = (y === 2) ? 1 : (dick ? 3 : 2);
+      for (z = -r; z <= r + s - 1; z++) {
+        for (x = -r; x <= r + s - 1; x++) {
+          var dx = x < 0 ? -x : (x > s - 1 ? x - s + 1 : 0);
+          var dz = z < 0 ? -z : (z > s - 1 ? z - s + 1 : 0);
+          if (dx * dx + dz * dz > r * r + 1) continue;
+          var id = kappe;
+          if (rnd() < 0.09) id = ID.shroom;
+          set(lx + x, top + y, lz + z, id, false);
+        }
+      }
+    }
+    // ein paar Leuchtpilze hängen unter der Kappe
+    for (var k = 0; k < 3; k++) {
+      if (rnd() < 0.5) continue;
+      set(lx + ((rnd() * 3) | 0) - 1, top - 1, lz + ((rnd() * 3) | 0) - 1, ID.shroom, false);
+    }
+  }
 
   D.generateNether = function (gen, cx, cz, blocks, meta) {
     var ID = gen._netherIds || (gen._netherIds = netherIds());
@@ -54,6 +155,7 @@
         var floor = D.netherFloor(gen, wx, wz);
         var roof = NETHER_ROOF - 18 - gen.nMount.fbm2(wx / 60 + 500, wz / 60 - 500, 4) * 20;
         var soulPatch = gen.nHumid.fbm2(wx / 40 + 900, wz / 40, 2);
+        var biom = D.netherBiome(gen, wx, wz);
 
         for (var y = 0; y < NETHER_ROOF + 5; y++) {
           var i = x | (z << 4) | (y << 8);
@@ -96,14 +198,16 @@
       for (var wx2 = 0; wx2 < CS; wx2++) {
         for (var wy2 = 1; wy2 < WH - 1; wy2++) {
           var si = wx2 | (wz2 << 4) | (wy2 << 8);
-          if (blocks[si] !== ID.soul) continue;
+          if (blocks[si] !== ID.soul && blocks[si] !== ID.soilB) continue;
           if (blocks[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] !== 0) continue;
           if (U.hash3(cx * CS + wx2, 4711, cz * CS + wz2) > 0.09) continue;
-          blocks[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] = B.id('nether_wart');
+          blocks[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] = ID.wart;
           meta[wx2 | (wz2 << 4) | ((wy2 + 1) << 8)] = 1 + ((U.hash3(cx * CS + wx2, 99, cz * CS + wz2) * 3) | 0);
         }
       }
     }
+
+    if (gen.genV >= 3) D.netherPlants(gen, cx, cz, blocks, meta, ID);
 
     // Erzadern: Quarz häufig, Zanit deutlich seltener und tiefer
     var rnd = U.rng((gen.seed ^ 0x9e37 ^ (cx * 341873128) ^ (cz * 132897987)) >>> 0);
@@ -130,6 +234,136 @@
 
     // Glowstone gibt es nur in den Festungen
     D.drawFortress(gen, cx, cz, blocks, meta, ID);
+  };
+
+  // ============================================================
+  //  Bewuchs der Netherbiome
+  // ============================================================
+  // Pilzwälder bekommen Bäume und Wurzeln, das Seelensandtal Knochenrippen,
+  // das Delta Basaltsäulen. Wie oben gilt: alles rein aus Seed und Position,
+  // und der Rand ist weit genug, damit Kappen über die Chunkgrenze reichen.
+  D.netherPlants = function (gen, cx, cz, blocks, meta, ID) {
+    var wx0 = cx * CS, wz0 = cz * CS;
+    var NB = D.NETHER_BIOME;
+
+    function set(lx, ly, lz, id, over) {
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 1 || ly >= WH) return;
+      var i = lx | (lz << 4) | (ly << 8);
+      if (!over && blocks[i] !== 0) return;
+      blocks[i] = id; meta[i] = 0;
+    }
+    function hole(lx, ly, lz) {
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= WH) return -1;
+      return blocks[lx | (lz << 4) | (ly << 8)];
+    }
+    // Oberste begehbare Fläche je Spalte – einmal für den ganzen Chunk, nicht
+    // bei jedem Aufruf neu. Der Nether ist 116 Blöcke hoch; die Suche 256-mal
+    // doppelt zu machen kostete mehr als der ganze Rest der Biome zusammen.
+    var sohlen = new Int16Array(CS * CS);
+    for (var sz = 0; sz < CS; sz++) {
+      for (var sx = 0; sx < CS; sx++) {
+        var gef = -1;
+        for (var sy = NETHER_ROOF - 6; sy > 4; sy--) {
+          if (blocks[sx | (sz << 4) | (sy << 8)] <= 0) continue;
+          if (blocks[sx | (sz << 4) | ((sy + 1) << 8)] !== 0) continue;
+          if (blocks[sx | (sz << 4) | ((sy + 2) << 8)] !== 0) continue;
+          gef = sy; break;
+        }
+        sohlen[sx | (sz << 4)] = gef;
+      }
+    }
+    function sohle(lx, lz) {
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS) return -1;
+      return sohlen[lx | (lz << 4)];
+    }
+
+    // ---- Belag: die obersten vier Schichten der begehbaren Oberfläche ----
+    var NBb = D.NETHER_BIOME;
+    for (var bz2 = 0; bz2 < CS; bz2++) {
+      for (var bx2 = 0; bx2 < CS; bx2++) {
+        var by = sohle(bx2, bz2);
+        if (by < 5) continue;
+        var bwx = wx0 + bx2, bwz = wz0 + bz2;
+        var bb = D.netherBiome(gen, bwx, bwz);
+        if (bb === NBb.WASTE) continue;
+        for (var td = 0; td < 4; td++) {
+          var ty = by - td;
+          if (ty < 3) break;
+          var ti = bx2 | (bz2 << 4) | (ty << 8);
+          var cur = blocks[ti];
+          // Fels, Magma, Kies und die Seelensandnester dürfen umgefärbt werden.
+          // Ohne den Seelensand blieb rund ein Drittel jedes Pilzwaldes nackter
+          // Netherrack – die Nester liegen quer über alle Biome.
+          if (cur !== ID.rock && cur !== ID.magma && cur !== ID.gravel &&
+              cur !== ID.soul && cur !== ID.soilB) break;
+          blocks[ti] = netherBelag(gen, ID, bb, bwx, ty, bwz, td, cur);
+        }
+      }
+    }
+
+    // ---- Pilzwälder: Bäume auf einem 5er-Raster, wie oben in der Oberwelt ----
+    var ZELLE = 5, RAND = 6;
+    for (var gz = Math.floor((wz0 - RAND) / ZELLE); gz <= Math.floor((wz0 + CS + RAND) / ZELLE); gz++) {
+      for (var gx = Math.floor((wx0 - RAND) / ZELLE); gx <= Math.floor((wx0 + CS + RAND) / ZELLE); gx++) {
+        var rnd = U.rng(U.hashString('npilz:' + gen.seed + ':' + gx + ':' + gz));
+        var px = gx * ZELLE + ((rnd() * ZELLE) | 0);
+        var pz = gz * ZELLE + ((rnd() * ZELLE) | 0);
+        var biom = D.netherBiome(gen, px, pz);
+        if (biom !== NB.CRIMSON && biom !== NB.WARPED) continue;
+        if (rnd() > 0.55 * gen.o.vegetation) continue;
+        var lx = px - wx0, lz = pz - wz0;
+        // Die Spalte liegt vielleicht im Nachbarchunk – dann nur zeichnen, was
+        // hereinragt, und die Höhe über die eigene Sohle schätzen.
+        var basis = -1;
+        if (lx >= 0 && lx < CS && lz >= 0 && lz < CS) basis = sohle(lx, lz);
+        else {
+          var qx = Math.min(CS - 1, Math.max(0, lx)), qz = Math.min(CS - 1, Math.max(0, lz));
+          basis = sohle(qx, qz);
+        }
+        if (basis < 6) continue;
+        pilzbaum(set, hole, ID, biom === NB.CRIMSON, lx, basis + 1, lz, px, pz, gen.seed);
+      }
+    }
+
+    // ---- Bodenbewuchs und Streugut ----
+    for (var z = 0; z < CS; z++) {
+      for (var x = 0; x < CS; x++) {
+        var wx = wx0 + x, wz = wz0 + z;
+        var b2 = D.netherBiome(gen, wx, wz);
+        var y = sohle(x, z);
+        if (y < 5) continue;
+        var boden = hole(x, y, z);
+        var r = U.hash3(wx, 1717, wz);
+
+        if (b2 === NB.CRIMSON && boden === ID.cNyl) {
+          if (r < 0.22) set(x, y + 1, z, ID.cRoot, false);
+        } else if (b2 === NB.WARPED && boden === ID.wNyl) {
+          if (r < 0.22) set(x, y + 1, z, ID.wRoot, false);
+          // vereinzelte Leuchtpilze direkt am Boden – der Wirrwald glimmt
+          else if (r < 0.235) set(x, y + 1, z, ID.shroom, false);
+        } else if (b2 === NB.SOUL) {
+          // Nethergewächs wächst hier von selbst – im Tal ist es zu Hause
+          if (r > 0.90 && (boden === ID.soilB || boden === ID.soul)) {
+            set(x, y + 1, z, ID.wart, false);
+            var wi = x | (z << 4) | ((y + 1) << 8);
+            if (blocks[wi] === ID.wart) meta[wi] = 1 + ((U.hash3(wx, 99, wz) * 3) | 0);
+          }
+          // Knochenrippen: senkrechte Bögen aus Knochenblock
+          if (r < 0.006) {
+            var hoch = 4 + ((U.hash3(wx, 3, wz) * 5) | 0);
+            for (var k = 0; k < hoch; k++) set(x, y + 1 + k, z, ID.bone, true);
+            var neig = U.hash3(wx, 4, wz) < 0.5 ? 1 : -1;
+            for (var a2 = 1; a2 <= 2; a2++) set(x + neig * a2, y + hoch, z, ID.bone, false);
+          }
+        } else if (b2 === NB.DELTA) {
+          // Basaltsäulen, wie sie im Original aus dem Boden stehen
+          if (r < 0.012) {
+            var sh = 2 + ((U.hash3(wx, 6, wz) * 7) | 0);
+            for (var k2 = 0; k2 < sh; k2++) set(x, y + 1 + k2, z, ID.basalt, true);
+          }
+        }
+      }
+    }
   };
 
   // ============================================================
@@ -328,11 +562,43 @@
       logS: B.id('log_skyroot'), leafS: B.id('leaves_skyroot'),
       logG: B.id('log_golden_oak'), leafG: B.id('leaves_golden_oak'),
       cloud: B.id('aercloud'), cloudB: B.id('aercloud_blue'), cloudG: B.id('aercloud_golden'),
-      flower: B.id('aether_flower'), berry: B.id('blueberry_bush')
+      flower: B.id('aether_flower'), berry: B.id('blueberry_bush'),
+      frost: B.id('frosted_grass'), leafC: B.id('leaves_crystal')
     };
   }
 
   var AETHER_BASE = 72;   // mittlere Inselhöhe
+
+  // ============================================================
+  //  Aetherbiome
+  // ============================================================
+  // Der Aether ist keine Fläche, sondern ein Archipel – die Biome laufen darum
+  // auf einer Skala, die etwa einer Insel entspricht. Wer von einer Insel zur
+  // nächsten springt, soll den Wechsel merken.
+  D.AETHER_BIOME = { WIESEN: 0, HAIN: 1, FROST: 2, FLUGSAND: 3, WOLKEN: 4 };
+  D.AETHER_BIOME_NAME = ['Aetherwiesen', 'Goldener Hain', 'Frostspitzen', 'Flugsandwüste', 'Wolkenmeer'];
+
+  D.aetherBiome = function (gen, wx, wz) {
+    if (gen.genV < 3) return D.AETHER_BIOME.WIESEN;
+    var key = (wx >> 2) + ',' + (wz >> 2);
+    if (!gen._abC) { gen._abC = {}; gen._abN = 0; }
+    var c = gen._abC[key];
+    if (c !== undefined) return c;
+    var waerme = gen.nTemp.fbm2(wx / 320 + 8000, wz / 320 - 8000, 3);
+    var art = gen.nHumid.fbm2(wx / 260 - 6000, wz / 260 + 6000, 3);
+    var AB = D.AETHER_BIOME;
+    var r;
+    // Die Fenster sind bewusst weit: mit engeren Schwellen waren vier Fünftel
+    // aller Inseln Wiesen, und die anderen vier Biome fand man kaum.
+    if (waerme < -0.16) r = AB.FROST;
+    else if (waerme > 0.15 && art > -0.02) r = AB.HAIN;
+    else if (art < -0.18) r = AB.FLUGSAND;
+    else if (art > 0.22) r = AB.WOLKEN;
+    else r = AB.WIESEN;
+    if (++gen._abN > 60000) { gen._abC = {}; gen._abN = 0; }
+    gen._abC[key] = r;
+    return r;
+  };
 
   // Dichtefeld der Inseln: positiv = Fels. Oben und unten fällt es ab, darum
   // entstehen linsenförmige Brocken statt durchgehender Schichten.
@@ -382,16 +648,32 @@
         underside[x | (z << 4)] = unten;
 
         if (top < 0) continue;
-        // Deckschicht: Gras auf Erde, an manchen Stellen Flugsand
+        // Deckschicht: Gras auf Erde, an manchen Stellen Flugsand. Ab Version 3
+        // entscheidet zuerst das Biom, was oben liegt.
         var quickN = gen.nHumid.fbm2(wx / 55 + 300, wz / 55 - 300, 2);
+        var biomA = D.aetherBiome(gen, wx, wz);
+        var AB = D.AETHER_BIOME;
+        var obenId = ID.grass, fuellId = ID.dirt;
+        if (quickN > 0.34) { obenId = ID.quick; fuellId = ID.quick; }
+        if (gen.genV >= 3) {
+          if (biomA === AB.FROST) { obenId = ID.frost; fuellId = ID.dirt; }
+          else if (biomA === AB.FLUGSAND) { obenId = ID.quick; fuellId = ID.quick; }
+          else if (biomA === AB.HAIN && quickN <= 0.34) { obenId = ID.grass; fuellId = ID.dirt; }
+        }
         var depth = 3 + ((U.hash3(wx, 12, wz) * 2) | 0);
         for (var d = 0; d < depth; d++) {
           var yy = top - d;
           if (yy < 0) break;
           var si = x | (z << 4) | (yy << 8);
           if (blocks[si] !== ID.holy) break;
-          if (d === 0) blocks[si] = quickN > 0.34 ? ID.quick : ID.grass;
-          else blocks[si] = quickN > 0.34 ? ID.quick : ID.dirt;
+          blocks[si] = (d === 0) ? obenId : fuellId;
+        }
+        // In den Frostspitzen sitzt Eisstein bis dicht unter die Grasnarbe
+        if (gen.genV >= 3 && biomA === AB.FROST) {
+          for (var fy = top - depth; fy > top - depth - 4 && fy > 0; fy--) {
+            var fi = x | (z << 4) | (fy << 8);
+            if (blocks[fi] === ID.holy && U.hash3(wx, fy + 5, wz) < 0.45) blocks[fi] = ID.ice;
+          }
         }
       }
     }
@@ -402,10 +684,20 @@
     // Gravitit sitzt zusätzlich nur in der unteren Hälfte, also möglichst tief.
     var rnd = U.rng((gen.seed ^ 0x5eed ^ (cx * 341873128) ^ (cz * 132897987)) >>> 0);
     var RAND_UNTEN = 6, RAND_OBEN = 4;
+    // Was eine Insel hergibt, hängt am Biom: im Hain leuchtet mehr Ambrosium,
+    // in den Frostspitzen steckt der Eisstein.
+    var biomV = D.aetherBiome(gen, wx0 + 8, wz0 + 8);
+    var ABv = D.AETHER_BIOME;
+    var mAmbro = 14, mIce = 6;
+    if (gen.genV >= 3) {
+      if (biomV === ABv.HAIN) mAmbro = 26;
+      else if (biomV === ABv.FROST) { mIce = 22; mAmbro = 8; }
+      else if (biomV === ABv.FLUGSAND) { mAmbro = 8; mIce = 3; }
+    }
     var veins = [
-      { id: ID.ambro, tries: 14, size: 6, tief: 0.0 },
+      { id: ID.ambro, tries: mAmbro, size: 6, tief: 0.0 },
       { id: ID.grav, tries: 5, size: 4, tief: 0.55 },
-      { id: ID.ice, tries: 6, size: 8, tief: 0.0 },
+      { id: ID.ice, tries: mIce, size: 8, tief: 0.0 },
       { id: ID.mossy, tries: 5, size: 10, tief: 0.0 }
     ];
     for (var v = 0; v < veins.length; v++) {
@@ -439,7 +731,10 @@
       for (x = 0; x < CS; x++) {
         var cwx = wx0 + x, cwz = wz0 + z;
         var cn = gen.nMountMask.fbm3(cwx / 34, 0, cwz / 34, 2);
-        if (cn < 0.30) continue;
+        // Im Wolkenmeer hängen die Bänke dicht an dicht – dort kommt man kaum
+        // ohne sie von Insel zu Insel, und genau das ist der Reiz.
+        var schwelle = (gen.genV >= 3 && D.aetherBiome(gen, cwx, cwz) === D.AETHER_BIOME.WOLKEN) ? 0.02 : 0.30;
+        if (cn < schwelle) continue;
         var cy = AETHER_BASE + 22 + Math.round(gen.nTemp.fbm2(cwx / 90, cwz / 90, 2) * 26);
         if (cy < 30 || cy > WH - 4) continue;
         var kind = U.hash3(cwx >> 4, 7, cwz >> 4);
@@ -469,7 +764,17 @@
     for (var dz = -3; dz < CS + 3; dz++) {
       for (var dx = -3; dx < CS + 3; dx++) {
         var wx = wx0 + dx, wz = wz0 + dz;
-        if (U.hash3(wx, 8123, wz) > 0.022 * gen.o.vegetation) continue;
+        var biomT = D.aetherBiome(gen, wx, wz);
+        var ABt = D.AETHER_BIOME;
+        // Dichte je Biom: der Hain ist ein Wald, die Flugsandwüste fast leer
+        var dichte = 0.022;
+        if (gen.genV >= 3) {
+          if (biomT === ABt.HAIN) dichte = 0.055;
+          else if (biomT === ABt.FROST) dichte = 0.020;
+          else if (biomT === ABt.FLUGSAND) dichte = 0.003;
+          else if (biomT === ABt.WOLKEN) dichte = 0.012;
+        }
+        if (U.hash3(wx, 8123, wz) > dichte * gen.o.vegetation) continue;
         // Oberfläche für Nachbarspalten neu bestimmen
         var top = -1;
         if (dx >= 0 && dx < CS && dz >= 0 && dz < CS) top = surface[dx | (dz << 4)];
@@ -480,7 +785,12 @@
         }
         if (top < 24) continue;
         var golden = U.hash3(wx, 31, wz) < 0.12;
-        aetherTree(dx, top + 1, dz, golden, set, wx, wz, gen, ID);
+        var frostBaum = false;
+        if (gen.genV >= 3) {
+          if (biomT === ABt.HAIN) golden = U.hash3(wx, 31, wz) < 0.72;
+          else if (biomT === ABt.FROST) { golden = false; frostBaum = true; }
+        }
+        aetherTree(dx, top + 1, dz, golden, set, wx, wz, gen, ID, frostBaum);
       }
     }
 
@@ -490,19 +800,27 @@
         var top2 = surface[x | (z << 4)];
         if (top2 < 24 || top2 >= WH - 2) continue;
         var gi = x | (z << 4) | (top2 << 8);
-        if (blocks[gi] !== ID.grass) continue;
+        var boden = blocks[gi];
+        if (boden !== ID.grass && boden !== ID.frost) continue;
         if (blocks[x | (z << 4) | ((top2 + 1) << 8)] !== 0) continue;
         var r = U.hash3(wx0 + x, 555, wz0 + z) / Math.max(0.001, gen.o.vegetation);
-        if (r < 0.020) set(x, top2 + 1, z, ID.flower, true);
+        var biomB = D.aetherBiome(gen, wx0 + x, wz0 + z);
+        // Im Hain blüht es, in den Frostspitzen wächst nur Beerengestrüpp
+        if (gen.genV >= 3 && biomB === D.AETHER_BIOME.HAIN) {
+          if (r < 0.075) set(x, top2 + 1, z, ID.flower, true);
+          else if (r < 0.095) set(x, top2 + 1, z, ID.berry, true);
+        } else if (gen.genV >= 3 && boden === ID.frost) {
+          if (r < 0.030) set(x, top2 + 1, z, ID.berry, true);
+        } else if (r < 0.020) set(x, top2 + 1, z, ID.flower, true);
         else if (r < 0.032) set(x, top2 + 1, z, ID.berry, true);
       }
     }
   };
 
-  function aetherTree(lx, ly, lz, golden, set, wx, wz, gen, ID) {
+  function aetherTree(lx, ly, lz, golden, set, wx, wz, gen, ID, frost) {
     var rnd = U.rng(U.hashString(wx + ':' + wz + ':' + gen.seed + ':ae'));
     var logId = golden ? ID.logG : ID.logS;
-    var leafId = golden ? ID.leafG : ID.leafS;
+    var leafId = frost ? ID.leafC : (golden ? ID.leafG : ID.leafS);
     var h = (golden ? 5 : 6) + ((rnd() * 4) | 0);
     for (var y = 0; y < h; y++) set(lx, ly + y, lz, logId, true);
     var ct = ly + h;
@@ -517,6 +835,40 @@
       }
     }
   }
+
+  // ============================================================
+  //  Stimmung: Name und Dunstfarbe je Biom
+  // ============================================================
+  // Eine Farbe pro Biom ist der billigste und wirksamste Hebel für „lebendig":
+  // man merkt den Wechsel, bevor man den ersten neuen Block sieht.
+  var NETHER_DUNST = [
+    [0.36, 0.11, 0.07],   // Ödland: das bisherige Rot
+    [0.14, 0.16, 0.22],   // Seelensandtal: kaltes Blaugrau
+    [0.32, 0.05, 0.09],   // Karmesinwald: satter, dunkler
+    [0.06, 0.20, 0.22],   // Wirrwald: türkis
+    [0.20, 0.18, 0.19]    // Basaltdelta: Asche
+  ];
+  var AETHER_DUNST = [
+    [0.78, 0.90, 1.00],   // Wiesen
+    [0.94, 0.90, 0.72],   // Goldener Hain: warmes Licht
+    [0.84, 0.94, 1.00],   // Frostspitzen: bleich
+    [0.92, 0.88, 0.74],   // Flugsandwüste: sandig
+    [0.88, 0.93, 0.98]    // Wolkenmeer: milchig
+  ];
+
+  // Welches Biom, wie heißt es, welche Farbe hat der Dunst dort?
+  D.stimmung = function (world, x, z) {
+    var gen = world.gen;
+    if (world.dim === 'nether') {
+      var nb = D.netherBiome(gen, x, z);
+      return { key: nb, name: D.NETHER_BIOME_NAME[nb], dunst: NETHER_DUNST[nb] };
+    }
+    if (world.dim === 'aether') {
+      var ab = D.aetherBiome(gen, x, z);
+      return { key: ab, name: D.AETHER_BIOME_NAME[ab], dunst: AETHER_DUNST[ab] };
+    }
+    return null;
+  };
 
   // Sicherer Landeplatz beim Ankommen: erste feste Oberfläche mit Luft darüber
   D.findGround = function (world, x, z, preferY) {

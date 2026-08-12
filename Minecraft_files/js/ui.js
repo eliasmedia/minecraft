@@ -550,12 +550,14 @@
     if (!this.debugVisible || !p || !w) { this.debugEl.style.display = 'none'; return; }
     this.debugEl.style.display = 'block';
     var bx = Math.floor(p.x), by = Math.floor(p.y), bz = Math.floor(p.z);
-    var biome = w.gen.biomeAt(bx, bz);
+    // Nether und Aether haben eigene Biome – dort steht deren Name
+    var st = MC.Dim ? MC.Dim.stimmung(w, bx, bz) : null;
+    var biomName = st ? st.name : MC.WorldGen.BIOME_NAME[w.gen.biomeAt(bx, bz)];
     var lines = [
       'Minecraft HTML — ' + g.fps.toFixed(0) + ' fps',
       'XYZ: ' + p.x.toFixed(2) + ' / ' + p.y.toFixed(2) + ' / ' + p.z.toFixed(2),
       'Block: ' + bx + ' ' + by + ' ' + bz + '   Chunk: ' + (bx >> 4) + ' ' + (bz >> 4),
-      'Biom: ' + MC.WorldGen.BIOME_NAME[biome] + '   Seed: ' + w.seed,
+      'Biom: ' + biomName + '   Seed: ' + w.seed,
       'Licht: Himmel ' + w.getSky(bx, by + 1, bz) + ' / Block ' + w.getBlockLight(bx, by + 1, bz),
       'Zeit: ' + MC.U.formatTime(w.time) + (w.isNight() ? ' (Nacht)' : ' (Tag)'),
       'Chunks: ' + g.renderer.stats.chunks + '/' + w.chunkList.length + '   Quads: ' + (g.renderer.stats.quads | 0),

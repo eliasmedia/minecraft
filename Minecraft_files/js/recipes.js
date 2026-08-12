@@ -14,7 +14,7 @@
 
   // Sammelbegriffe: "#planks" passt auf jede Brettersorte usw.
   R.TAGS = {
-    '#planks': ['planks_oak', 'planks_birch', 'planks_spruce', 'planks_skyroot'],
+    '#planks': ['planks_oak', 'planks_birch', 'planks_spruce', 'planks_skyroot', 'crimson_planks', 'warped_planks'],
     '#logs': ['log_oak', 'log_birch', 'log_spruce', 'log_skyroot', 'log_golden_oak'],
     '#wool': MC.Blocks.WOOL_COLORS.map(function (c) { return 'wool_' + c[0]; })
   };
@@ -185,6 +185,13 @@
   shaped(['X..', 'XX.', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
   shaped(['..X', '.XX', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
   shaped(['BB', 'BB'], { B: 'nether_brick' }, 'nether_bricks', 1);
+  // Pilzholz aus den beiden Netherwaeldern
+  shapeless(['crimson_stem'], 'crimson_planks', 4);
+  shapeless(['warped_stem'], 'warped_planks', 4);
+  shaped(['XXX'], { X: 'blackstone' }, 'slab_blackstone', 6);
+  shaped(['X..', 'XX.', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
+  shaped(['..X', '.XX', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
+  shaped(['XXX'], { X: 'basalt' }, 'slab_basalt', 6);
   shaped(['QQ', 'QQ'], { Q: 'quartz' }, 'quartz_block', 1);
   shaped(['HH', 'HH'], { H: 'holystone' }, 'holystone_bricks', 4);
   // Ambrosiumfackel: leuchtet wie eine normale
