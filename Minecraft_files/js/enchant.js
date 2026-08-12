@@ -88,7 +88,10 @@
   E.passt = function (ziel, itemName) {
     var it = I.get(itemName);
     if (!it) return false;
-    if (itemName === 'enchanted_book') return true;      // ins Buch geht alles
+    // In ein Buch geht alles – auch in das leere. Ohne das leere Buch bot der
+    // Zaubertisch darauf nichts an, und es gab die 23 Verzauberungen nur als
+    // Buch, wenn man sie beim Bibliothekar oder in einer Truhe fand.
+    if (itemName === 'book' || itemName === 'enchanted_book') return true;
     var werkzeug = it.tool ? it.tool.type : null;
     switch (ziel) {
       case 'alles': return it.durability > 0;
@@ -176,8 +179,16 @@
   function dreieck(rnd, n) { return (rnd() + rnd() - 1) * n; }     // um 0, dreieckig
 
   // xpBasis = 1 + zufall(0..7) + floor(regale/2) + zufall(0..regale)
-  E.angebote = function (stack, regale, rnd) {
+  //
+  // `saat` ist die Saat des Tisches. Alles hängt daran und sonst an nichts:
+  // dasselbe Angebot beim Zumachen und Wiederöffnen, ein neues nach jedem
+  // Verzaubern. Vorher hing der Faden je Platz an den Stufenkosten – damit war
+  // die Verzauberung eine reine Funktion der angezeigten Zahl, und weil es nur
+  // gut zwei Dutzend mögliche Kostentripel gibt, kamen sieben der
+  // dreiundzwanzig Verzauberungen nie vor, egal wie oft man würfelte.
+  E.angebote = function (stack, regale, saat) {
     var b = Math.min(15, regale);
+    var rnd = U.rng(U.hashString('basis:' + saat + ':' + stack.id));
     var basis = 1 + irnd(rnd, 7) + Math.floor(b / 2) + irnd(rnd, b);
     var kosten = [
       Math.floor(Math.max(1, basis / 3)),
@@ -186,9 +197,7 @@
     ];
     var out = [];
     for (var s = 0; s < 3; s++) {
-      // Jeder Platz würfelt seine Verzauberung aus einem eigenen, aber festen
-      // Faden – sonst änderte sich das Angebot bei jedem Neuzeichnen.
-      var r = U.rng(U.hashString('slot:' + s + ':' + kosten.join(',') + ':' + stack.id + ':' + (stack.dur || 0)));
+      var r = U.rng(U.hashString('platz:' + s + ':' + saat + ':' + stack.id));
       var ench = E.wuerfeln(stack.id, kosten[s], r);
       out.push({ stufe: kosten[s], lapis: s + 1, ench: ench });
     }

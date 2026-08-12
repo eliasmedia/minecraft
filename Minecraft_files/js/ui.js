@@ -1194,7 +1194,7 @@
       return;
     }
 
-    var angebote = E.angebote(te.item, te.regale, MC.U.rng(te.saat));
+    var angebote = E.angebote(te.item, te.regale, te.saat);
     angebote.forEach(function (a, i) {
       var leerAngebot = !Object.keys(a.ench).length;
       var lapisDa = kreativ || (te.lapis && te.lapis.id === 'lapis' && te.lapis.count >= a.lapis);

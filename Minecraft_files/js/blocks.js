@@ -32,6 +32,21 @@
   B.SHAPE_LEVER = 21;  // Hebel
   B.SHAPE_REPEATER = 22; // Verstärker
   B.SHAPE_ANVIL = 23;    // gestapelte Quader: Fuß, Taille, Hals, Bahn
+  B.SHAPE_PISTON_HEAD = 25;  // Schubplatte plus Stange, gedreht nach Blickrichtung
+
+  // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
+  // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
+  // ausgeschrieben statt gedreht gerechnet - sechs Zeilen liest man nach, eine
+  // Rotationsmatrix nicht.
+  var P4 = 0.25, R0 = 0.375, R1 = 0.625;
+  B.PISTON_HEAD_BOXES = [
+    /* 0 = -Z */ [[0, 0, 0, 1, 1, P4], [R0, R0, P4, R1, R1, 1]],
+    /* 1 = +X */ [[1 - P4, 0, 0, 1, 1, 1], [0, R0, R0, 1 - P4, R1, R1]],
+    /* 2 = +Z */ [[0, 0, 1 - P4, 1, 1, 1], [R0, R0, 0, R1, R1, 1 - P4]],
+    /* 3 = -X */ [[0, 0, 0, P4, 1, 1], [P4, R0, R0, 1, R1, R1]],
+    /* 4 = +Y */ [[0, 1 - P4, 0, 1, 1, 1], [R0, 0, R0, R1, 1 - P4, R1]],
+    /* 5 = -Y */ [[0, 0, 0, 1, P4, 1], [R0, P4, R0, R1, 1, R1]]
+  ];
 
   // Silhouette des Ambosses in Sechzehnteln: x0,y0,z0,x1,y1,z1
   B.ANVIL_LAYERS = [
@@ -245,12 +260,14 @@
     tex: { front: 'piston_inner', back: 'piston_back', side: 'piston_side', top: 'piston_side' },
     hardness: 1.5, sound: 'stone', drop: 'sticky_piston', item: false
   });
-  // Der Kopf. Im Original ist er dünner als ein Block – bei uns füllt er die
-  // Zelle aus, die er im Original ohnehin belegt.
-  define('piston_head', {
-    title: 'Kolbenkopf', piston6: true,
-    tex: { front: 'piston_face', back: 'piston_arm', side: 'piston_arm', top: 'piston_arm' },
-    hardness: 1.5, sound: 'stone', drop: null, item: false
+  // Der Kopf: vorne die Schubplatte, dahinter die Stange zum Koerper.
+  ['piston_head', 'piston_head_sticky'].forEach(function (n) {
+    define(n, {
+      title: 'Kolbenkopf', shape: B.SHAPE_PISTON_HEAD, piston6: true, opaque: false,
+      tex: { front: n === 'piston_head' ? 'piston_face' : 'piston_face_sticky',
+             back: 'piston_arm', side: 'piston_arm', top: 'piston_arm' },
+      hardness: 1.5, sound: 'stone', drop: null, item: false
+    });
   });
 
   // Braustand. Wie der Amboss aus gestapelten Quadern: Fuß, Stange, Ausleger.
@@ -705,6 +722,8 @@
         return [[0.125, 0, 0.0625, 0.875, 1, 0.9375]];
       case B.SHAPE_STAND:
         return [[0.125, 0, 0.125, 0.875, 0.875, 0.875]];
+      case B.SHAPE_PISTON_HEAD:
+        return B.PISTON_HEAD_BOXES[meta & 7] || B.PISTON_HEAD_BOXES[0];
       case B.SHAPE_PLATE:
         return [[0, 0, 0, 1, 0.0625, 1]];
       case B.SHAPE_REPEATER:
@@ -742,6 +761,7 @@
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
       case B.SHAPE_STAND: return [0.125, 0, 0.125, 0.875, 0.875, 0.875];
+      case B.SHAPE_PISTON_HEAD: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_LIQUID: return null;
       case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_FENCE: return [0.375, 0, 0.375, 0.625, 1.5, 0.625];

@@ -335,10 +335,15 @@ verdoppelt sich mit jedem Vorgang und läuft bei vierzig Stufen in *Zu teuer!*.
 Der Amboss nutzt sich in drei Stufen ab und fällt wie Sand, wenn ihm der Boden
 fehlt.
 
-**Verzauberungsbücher** kommen aus dem Zaubertisch (ein Buch statt eines
-Werkzeugs hineingelegt), vom **Bibliothekar** — dessen Angebot fest an Dorf und
-Platznummer hängt, sodass derselbe Bewohner nach dem Entladen wieder dasselbe
-Buch anbietet — und aus den Truhen in Monsterräumen und Minen.
+**Verzauberungsbücher** kommen aus dem Zaubertisch — ein leeres Buch statt eines
+Werkzeugs hineingelegt, und alle 23 Verzauberungen sind erreichbar, die seltenen
+entsprechend selten (Unendlichkeit, Behutsamkeit, Flamme und Reparatur zusammen
+unter drei Prozent der Angebote). Dazu vom **Bibliothekar**, dessen Angebot fest
+an Dorf und Platznummer hängt, sodass derselbe Bewohner nach dem Entladen wieder
+dasselbe Buch anbietet, und aus den Truhen in Monsterräumen und Minen.
+
+Das Angebot am Tisch hängt an einer **Saat**, die am Tisch klebt: dasselbe
+Angebot beim Zumachen und Wiederöffnen, ein neues nach jedem Verzaubern.
 
 **Monsterräume** — höchstens einer je Chunk, und nur dort, wo er eine Höhle
 anschneidet: ein Verlies, das man nur durch Zufall angräbt, ist keins. Sieben mal
@@ -354,8 +359,11 @@ steckt, kommt kaum vorwärts.
 
 **Kolben** — in sechs Richtungen, geschoben werden bis zu zwölf Blöcke. Obsidian,
 Truhen, Öfen und alles mit eigenem Inhalt bleiben stehen, Pflanzen und Fackeln
-geben nach. Der **Klebkolben** zieht beim Einfahren wieder mit; klebrig wird er
-mit einem Schleimball vom Magmawürfel. Bewegt wird ohne Zwischenbild — das
+geben nach. Der ausgefahrene Kopf ist kein zweiter Block, sondern **Schubplatte
+und Stange**: vorne vier Sechzehntel Platte über die volle Fläche, dahinter eine
+4×4-Stange zurück zum Körper. Der **Klebkolben** zieht beim Einfahren wieder mit
+und trägt die grüne Klebefläche auch auf dem Kopf; klebrig wird er mit einem
+Schleimball vom Magmawürfel. Die Bewegung selbst läuft ohne Zwischenbild — das
 Original schiebt sichtbar in zwei Ticks hinaus, dafür bräuchte jeder Block eine
 eigene Entität.
 
@@ -370,8 +378,10 @@ und im Spielstand gespeichert: Regeneration, Stärke, Schnelligkeit,
 Feuerresistenz, Nachtsicht, Sprungkraft, Heilung und Schaden. Der goldene Apfel
 gibt seitdem Regeneration statt vier Herzen pauschal.
 
-**Brauen** — **Nethergewächs** wächst im Nether auf den Seelensandnestern; das
-ist endlich ein Grund, dort nach etwas anderem als Glowstone zu suchen. Der
+**Brauen** — der Weg beginnt am Wasser: drei Glas ergeben drei **Glasflaschen**,
+ein Rechtsklick auf eine Wasserfläche füllt eine davon. **Nethergewächs** wächst
+im Nether auf den Seelensandnestern; das ist endlich ein Grund, dort nach etwas
+anderem als Glowstone zu suchen. Der
 **Braustand** entsteht aus einer Lohenrute auf drei Bruchsteinen, brennt mit
 Lohenstaub und füllt drei Gläser auf einmal. Neun Tränke, jeder streckbar mit
 Redstone und verstärkbar mit Glowstone. Drei Zutaten weichen vom Original ab,

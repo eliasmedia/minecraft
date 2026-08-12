@@ -777,16 +777,23 @@
       this.particles.crit(p.x, p.eyeY() - 0.3, p.z);
       return;
     }
-    // Glasflasche an Wasser fuellen
+    // Glasflasche an Wasser fuellen. Wichtig: der normale Zielstrahl geht durch
+    // Fluessigkeiten hindurch (sie haben keine Auswahlbox), darum hier derselbe
+    // Strahl wie beim Eimer - mit Fluessigkeiten. Ohne das konnte man nie eine
+    // Wasserflasche bekommen, und damit war das ganze Brauen unerreichbar.
     if (it.name === 'glass_bottle') {
-      var tw = this.rayLiquid ? this.rayLiquid('water') : null;
-      var bw = this.target ? B.byId[w.getBlock(this.target.x, this.target.y, this.target.z)] : null;
-      if (bw && bw.name === 'water') {
-        p.inventory.consumeSelected(1);
-        var restW = p.inventory.add(I.newStack('water_bottle', 1));
-        if (restW > 0) this.throwStack(I.newStack('water_bottle', restW));
-        this.audio.play('splash');
-        return;
+      var dw = p.lookDir();
+      var hw = w.raycast(p.x, p.eyeY(), p.z, dw.x, dw.y, dw.z, 5, true);
+      if (hw) {
+        var bw = B.byId[w.getBlock(hw.x, hw.y, hw.z)];
+        if (bw && bw.name === 'water') {
+          if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+          var restW = p.inventory.add(I.newStack('water_bottle', 1));
+          if (restW > 0) this.throwStack(I.newStack('water_bottle', restW));
+          this.audio.play('splash');
+          p.swingTime = 1;
+          return;
+        }
       }
     }
     // Essen

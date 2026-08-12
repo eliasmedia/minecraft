@@ -298,6 +298,15 @@
               break;
             }
 
+            case B.SHAPE_PISTON_HEAD: {
+              var ph = B.PISTON_HEAD_BOXES[meta & 7] || B.PISTON_HEAD_BOXES[0];
+              for (var hi = 0; hi < ph.length; hi++) {
+                var H = ph[hi];
+                emitShapedBox(buf, x, y, z, [H[0], H[1], H[2]], [H[3], H[4], H[5]], block, meta);
+              }
+              break;
+            }
+
             case B.SHAPE_STAND: {
               for (var sv = 0; sv < B.STAND_LAYERS.length; sv++) {
                 var SL = B.STAND_LAYERS[sv];

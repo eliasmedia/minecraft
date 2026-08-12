@@ -413,7 +413,7 @@
     // Der Beobachter gehoert zur Kolbenfamilie nur, was die Blickrichtung
     // angeht - geschaltet wird er von Blockaenderungen, nicht von Strom.
     if (id === d.obs || id === d.obsLit) return;
-    if (b.piston6 && b.name !== 'piston_head') { kolbenPruefen(w, x, y, z, id); return; }
+    if (b.piston6 && b.shape !== B.SHAPE_PISTON_HEAD) { kolbenPruefen(w, x, y, z, id); return; }
 
     var an = R.powered(w, x, y, z);
 
@@ -457,7 +457,7 @@
       UNBEWEGLICH = {};
       ['bedrock', 'obsidian', 'chest', 'furnace', 'furnace_lit', 'spawner', 'enchanting_table',
        'anvil', 'anvil_chipped', 'anvil_damaged', 'end_portal_frame', 'dragon_egg',
-       'piston_head', 'piston_ext', 'sticky_piston_ext'
+       'piston_head', 'piston_head_sticky', 'piston_ext', 'sticky_piston_ext'
       ].forEach(function (n) { var i = B.id(n); if (i) UNBEWEGLICH[i] = true; });
     }
     if (UNBEWEGLICH[id]) return true;
@@ -517,14 +517,16 @@
     }
     var klebrig = B.byId[id].sticky;
     w.setBlock(x, y, z, B.id(klebrig ? 'sticky_piston_ext' : 'piston_ext'), m, { noUpdate: true });
-    w.setBlock(x + d[0], y + d[1], z + d[2], B.id('piston_head'), m, { noUpdate: true });
+    w.setBlock(x + d[0], y + d[1], z + d[2],
+               B.id(klebrig ? 'piston_head_sticky' : 'piston_head'), m, { noUpdate: true });
     return true;
   }
 
   function einfahren(w, x, y, z, id, m) {
     var d = R.kolbenRichtung(m);
     var hx = x + d[0], hy = y + d[1], hz = z + d[2];
-    if (w.getBlock(hx, hy, hz) === B.id('piston_head')) {
+    var kopf = w.getBlock(hx, hy, hz);
+    if (kopf === B.id('piston_head') || kopf === B.id('piston_head_sticky')) {
       w.setBlock(hx, hy, hz, 0, 0, { noUpdate: true });
     }
     var klebrig = B.byId[id].sticky;
