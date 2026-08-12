@@ -78,18 +78,30 @@ Eichen und Fichten haben einen 2×2-Stamm, Äste und eine Krone aus mehreren
 Laubballen; ein grobes Rauschen legt Lichtungen und Dickichte darüber. Auf zu
 steilem Hang wächst statt eines großen ein kleiner Baum.
 
-**Meer** — Ozean und Strand waren bis auf etwas Zuckerrohr leer. Der Meeresgrund
-hat jetzt vier Arten: **Sandgrund**, **Seetangwald** mit Tangsäulen bis fast zur
+**Meer** — Ozean und Strand waren bis auf etwas Zuckerrohr leer. Weit draußen
+sinkt der Grund jetzt in eigene **Becken bis vierzig Blöcke unter den
+Meeresspiegel**; nah am Ufer bleibt es flach wie bisher. Der Meeresgrund hat
+vier Arten: **Sandgrund**, **Seetangwald** mit Tangsäulen bis fast zur
 Oberfläche, **Korallenriff** in fünf Farben mit Fächern und selten einem
-**Schwamm**, und **kalte Tiefsee** aus Kies. An den Ufern liegen Lehm- und
-Kiesnester statt reinem Sand. Fische ziehen in Schwärmen durchs offene Wasser;
-an Land zappeln sie und ersticken.
+**Schwamm**, und **kalte Tiefsee** aus Kies. Ein Riff entsteht nur, wo mindestens
+fünf Blöcke Wasser darüber stehen, und endet zwei Blöcke unter der Oberfläche —
+sonst ragte es aus dem Meer. An den Ufern liegen Lehm- und Kiesnester statt
+reinem Sand. Fische ziehen in Schwärmen von vier bis zwölf durchs offene Wasser,
+in der Tiefe in größeren; an Land zappeln sie und ersticken.
 
-**Schiffswracks** liegen halb im Sand, mit Mast und ein bis zwei Truhen — dort
-findet man auch Karten. Der **Unterwassertempel** ist ein Stufenbau aus
-Prismarin über drei Ebenen, innen trocken, an den Ecken Seelaternen, ganz oben
-eine Schatzkammer mit acht Schwammblöcken. Bewacht wird er von **Wächtern**, die
-nur in seiner Nähe erscheinen. Ihre Scherben ergeben Prismarin, Ziegel, dunklen
+Tang, Seegras und Korallenfächer sind **wasserdurchlässig**: das Wasser schließt
+sich um sie, statt eine Wand gegen sie zu ziehen. Ohne das stand in jedem
+Tangwald ein Loch je Pflanze — in einem einzigen Chunk waren das über zweitausend
+überflüssige Wasserflächen.
+
+**Schiffswracks** liegen halb im Sand: ein Rumpf, der zum Bug und zum Heck hin
+schmaler wird, der Kiel schräg im Grund, Reling mit Lücken, eine Kajüte am Heck
+und ein oft geknickter Mast. Etwa jede sechste Planke fehlt, und innen steht
+Wasser. Die ein bis zwei Truhen halten Smaragde, Diamanten, Rüstung, Karten und
+verzauberte Bücher. Der **Unterwassertempel** ist ein Stufenbau aus Prismarin
+über drei Ebenen, innen trocken, an den Ecken Seelaternen, ganz oben eine
+Schatzkammer mit acht Schwammblöcken. Bewacht wird er von **Wächtern**, die nur
+in seiner Nähe erscheinen. Ihre Scherben ergeben Prismarin, Ziegel, dunklen
 Prismarin und Seelaternen.
 
 Ein gesetzter **Schwamm** saugt das Wasser im Umkreis von fünf Blöcken weg und
@@ -100,6 +112,16 @@ wird dabei nass; getrocknet wird er im Ofen.
 Meeresspiegel, Biomgröße, Bewuchs, Erzhäufigkeit und ob Dörfer entstehen. Die
 Werte wandern in den Spielstand; ältere Spielstände laufen mit den Standardwerten
 weiter.
+
+Jeder Spielstand merkt sich zusätzlich die **Generatorversion**, mit der er
+angelegt wurde, denn gespeichert wird nur der Unterschied zur Generierung. Ein
+alter Spielstand läuft darum weiter über den alten Codepfad und sieht aus wie
+vorher; die neuen Landschaften gibt es nur in einer neu angelegten Welt. Version
+1 war der ursprüngliche Generator, 2 brachte Erosion, Bergkämme und große Bäume,
+3 die Biome in Nether und Aether, 4 die Hochgebirgsgegenden, Erdrisse und
+geglätteten Wüstenkanten, 5 die großen Bastionen samt Meeresgrund und Stränden,
+6 die tiefen Meeresbecken, die Schiffswracks mit echtem Rumpf und die Riffe in
+tieferem Wasser.
 
 **Dörfer** — deterministisch aus dem Seed, etwa alle 320 Blöcke außerhalb von
 Ozean, Strand, Sumpf und Bergen. Brunnen, Wohnhäuser, Schmiede, Bibliothek und
@@ -200,11 +222,15 @@ Ruten. Sie schießen Flammen, die wehtun, aber kein Loch ins Gelände reißen. E
 gibt sie nur rund um eine Bastion, höchstens vier auf einmal, und sie sind die
 einzige Quelle für **Lohenruten** — damit auch der Schlüssel zu den Enderaugen.
 
-**Bastionen** — kleine Festungen aus Netherziegeln, etwa alle 160 Blöcke, an
-ihren vier Glowstone-Leuchtfeuern schon von weitem zu erkennen. Sie sind die
-**einzige** Glowstonequelle im Spiel. Eine Bastion bringt vierzehn Blöcke, das
-sind nach dem Zerlegen und Neuzusammensetzen genau die zehn für einen
-Aetherrahmen; die Truhe im Inneren ist der Puffer.
+**Bastionen** — Festungen aus Netherziegeln, etwa alle 160 Blöcke, an ihren vier
+Glowstone-Leuchtfeuern schon von weitem zu erkennen. Auf einer Plattform von
+27×27 Blöcken steht ein dreistöckiger Bergfried, an den Ecken vier Türme bis
+achtzehn Blöcke hoch, darunter ein Kellergewölbe mit **zwei eigenen
+Lohenspawnern**. Sie sind die **einzige** Glowstonequelle im Spiel; eine Bastion
+bringt vierzehn Blöcke, das sind nach dem Zerlegen und Neuzusammensetzen genau
+die zehn für einen Aetherrahmen. Die Truhen stehen über die ganze Anlage
+verteilt und tragen Quarz, Gold, Diamanten, Lohenruten, Nethergewächs, Rüstung
+und verzauberte Bücher.
 
 **Zanitrüstung** — im Nether zu Hause und dort auch das einzige Rüstungsmetall.
 Jedes getragene Teil nimmt ein Viertel des Hitzeschadens weg, alle vier machen

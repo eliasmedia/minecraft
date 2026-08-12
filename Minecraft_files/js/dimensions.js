@@ -642,10 +642,15 @@
   }
 
   // Beute einer Festungstruhe (wie bei den Dorftruhen aus der Position gewürfelt)
+  // Eine Bastion ist der gefährlichste Ort im Nether – die Truhen müssen sich
+  // auch lohnen. Die alte Tabelle gab kaum mehr als ein paar Quarze.
   var FORT_LOOT = [
-    ['glowstone_dust', 0.9, 3, 8], ['quartz', 0.8, 4, 10], ['gold_ingot', 0.6, 1, 4],
-    ['zanite_gemstone', 0.5, 1, 3], ['iron_ingot', 0.5, 2, 5], ['flint_and_steel', 0.35, 1, 1],
-    ['obsidian', 0.3, 1, 4], ['golden_apple', 0.12, 1, 1]
+    ['glowstone_dust', 0.9, 4, 12], ['quartz', 0.85, 8, 20], ['gold_ingot', 0.8, 4, 12],
+    ['gold_block', 0.35, 1, 3], ['zanite_gemstone', 0.55, 2, 5], ['iron_ingot', 0.6, 3, 8],
+    ['diamond', 0.3, 1, 3], ['obsidian', 0.45, 2, 6], ['flint_and_steel', 0.4, 1, 1],
+    ['blaze_rod', 0.5, 1, 4], ['nether_wart_item', 0.5, 2, 6], ['ghast_tear', 0.35, 1, 2],
+    ['golden_apple', 0.3, 1, 2], ['gold_sword', 0.3, 1, 1], ['gold_chestplate', 0.25, 1, 1],
+    ['diamond_sword', 0.1, 1, 1], ['enchanted_book', 0.4, 1, 1], ['tnt', 0.25, 2, 5]
   ];
 
   D.fortressLoot = function (gen, wx, wy, wz) {
@@ -653,8 +658,11 @@
     if (!list) return null;
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
-      if (wx !== f.x || wz !== f.z) continue;
-      return rollLoot(FORT_LOOT, U.rng(U.hashString('fortkiste:' + f.id + ':' + wy)));
+      // Früher wurde nur die Truhe genau im Mittelpunkt befüllt. Die großen
+      // Bastionen stellen ihre Truhen aber über die ganze Anlage verteilt auf,
+      // deshalb zählt jetzt die Grundfläche und nicht der Mittelpunkt.
+      if (wx < f.minX - 2 || wx > f.maxX + 2 || wz < f.minZ - 2 || wz > f.maxZ + 2) continue;
+      return rollLoot(FORT_LOOT, U.rng(U.hashString('fortkiste:' + f.id + ':' + wx + ':' + wy + ':' + wz)));
     }
     return null;
   };
@@ -668,7 +676,14 @@
       if (!MC.Items.get(e[0])) continue;
       var count = e[2] + ((rnd() * (e[3] - e[2] + 1)) | 0);
       var slot = frei.splice((rnd() * frei.length) | 0, 1)[0];
-      items[slot] = MC.Items.newStack(e[0], count);
+      var stack = MC.Items.newStack(e[0], count);
+      // Ein Buch ohne Verzauberung wäre ein leeres Versprechen
+      if (e[0] === 'enchanted_book' && MC.Ench) {
+        stack.count = 1;
+        stack.ench = MC.Ench.wuerfeln('enchanted_book', 14 + ((rnd() * 20) | 0), rnd);
+        if (!Object.keys(stack.ench).length) stack.ench = { unbreaking: 2 };
+      }
+      items[slot] = stack;
       n++;
     }
     return n ? items : null;

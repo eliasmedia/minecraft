@@ -110,6 +110,9 @@
       gravityUp: !!o.gravityUp,    // steigt auf statt zu fallen (Gravitit)
       portal: o.portal || null,    // Zieldimension einer Portalfläche
       stufen: o.stufen || 0,       // Wuchsstufen einer Pflanze (0 = wie Weizen)
+      nass: !!o.nass,              // steht im Wasser: zählt fürs Rendern und
+                                   // fürs Schwimmen als Wasser
+
       piston6: !!o.piston6,        // Kolbenfamilie: Blickrichtung in Meta-Bit 0..2
       sticky: !!o.sticky,          // Klebkolben: zieht beim Einfahren mit
       group: o.group || 'natur'
@@ -340,7 +343,7 @@
     define(n, {
       title: n === 'kelp' ? 'Seetang' : 'Seegras',
       shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
-      hardness: 0, sound: 'grass', drop: n, group: 'natur'
+      nass: true, hardness: 0, sound: 'grass', drop: n, group: 'natur'
     });
   });
   B.CORAL_COLORS = [['tube', 'Röhren', [58, 84, 208]], ['brain', 'Hirn', [206, 84, 154]],
@@ -350,7 +353,7 @@
     define('coral_' + c[0], { title: c[1] + 'koralle', hardness: 1.5, tool: 'pickaxe', sound: 'stone', group: 'natur' });
     define('coral_fan_' + c[0], {
       title: c[1] + 'korallenfächer', shape: B.SHAPE_CROSS, solid: false, opaque: false,
-      cutout: true, collide: false, hardness: 0, sound: 'grass', group: 'natur'
+      cutout: true, collide: false, nass: true, hardness: 0, sound: 'grass', group: 'natur'
     });
   });
   // Der Schwamm saugt beim Setzen das Wasser um sich herum weg
@@ -674,6 +677,15 @@
 
   B.isOpaque = function (id) { var b = B.byId[id]; return b ? b.opaque : false; };
   B.isSolid = function (id) { var b = B.byId[id]; return b ? b.collide : false; };
+  // Zählt dieser Block für das Wasser als Wasser? Seegras und Tang stehen im
+  // Wasser, verdrängen es aber im Blockgitter – ohne diese Abfrage zeichnet das
+  // Wasser eine Wand gegen sie, und im Meer stehen überall Löcher.
+  B.zaehltAlsWasser = function (id) {
+    if (id === B.id('water')) return true;
+    var b = B.byId[id];
+    return !!(b && b.nass);
+  };
+
   B.isLiquid = function (id) { var b = B.byId[id]; return b ? b.liquid : false; };
   B.isReplaceable = function (id) { var b = B.byId[id]; return b ? b.replaceable : false; };
   B.light = function (id) { var b = B.byId[id]; return b ? b.light : 0; };

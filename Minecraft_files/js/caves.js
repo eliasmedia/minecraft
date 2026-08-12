@@ -240,13 +240,20 @@
   //  Schiffswracks und Unterwassertempel
   // ============================================================
   var WRACK_REGION = 10, WRACK_SPAN = WRACK_REGION * CS, WRACK_CHANCE = 0.55;
-  var TEMPEL_REGION = 40, TEMPEL_SPAN = TEMPEL_REGION * CS, TEMPEL_CHANCE = 0.7;
+  // 40 Chunks Raster hieß ein Tempel je 3500 Blöcken – der ließ sich nicht
+  // finden. 20 Chunks entspricht eher dem Vorbild.
+  var TEMPEL_REGION = 20, TEMPEL_SPAN = TEMPEL_REGION * CS, TEMPEL_CHANCE = 0.75;
 
+  // Wracks sind Schatzfunde – die alte Tabelle gab kaum mehr als eine Truhe
+  // im Verlies. Jetzt gibt es Karten-Rohstoffe, Smaragde und gute Werkzeuge.
   var LOOT_WRACK = [
-    ['iron_ingot', 0.5, 1, 4], ['gold_ingot', 0.3, 1, 3], ['bread', 0.5, 1, 3],
-    ['paper', 0.5, 2, 6], ['wheat_item', 0.4, 2, 6], ['coal', 0.4, 2, 6],
-    ['emerald', 0.2, 1, 2], ['diamond', 0.06, 1, 1], ['map', 0.25, 1, 1],
-    ['enchanted_book', 0.18, 1, 1]
+    ['bread', 0.6, 2, 5], ['paper', 0.6, 3, 9], ['coal', 0.5, 4, 12],
+    ['iron_ingot', 0.7, 3, 9], ['gold_ingot', 0.65, 3, 8], ['emerald', 0.5, 2, 6],
+    ['lapis', 0.4, 3, 8], ['diamond', 0.28, 1, 3], ['tnt', 0.25, 1, 3],
+    ['golden_apple', 0.22, 1, 2], ['iron_helmet', 0.2, 1, 1],
+    ['iron_chestplate', 0.16, 1, 1], ['gold_sword', 0.2, 1, 1],
+    ['bow', 0.3, 1, 1], ['compass', 0.25, 1, 1], ['map', 0.35, 1, 1],
+    ['enchanted_book', 0.45, 1, 1], ['sponge', 0.12, 1, 2]
   ];
   var LOOT_TEMPEL = [
     ['prismarine_shard', 0.9, 4, 12], ['prismarine_crystals', 0.7, 2, 6],
@@ -268,9 +275,10 @@
       var h = Math.floor(gen.heightAt(x, z));
       // Nur im Wasser, und nur wo genug Tiefe ist
       if (h < gen.sea - 3) {
-        w = { x: x, z: z, y: h + 1, laenge: 9 + ((rnd() * 8) | 0),
-              breite: 4 + ((rnd() * 2) | 0), quer: rnd() < 0.5, saat: (rnd() * 4294967295) >>> 0 };
-        w.minX = x - 12; w.maxX = x + 12; w.minZ = z - 12; w.maxZ = z + 12;
+        // breite ist die halbe Rumpfbreite – ein Schiff ist laenger als breit
+        w = { x: x, z: z, y: h, laenge: 11 + ((rnd() * 8) | 0),
+              breite: 2 + ((rnd() * 2) | 0), quer: rnd() < 0.5, saat: (rnd() * 4294967295) >>> 0 };
+        w.minX = x - 16; w.maxX = x + 16; w.minZ = z - 16; w.maxZ = z + 16;
       }
     }
     gen._wracks[k] = w;
@@ -285,8 +293,8 @@
     var t = null;
     var rnd = U.rng(U.hashString('tempel:' + gen.seed + ':' + rx + ':' + rz));
     if (rnd() <= TEMPEL_CHANCE) {
-      var x = rx * TEMPEL_SPAN + 60 + ((rnd() * (TEMPEL_SPAN - 120)) | 0);
-      var z = rz * TEMPEL_SPAN + 60 + ((rnd() * (TEMPEL_SPAN - 120)) | 0);
+      var x = rx * TEMPEL_SPAN + 30 + ((rnd() * (TEMPEL_SPAN - 60)) | 0);
+      var z = rz * TEMPEL_SPAN + 30 + ((rnd() * (TEMPEL_SPAN - 60)) | 0);
       // Nur in tiefem, offenem Wasser – ein Tempel im Uferschlick wäre albern
       var tief = true, lo = 999;
       for (var s = 0; s < 9; s++) {
@@ -319,32 +327,70 @@
 
   function zeichneWrack(gen, w, set, hole) {
     var planke = B.id('planks_oak'), zaun = B.id('fence_oak'), truhe = B.id('chest');
-    var stamm = B.id('log_oak'), leiter = B.id('ladder');
+    var stamm = B.id('log_oak'), wasser = B.id('water');
     var rnd = U.rng(w.saat);
     var L = w.laenge, Bb = w.breite;
-    // Rumpf: ein Kasten, dessen Boden gerundet ist. Um `quer` gedreht.
+    var halb = L >> 1;
+
+    // Achse: laengs oder quer. i laeuft vom Heck zum Bug.
+    function pos(i, j, k) {
+      return w.quer ? [w.x + j, w.y + k, w.z + i - halb]
+                    : [w.x + i - halb, w.y + k, w.z + j];
+    }
+    function setze(i, j, k, id) { var p = pos(i, j, k); set(p[0], p[1], p[2], id); }
+
+    // Rumpfbreite: am Bug und am Heck schmal, in der Mitte voll. Das ist der
+    // ganze Unterschied zwischen einem Schiff und einer Kiste.
+    function breiteBei(i) {
+      var t = i / (L - 1);                       // 0 = Heck, 1 = Bug
+      var form = Math.sin(Math.PI * (0.12 + 0.76 * t));
+      return Math.max(1, Math.round(Bb * form));
+    }
+
     for (var i = 0; i < L; i++) {
-      for (var j = -Bb; j <= Bb; j++) {
-        var rand = Math.abs(j) === Bb || i === 0 || i === L - 1;
-        var tiefe = Math.abs(j) >= Bb - 1 ? 0 : -1;
-        for (var k = tiefe; k <= 2; k++) {
-          var px = w.quer ? w.x + j : w.x + i - (L >> 1);
-          var pz = w.quer ? w.z + i - (L >> 1) : w.z + j;
-          var py = w.y + k;
-          if (k === tiefe || rand) set(px, py, pz, planke);
-          else if (k > tiefe) set(px, py, pz, 0);
+      var bw = breiteBei(i);
+      // Der Kiel steigt zum Bug hin an – das Wrack liegt schraeg im Sand
+      var kiel = Math.round((i / (L - 1)) * 1.5);
+      for (var j = -bw; j <= bw; j++) {
+        for (var k = kiel; k <= kiel + 4; k++) {
+          var aussen = (Math.abs(j) === bw) || (k === kiel) || (i === 0) || (i === L - 1);
+          if (aussen) {
+            // Ein Wrack ist kaputt: rund ein Sechstel der Planken fehlt
+            if (rnd() < 0.16) { setze(i, j, k, wasser); continue; }
+            setze(i, j, k, planke);
+          } else {
+            // Innen bleibt Wasser stehen. Vorher war hier Luft – deshalb sah
+            // das Wrack aus wie eine Blase mitten im Meer.
+            setze(i, j, k, wasser);
+          }
+        }
+        // Reling auf dem Deck, mit Luecken
+        if (Math.abs(j) === bw && rnd() < 0.6) setze(i, j, kiel + 5, zaun);
+      }
+    }
+
+    // Aufbau am Heck: eine kleine Kajuete, zwei Blocklagen hoch
+    for (var ci = 1; ci <= 3; ci++) {
+      var cw = Math.max(1, breiteBei(ci) - 1);
+      for (var cj = -cw; cj <= cw; cj++) {
+        for (var ck = 5; ck <= 7; ck++) {
+          var wand = (Math.abs(cj) === cw || ci === 1 || ci === 3 || ck === 7);
+          setze(ci, cj, ck, wand ? (rnd() < 0.12 ? wasser : planke) : wasser);
         }
       }
     }
-    // Mast und Reling
-    var mx = w.quer ? w.x : w.x + 1, mz = w.quer ? w.z + 1 : w.z;
-    for (var m = 3; m < 8; m++) set(mx, w.y + m, mz, stamm);
-    // Truhe im Rumpf
-    set(w.x, w.y + 1, w.z, truhe);
-    if (rnd() < 0.6) {
-      var ox = w.quer ? w.x + 2 : w.x - 2;
-      set(ox, w.y + 1, w.z, truhe);
+
+    // Mast mit Rah, ueber der Mitte, oft abgeknickt
+    var mh = 5 + ((rnd() * 6) | 0);
+    for (var m = 5; m < 5 + mh; m++) setze(halb, 0, m, stamm);
+    if (rnd() < 0.7) {
+      var rah = 5 + mh - 2;
+      for (var rj = -2; rj <= 2; rj++) setze(halb, rj, rah, zaun);
     }
+
+    // Truhen: eine im Laderaum, eine in der Kajuete
+    setze(halb, 0, 1, truhe);
+    if (rnd() < 0.75) setze(2, 0, 5, truhe);
   }
 
   function zeichneTempel(gen, t, set, hole) {

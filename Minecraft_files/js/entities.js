@@ -102,7 +102,10 @@
     for (var y = y0; y <= y1; y++)
       for (var z = z0; z <= z1; z++)
         for (var x = x0; x <= x1; x++)
-          if (world.getBlock(x, y, z) === id) return true;
+          // Seegras und Tang zählen als Wasser – sonst fällt man mitten im
+          // Tangwald plötzlich, weil dort kein Wasserblock steht.
+          if (name === 'water' ? B.zaehltAlsWasser(world.getBlock(x, y, z))
+                               : world.getBlock(x, y, z) === id) return true;
     return false;
   };
 
@@ -1886,24 +1889,36 @@
     for (var i = 0; i < world.entities.length; i++) {
       if (world.entities[i].mobType === 'fish' && !world.entities[i].dead) n++;
     }
-    if (n >= 16) return;
-    for (var t = 0; t < 3; t++) {
-      var ang = Math.random() * Math.PI * 2, r = 14 + Math.random() * 26;
+    if (n >= 48) return;
+    var sea = world.gen.sea;
+    var schwaerme = 0;
+    for (var t = 0; t < 10 && schwaerme < 2; t++) {
+      var ang = Math.random() * Math.PI * 2, r = 12 + Math.random() * 30;
       var x = Math.floor(p.x + Math.cos(ang) * r), z = Math.floor(p.z + Math.sin(ang) * r);
       var col = world.chunkAt(x, z);
       if (!col || col.state < 2) continue;
-      var sea = world.gen.sea;
-      // Eine Stelle mit Wasser über und unter sich – mitten im Meer, nicht am Ufer
-      var y = sea - 2 - ((Math.random() * 4) | 0);
-      if (world.getBlock(x, y, z) !== B.id('water')) continue;
-      if (world.getBlock(x, y - 1, z) !== B.id('water')) continue;
-      var gruppe = 2 + ((Math.random() * 4) | 0);
-      for (var k = 0; k < gruppe; k++) {
-        var m = new Mob(world, 'fish', x + 0.5 + (Math.random() - 0.5) * 3,
-                        y + 0.3, z + 0.5 + (Math.random() - 0.5) * 3);
+      // Die alte Version suchte nur knapp unter der Oberfläche. In den tiefen
+      // Becken war dort oft gar kein Fisch möglich – jetzt zählt die ganze
+      // Wassersäule, und tiefe Stellen bekommen die größeren Schwärme.
+      // heightAtWorld liefert über dem Meer die Wasseroberfläche, nicht den
+      // Grund – der Boden muss von oben herunter gesucht werden.
+      var boden = -1;
+      for (var y2 = sea; y2 > sea - 48; y2--) {
+        if (!B.zaehltAlsWasser(world.getBlock(x, y2, z))) { boden = y2; break; }
+      }
+      if (boden < 0 || sea - boden < 3) continue;
+      var tiefe = sea - boden;
+      var y = boden + 1 + ((Math.random() * (tiefe - 1)) | 0);
+      if (!B.zaehltAlsWasser(world.getBlock(x, y, z))) continue;
+      if (!B.zaehltAlsWasser(world.getBlock(x, y + 1, z))) continue;
+      var gruppe = 4 + ((Math.random() * 5) | 0) + (tiefe > 12 ? 3 : 0);
+      for (var k = 0; k < gruppe && n < 48; k++, n++) {
+        // Nur nach unten streuen – sonst hüpft ein Fisch aus dem Wasser
+        var m = new Mob(world, 'fish', x + 0.5 + (Math.random() - 0.5) * 4,
+                        y + 0.3 - Math.random() * Math.min(2, tiefe - 2), z + 0.5 + (Math.random() - 0.5) * 4);
         world.entities.push(m);
       }
-      return;
+      schwaerme++;
     }
   };
 

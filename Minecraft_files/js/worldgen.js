@@ -32,7 +32,8 @@
   //   3 = Biome im Nether und im Aether
   //   4 = Hochgebirgsgegenden, Erdrisse, Wüstenkanten geglättet
   //   5 = große Bastionen, Meeresgrund und Strände
-  MC.GEN_VERSION = 5;
+  //   6 = tiefe Meeresbecken, Wracks als Schiffe, Riffe tiefer
+  MC.GEN_VERSION = 6;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -201,7 +202,20 @@
       var flach = SEA + (h - SEA) * 0.5 + (duene * 0.5 + 0.5) * 6.5 * (1 - cl.mask);
       h += (flach - h) * trocken * anLand;
     }
-    if (cl.cont < -0.2) h = SEA + (h - SEA) * 0.75;
+    // Das Meer war zu flach, weil der Ozeanboden zum Meeresspiegel hin
+    // zusammengedrückt wurde. Jetzt umgekehrt: je weiter draußen, desto tiefer,
+    // mit einer eigenen Beckenachse für richtige Tiefseegräben.
+    if (cl.cont < -0.15 && this.genV >= 6) {
+      // Der Kontinentalwert bleibt meist zwischen -0,3 und 0,3 – mit einer
+      // sanften Rampe wurde das Becken darum nie tief. Jetzt greift sie früh
+      // und voll, sonst bleibt jedes Meer eine Pfütze.
+      var weite = U.clamp((-0.08 - cl.cont) * 5.0, 0, 1);
+      var becken = U.clamp(this.nHoch.fbm2(x / 900 + 4000, z / 900 - 4000, 3) * 2.6 + 0.45, 0, 1);
+      var tief = 10 + becken * 34;                       // bis 44 Blöcke unter dem Spiegel
+      h = h + (SEA - tief - h) * weite * (0.35 + 0.65 * becken);
+    } else if (cl.cont < -0.2) {
+      h = SEA + (h - SEA) * 0.75;
+    }
 
     // Weiche Deckelung: über y=96 wird jeder weitere Meter teurer. Ohne das
     // schneidet die Weltdecke die Gipfel zu Tafelbergen ab.
@@ -272,10 +286,15 @@
     // Unsere Ozeane sind flacher als die im Original – der Grenzwert für die
     // Tiefsee muss dazu passen, sonst gibt es sie nie.
     var tiefe = this.sea - this.heightAt(x, z);
-    if (tiefe > 10) return MC.MEER.TIEFE;
+    if (tiefe > (this.genV >= 6 ? 18 : 10)) return MC.MEER.TIEFE;
     var w = this.nGlade.fbm2(x / 150 + 6000, z / 150 - 6000, 3);
     var warm = this.climate(x, z).temp;
-    if (w > 0.10 && warm > -0.05) return MC.MEER.RIFF;
+    // Ein Riff braucht Wasser über sich. Vorher lag es zu 64 % in unter vier
+    // Blöcken Tiefe und ragte aus dem Meer – die Tiefe gehört darum in die
+    // Biomdefinition und nicht als Sperre in die Dekoration. Der Rauschwert
+    // darf dafür etwas großzügiger sein, sonst gäbe es kaum noch Riffe.
+    if (w > (this.genV >= 6 ? 0.04 : 0.10) && warm > -0.05
+        && (this.genV < 6 || tiefe >= 5)) return MC.MEER.RIFF;
     if (w < -0.14) return MC.MEER.KELP;
     return MC.MEER.SAND;
   };
@@ -344,18 +363,22 @@
             }
           } else if (r < 0.62) set(x, h + 1, z, grasId);
         } else if (biom === M.RIFF) {
-          if (r < 0.16) {
-            // Korallenstöcke: ein Block Koralle, gelegentlich ein Fächer darauf
+          if (r < 0.055) {
+            // Korallenstöcke: ein Block Koralle, gelegentlich ein Fächer darauf.
+            // Der Stock endet zwei Blöcke unter der Oberfläche – Korallen, die
+            // aus dem Wasser schauen, sahen aus wie ein Fehler.
             var art = (U.hash3(wx, 7, wz) * korallen.length) | 0;
-            var stock = 1 + ((U.hash3(wx, 8, wz) * 3) | 0);
+            var platz = Math.max(0, SEA - 2 - h);
+            var stock = Math.min(platz, 1 + ((U.hash3(wx, 8, wz) * 3) | 0));
             for (var s = 0; s < stock; s++) {
               if (hole(x, h + 1 + s, z) !== ID.water) break;
               set(x, h + 1 + s, z, korallen[art]);
             }
-            if (hole(x, h + 1 + stock, z) === ID.water && U.hash3(wx, 9, wz) < 0.5) {
+            if (stock < platz && hole(x, h + 1 + stock, z) === ID.water
+                && U.hash3(wx, 9, wz) < 0.5) {
               set(x, h + 1 + stock, z, faecher[art]);
             }
-          } else if (r < 0.30) set(x, h + 1, z, grasId);
+          } else if (r < 0.16) set(x, h + 1, z, grasId);
           // Schwämme wachsen im Riff, aber selten – sonst ist der Reiz weg
           else if (r > 0.9975) set(x, h + 1, z, schwamm);
         } else if (biom === M.TIEFE) {

@@ -738,15 +738,20 @@
       var id = block.id;
       var lay = T.layer(typeof block.tex === 'string' ? block.tex : block.tex.side);
       var hC = liquidHeight(x, y, z, id);
-      var aboveSame = gb(x, y + 1, z) === id || B.isOpaque(gb(x, y + 1, z));
+      // Seegras und Tang stehen im Wasser: fürs Rendern zählen sie als Wasser,
+      // sonst zieht das Wasser eine Wand gegen sie und man sieht Löcher.
+      var wieWasser = (id === B.id('water'))
+        ? function (nid) { return nid === id || B.zaehltAlsWasser(nid); }
+        : function (nid) { return nid === id; };
+      var aboveSame = wieWasser(gb(x, y + 1, z)) || B.isOpaque(gb(x, y + 1, z));
       // Eckhöhen für ein "fließendes" Aussehen
       function cornerH(dx, dz) {
         if (aboveSame) return 1.0;
         var sum = 0, cnt = 0, maxH = 0;
         for (var ix = 0; ix <= 1; ix++) for (var iz = 0; iz <= 1; iz++) {
           var sx = x + dx * ix, sz = z + dz * iz;
-          if (gb(sx, y + 1, sz) === id) return 1.0;
-          if (gb(sx, y, sz) === id) { var hh = liquidHeight(sx, y, sz, id); sum += hh; cnt++; if (hh > maxH) maxH = hh; }
+          if (wieWasser(gb(sx, y + 1, sz))) return 1.0;
+          if (wieWasser(gb(sx, y, sz))) { var hh = liquidHeight(sx, y, sz, id); sum += hh; cnt++; if (hh > maxH) maxH = hh; }
           else if (B.byId[gb(sx, y, sz)] && !B.byId[gb(sx, y, sz)].opaque) { cnt++; }
         }
         return cnt ? Math.max(sum / cnt, maxH * 0.85) : hC;
@@ -756,7 +761,7 @@
       for (var f = 0; f < 6; f++) {
         var nn = FACES[f].n;
         var nid = gb(x + nn[0], y + nn[1], z + nn[2]);
-        if (nid === id) continue;
+        if (wieWasser(nid)) continue;
         var nB = B.byId[nid];
         if (nB && nB.opaque) continue;
         var mn = [0, 0, 0], mx = [1, hC, 1];
