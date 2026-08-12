@@ -785,6 +785,17 @@
     g.set(8, 8, [176, 40, 40]);
   });
 
+  tex('aechor_petal', function (g) {
+    g.fill([0, 0, 0], 0);
+    var r = ramp([196, 96, 176], 0.7);
+    for (var y = 4; y < 13; y++) for (var x = 4; x < 13; x++) {
+      var dx = x - 8, dy = y - 8;
+      if (dx * dx + dy * dy > 18) continue;
+      g.set(x, y, [r.dk, r.bs, r.lt][(g.r() * 3) | 0]);
+    }
+    g.rect(7, 7, 3, 3, [246, 228, 120]);
+  });
+
   tex('slimeball', function (g) {
     g.fill([0, 0, 0], 0);
     var S = [[104, 168, 92], [130, 196, 114], [86, 142, 78], [160, 214, 140]];
@@ -1446,6 +1457,52 @@
     tex(name, function (g) { var r = haut(g, base, 'v'); fn(g, r); });
   }
   var AUGE_W = [248, 248, 252];
+
+  // ---- Erste Runde neuer Kreaturen ----
+  // Alle über dieselbe Hautfunktion wie die vorhandenen Mobs, damit sie im
+  // selben Bild bleiben und nicht wie Fremdkörper wirken.
+  function neuerMob(name, base, richtung, gesicht) {
+    mob(name, base, richtung);
+    if (gesicht) mobFace(name + '_face', base, gesicht);
+  }
+  neuerMob('mob_wither_skeleton', [58, 58, 56], 'v', function (g, r) {
+    auge(g, 3, 5, [46, 46, 44], [16, 16, 16], [200, 60, 40]);
+    auge(g, 10, 5, [46, 46, 44], [16, 16, 16], [200, 60, 40]);
+    g.rect(5, 10, 6, 1, r.sh);
+    for (var x = 5; x < 11; x += 2) g.set(x, 11, r.sh);
+  });
+  neuerMob('mob_hoglin', [138, 92, 78], 'h', function (g, r) {
+    auge(g, 3, 5, AUGE_W, [60, 30, 20], [12, 8, 6]);
+    auge(g, 10, 5, AUGE_W, [60, 30, 20], [12, 8, 6]);
+    g.rect(6, 9, 4, 3, mul(r.base, 0.7));
+    g.set(6, 10, [226, 220, 200]); g.set(9, 10, [226, 220, 200]);
+    // Hauer
+    g.rect(2, 8, 2, 2, [232, 228, 210]); g.rect(12, 8, 2, 2, [232, 228, 210]);
+  });
+  mob('mob_brute_shirt', [96, 66, 48], 'v');
+  neuerMob('mob_ash_wight', [86, 82, 84], 'v', function (g, r) {
+    auge(g, 3, 6, [30, 28, 30], [240, 140, 50], [255, 220, 150]);
+    auge(g, 10, 6, [30, 28, 30], [240, 140, 50], [255, 220, 150]);
+    for (var i = 0; i < 10; i++) g.set(2 + ((g.r() * 12) | 0), 10 + ((g.r() * 4) | 0), [220, 110, 40]);
+  });
+  neuerMob('mob_frost_wight', [176, 208, 232], 'v', function (g, r) {
+    auge(g, 3, 6, [230, 244, 252], [60, 130, 200], [20, 40, 90]);
+    auge(g, 10, 6, [230, 244, 252], [60, 130, 200], [20, 40, 90]);
+    for (var i = 0; i < 12; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [242, 250, 255]);
+  });
+  mob('mob_aechor', [86, 150, 92], 'v');
+  tex('mob_aechor_petal', function (g) {
+    var r = ramp([196, 96, 176], 0.7);
+    g.qn([r.dk, r.bs, r.lt], [26, 42, 26]);
+    // Blütenblätter zeichnen: helle Keile vom Rand zur Mitte
+    for (var a2 = 0; a2 < 8; a2++) {
+      var w = a2 / 8 * Math.PI * 2;
+      for (var t = 2; t < 8; t++) {
+        g.set(8 + Math.round(Math.cos(w) * t), 8 + Math.round(Math.sin(w) * t), r.hi);
+      }
+    }
+    g.rect(6, 6, 4, 4, [246, 228, 120]);
+  });
 
   mob('mob_pig', [232, 148, 152], 'h');
   mobFace('mob_pig_face', [232, 148, 152], function (g, r) {

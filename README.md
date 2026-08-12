@@ -302,6 +302,19 @@ Kettenreaktion.
 Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respawn,
 Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 
+**Kreaturen der Biome** — jedes neue Biom hat seinen eigenen Bewohner. Im
+**Seelensandtal** steht das **Witherskelett**: sein Treffer überträgt
+*Verdorren*, und Verdorren hebt die Regeneration auf — mit einem Regenerationstrank
+im Bauch verliert man trotzdem Leben. Im **Karmesinwald** rennt der **Hoglin** an
+und schleudert einen mehrere Blöcke weit; er scheut Nethergewächs, womit sich ein
+Gehöft dort einzäunen lässt. An den Bastionen und im Karmesinwald steht der
+**Piglin-Hauer**, der kein Gold nimmt und nicht handelt. Im **Basaltdelta**
+zerplatzt der **Aschenwicht** beim Tod in eine Aschewolke. Über den
+**Frostspitzen** schwebt der **Frostwicht**, dessen Treffer bremst. Auf den
+**Aetherwiesen** wurzelt die **Aechorpflanze**: sie bewegt sich nicht, schießt
+aber auf alles in neun Blöcken — ihre **Aechorschote** ist die Heiltrankzutat, mit
+der man den Aether nicht mehr verlassen muss.
+
 **Mobs** — Schwein, Kuh, Schaf (16 Wollfarben, scherbar), Huhn, Zombie, Skelett
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
 Piglin, Ghast, Magmawürfel und die Lohe an den Bastionen, im Aether Moa, Phyg,

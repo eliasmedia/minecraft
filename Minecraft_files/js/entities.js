@@ -537,6 +537,67 @@
         part('legL', 'mob_piglin_shirt', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
       ]
     },
+    // ---- Erste Runde neuer Kreaturen ----
+    wither_skeleton: {
+      height: 2.4, width: 0.7, scale: 1.2,
+      parts: [
+        part('head', { all: 'mob_wither_skeleton', front: 'mob_wither_skeleton_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
+        part('body', 'mob_wither_skeleton', -4, 12, -2, 8, 12, 4),
+        part('armR', 'mob_wither_skeleton', -6, 12, -1, 2, 12, 2, 'armZ', [-5, 23, 0]),
+        part('armL', 'mob_wither_skeleton', 4, 12, -1, 2, 12, 2, 'armZ', [5, 23, 0]),
+        part('legR', 'mob_wither_skeleton', -3, 0, -1, 2, 12, 2, 'legFR', [-2, 12, 0]),
+        part('legL', 'mob_wither_skeleton', 1, 0, -1, 2, 12, 2, 'legFL', [2, 12, 0])
+      ]
+    },
+    hoglin: {
+      height: 1.4, width: 1.3, scale: 1.25,
+      parts: [
+        part('body', 'mob_hoglin', -6, 8, -10, 12, 10, 20),
+        part('head', { all: 'mob_hoglin', front: 'mob_hoglin_face' }, -5, 8, -14, 10, 9, 5, 'head', [0, 13, -10]),
+        part('leg0', 'mob_hoglin', -6, 0, -8, 4, 8, 4, 'legFR', [-4, 8, -6]),
+        part('leg1', 'mob_hoglin', 2, 0, -8, 4, 8, 4, 'legFL', [4, 8, -6]),
+        part('leg2', 'mob_hoglin', -6, 0, 4, 4, 8, 4, 'legBR', [-4, 8, 6]),
+        part('leg3', 'mob_hoglin', 2, 0, 4, 4, 8, 4, 'legBL', [4, 8, 6])
+      ]
+    },
+    piglin_brute: {
+      height: 2.1, width: 0.7, scale: 1.08,
+      parts: [
+        part('head', { all: 'mob_piglin', front: 'mob_piglin_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
+        part('body', 'mob_brute_shirt', -4, 12, -2, 8, 12, 4),
+        part('armR', 'mob_piglin', -9, 12, -3, 5, 13, 5, 'armZ', [-6, 23, 0]),
+        part('armL', 'mob_piglin', 4, 12, -3, 5, 13, 5, 'armZ', [6, 23, 0]),
+        part('legR', 'mob_brute_shirt', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
+        part('legL', 'mob_brute_shirt', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
+      ]
+    },
+    ash_wight: {
+      height: 1.1, width: 0.7, scale: 0.85,
+      parts: [
+        part('body', { all: 'mob_ash_wight', front: 'mob_ash_wight_face' }, -5, 4, -5, 10, 10, 10),
+        part('armR', 'mob_ash_wight', -8, 5, -2, 3, 7, 3, 'armZ', [-6, 11, 0]),
+        part('armL', 'mob_ash_wight', 5, 5, -2, 3, 7, 3, 'armZ', [6, 11, 0]),
+        part('leg0', 'mob_ash_wight', -4, 0, -2, 3, 4, 3, 'legFR', [-2, 4, 0]),
+        part('leg1', 'mob_ash_wight', 1, 0, -2, 3, 4, 3, 'legFL', [2, 4, 0])
+      ]
+    },
+    frost_wight: {
+      height: 1.3, width: 0.8, scale: 0.95,
+      parts: [
+        part('body', { all: 'mob_frost_wight', front: 'mob_frost_wight_face' }, -5, 5, -5, 10, 11, 10),
+        part('t0', 'mob_frost_wight', -7, 2, -3, 3, 5, 3, 'tentacle', [-5, 5, 0]),
+        part('t1', 'mob_frost_wight', 4, 2, -3, 3, 5, 3, 'tentacle', [5, 5, 0]),
+        part('t2', 'mob_frost_wight', -2, 0, -2, 4, 4, 4, 'tentacle', [0, 5, 0])
+      ]
+    },
+    aechor_plant: {
+      height: 1.1, width: 0.9, scale: 1,
+      parts: [
+        part('body', 'mob_aechor', -4, 0, -4, 8, 7, 8),
+        part('head', { all: 'mob_aechor_petal', front: 'mob_aechor_petal' }, -6, 7, -6, 12, 5, 12, 'head', [0, 9, 0]),
+        part('t0', 'mob_aechor', -1, 12, -1, 2, 4, 2, 'tentacle', [0, 12, 0])
+      ]
+    },
     ghast: {
       height: 3.6, width: 3.6, scale: 3.4,
       parts: [
@@ -708,6 +769,29 @@
     magma_cube: { hp: 12, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }, { id: 'slimeball', min: 0, max: 2 }], xp: 4, sound: 'thud', fireproof: true },
     // Lohe: einzige Quelle für Lohenruten, darum nur bei den Bastionen
     blaze: { hp: 20, hostile: true, speed: 1.5, damage: 5, ranged: true, flying: true, projectile: 'flame', drops: [{ id: 'blaze_rod', min: 1, max: 2 }], xp: 10, sound: 'fizz', fireproof: true },
+
+    // ---- Erste Runde neuer Kreaturen ----
+    // Das Witherskelett ist der Grund, ins Seelensandtal zu gehen: sein Treffer
+    // verdorrt, und Verdorren hebt die Regeneration auf.
+    wither_skeleton: { hp: 20, hostile: true, speed: 2.4, damage: 5, effekt: 'verdorren', effektZeit: 8,
+      drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'coal', min: 0, max: 2 }], xp: 8, sound: 'skeleton', fireproof: true },
+    // Der Hoglin rennt an und schleudert weg. Nethergewächs verscheucht ihn –
+    // wer im Karmesinwald baut, pflanzt sich einen Zaun.
+    hoglin: { hp: 24, hostile: true, speed: 2.6, damage: 5, ansturm: true, scheut: 'nether_wart',
+      drops: [{ id: 'porkchop_raw', min: 2, max: 4 }, { id: 'leather', min: 0, max: 1 }], xp: 6, sound: 'pig', fireproof: true },
+    // Nimmt kein Gold und handelt nicht – der Grund, weshalb man eine Bastion
+    // nicht einfach ausräumt.
+    piglin_brute: { hp: 30, hostile: true, speed: 2.4, damage: 7,
+      drops: [{ id: 'gold_ingot', min: 1, max: 2 }], xp: 10, sound: 'pig', fireproof: true },
+    // Zerfällt beim Tod in eine Aschewolke
+    ash_wight: { hp: 12, hostile: true, speed: 2.0, damage: 3, ascheTod: true,
+      drops: [{ id: 'coal', min: 1, max: 2 }, { id: 'blackstone', min: 0, max: 2 }], xp: 5, sound: 'fizz', fireproof: true },
+    // Gegenstück im Aether: sein Treffer bremst
+    frost_wight: { hp: 14, hostile: true, speed: 1.7, damage: 3, flying: true, effekt: 'langsamkeit', effektZeit: 6,
+      drops: [{ id: 'icestone', min: 1, max: 2 }], xp: 5, sound: 'ghast' },
+    // Steht fest und schießt. Ihre Schote ist die Heiltrankzutat des Aethers.
+    aechor_plant: { hp: 12, hostile: true, speed: 0, steht: true, damage: 1, ranged: true, projectile: 'stachel', braucht: ['aether_grass'],
+      drops: [{ id: 'aechor_petal', min: 1, max: 2 }], xp: 4, sound: 'grass' },
     // ---- Enderman: überall zu Hause, friedlich bis man ihn anstarrt ----
     // Zwei Perlen als Höchstwert: für zwölf Augen wären 0–1 wie im Original
     // hier zu zäh, weil deutlich weniger Endermen unterwegs sind
@@ -788,6 +872,23 @@
 
     var world = this.world, p = game.player;
     var dist = p && !p.dead ? this.distTo(p) : 9999;
+
+    // Was die Kreatur scheut, hält sie auf Abstand. Beim Hoglin ist das
+    // Nethergewächs – damit lässt sich ein Gehöft im Karmesinwald einzäunen.
+    if (this.spec.scheut && (game.tickCount % 10) === 0) {
+      var scheuId = B.id(this.spec.scheut);
+      var fliehe = false;
+      for (var sdx = -2; sdx <= 2 && !fliehe; sdx++) {
+        for (var sdz = -2; sdz <= 2; sdz++) {
+          for (var sdy = 0; sdy <= 1; sdy++) {
+            if (world.getBlock(Math.floor(this.x) + sdx, Math.floor(this.y) + sdy, Math.floor(this.z) + sdz) === scheuId) {
+              fliehe = true; break;
+            }
+          }
+        }
+      }
+      if (fliehe) this.panic = Math.max(this.panic, 1.6);
+    }
 
     // Verbrennen im Tageslicht
     if (this.spec.burns && !game.world.isNight() && world.getSky(Math.floor(this.x), Math.floor(this.y + 1), Math.floor(this.z)) > 12
@@ -872,18 +973,43 @@
           this.moveToward(dt, wantYaw, 1);
         }
       } else if (this.spec.ranged) {
-        if (dist > 10) this.moveToward(dt, wantYaw, 1);
-        else if (dist < 5) this.moveToward(dt, wantYaw + Math.PI, 0.8);
-        else this.strafe(dt, wantYaw);
-        if (this.attackCd <= 0 && dist < 16 && this.canSee(p)) {
-          this.attackCd = 2.0;
-          this.shootArrow(game, p);
+        // Die Aechorpflanze wurzelt – sie dreht sich nur zum Ziel
+        if (this.spec.steht) {
+          this.yaw = wantYaw;
+          if (this.attackCd <= 0 && dist < 9 && this.canSee(p)) {
+            this.attackCd = 1.8;
+            this.shootArrow(game, p);
+          }
+        } else {
+          if (dist > 10) this.moveToward(dt, wantYaw, 1);
+          else if (dist < 5) this.moveToward(dt, wantYaw + Math.PI, 0.8);
+          else this.strafe(dt, wantYaw);
+          if (this.attackCd <= 0 && dist < 16 && this.canSee(p)) {
+            this.attackCd = 2.0;
+            this.shootArrow(game, p);
+          }
         }
       } else {
-        this.moveToward(dt, wantYaw, 1);
-        if (dist < 1.6 && this.attackCd <= 0) {
-          this.attackCd = 1.0;
+        // Der Hoglin nimmt Anlauf statt gleichmäßig zu traben
+        var tempo = 1;
+        if (this.spec.ansturm) {
+          this.anlauf = (this.anlauf || 0) + dt;
+          tempo = (this.anlauf % 4) > 2.2 ? 1.9 : 0.75;
+        }
+        this.moveToward(dt, wantYaw, tempo);
+        if (dist < 1.9 && this.attackCd <= 0) {
+          this.attackCd = this.spec.ansturm ? 1.6 : 1.0;
           p.hurt(this.spec.damage, this, game);
+          // Was der Treffer überträgt, steht in den Werten der Kreatur
+          if (this.spec.effekt && MC.Effekte) {
+            MC.Effekte.gib(p, this.spec.effekt, 1, this.spec.effektZeit || 6);
+          }
+          // Der Ansturm wirft weit weg – das ist seine eigentliche Waffe
+          if (this.spec.ansturm) {
+            var kdx = p.x - this.x, kdz = p.z - this.z;
+            var kd = Math.sqrt(kdx * kdx + kdz * kdz) || 1;
+            p.vx += kdx / kd * 11; p.vz += kdz / kd * 11; p.vy = Math.max(p.vy, 7);
+          }
           game.audio.play('hit');
         }
       }
@@ -1427,6 +1553,14 @@
       }
     }
     game.particles.death(this.x, this.y + this.height / 2, this.z);
+    // Der Aschenwicht zerplatzt und nimmt kurz die Sicht
+    if (this.spec.ascheTod) {
+      for (var a = 0; a < 26; a++) {
+        game.particles.smoke(this.x + (Math.random() - 0.5) * 3,
+                             this.y + Math.random() * 2.2,
+                             this.z + (Math.random() - 0.5) * 3, 1);
+      }
+    }
     game.audio.play3d('death', this.x, this.y, this.z, game.player);
   };
 
@@ -1462,7 +1596,7 @@
     var maxPassive = 12;
 
     if (world.dim !== 'overworld') {
-      if (world.dim === 'nether') Spawner.blazes(game);
+      if (world.dim === 'nether') { Spawner.blazes(game); Spawner.bastionsWachen(game); }
       Spawner.otherDim(game, world, p, hostiles, passives, maxHostile, maxPassive);
       return;
     }
@@ -1545,17 +1679,23 @@
       var NB = MC.Dim.NETHER_BIOME;
       if (!feindlich) return null;
       switch (st.key) {
-        case NB.SOUL: return ['ghast', 'ghast', 'piglin'];          // weit und offen
-        case NB.DELTA: return ['magma_cube', 'magma_cube', 'ghast'];
-        case NB.CRIMSON: return ['piglin', 'piglin', 'piglin', 'magma_cube'];
+        // Jedes Biom hat jetzt einen eigenen Bewohner, den es sonst nirgends gibt
+        case NB.SOUL: return ['wither_skeleton', 'wither_skeleton', 'ghast', 'ghast'];
+        case NB.DELTA: return ['ash_wight', 'ash_wight', 'magma_cube', 'magma_cube'];
+        case NB.CRIMSON: return ['hoglin', 'hoglin', 'piglin', 'piglin', 'piglin_brute'];
         case NB.WARPED: return ['enderman', 'piglin'];              // still und fremd
       }
       return null;
     }
     var AB = MC.Dim.AETHER_BIOME;
     if (feindlich) {
-      if (st.key === AB.FROST) return ['zephyr', 'zephyr', 'cockatrice'];
+      if (st.key === AB.FROST) return ['frost_wight', 'frost_wight', 'zephyr', 'cockatrice'];
       if (st.key === AB.WOLKEN) return ['zephyr'];
+      // Die Aechorpflanze steht auf den Wiesen und im Hain – sie wurzelt,
+      // darum ist sie nur dort sinnvoll, wo auch Gras wächst.
+      if (st.key === AB.WIESEN || st.key === AB.HAIN) {
+        return ['aechor_plant', 'aechor_plant', 'cockatrice', 'zephyr'];
+      }
       return null;
     }
     if (st.key === AB.HAIN) return ['moa', 'phyg', 'phyg', 'sheepuff'];
@@ -1604,6 +1744,12 @@
 
       var kind = kinds[(Math.random() * kinds.length) | 0];
       var spec = MOB_TYPES[kind];
+      // Manche brauchen einen bestimmten Boden – die Aechorpflanze wurzelt und
+      // hat auf Flugsand nichts verloren, auch nicht am Rand einer Wiese.
+      if (spec.braucht) {
+        var bod = B.byId[world.getBlock(x, y - 1, z)];
+        if (!bod || spec.braucht.indexOf(bod.name) < 0) continue;
+      }
       // Fliegende Mobs erscheinen weiter oben in der Luft
       var sy2 = spec.flying ? y + 6 + Math.random() * 8 : y + 0.1;
       var m = new Mob(world, kind, x + 0.5, sy2, z + 0.5);
@@ -1625,6 +1771,32 @@
   // Lohen gehören zur Bastion, nicht in den freien Nether. Sie kommen darum
   // nicht aus der allgemeinen Tabelle – sonst nähmen Piglins ihnen die Plätze
   // weg und Lohenruten wären reine Glückssache. Eine Bastion hält bis zu vier.
+  // An einer Bastion steht neben der Lohe auch die Wache
+  Spawner.bastionsWachen = function (game) {
+    var world = game.world, p = game.player;
+    if (!p || game.mode === 'creative') return;
+    // fortressNear liefert eine Liste, nicht eine einzelne Festung
+    var liste = MC.Dim.fortressNear ? MC.Dim.fortressNear(world.gen, p.x, p.z) : null;
+    if (!liste || !liste.length) return;
+    var f = liste[0];
+    var n = 0;
+    for (var i = 0; i < world.entities.length; i++) {
+      var e = world.entities[i];
+      if (e.type === 'mob' && !e.dead && (e.mobType === 'piglin_brute' || e.mobType === 'wither_skeleton')) n++;
+    }
+    if (n >= 4) return;
+    if (Math.random() > 0.35) return;
+    var art = Math.random() < 0.5 ? 'piglin_brute' : 'wither_skeleton';
+    var sx = f.x + ((Math.random() * 14) | 0) - 7, sz = f.z + ((Math.random() * 14) | 0) - 7;
+    for (var y = Math.min(MC.WORLD_HEIGHT - 4, Math.floor(p.y) + 16); y > 6; y--) {
+      if (!B.isSolid(world.getBlock(sx, y, sz))) continue;
+      if (world.getBlock(sx, y + 1, sz) !== 0 || world.getBlock(sx, y + 2, sz) !== 0) break;
+      var m = new Mob(world, art, sx + 0.5, y + 1.05, sz + 0.5);
+      if (m.distTo(p) > 10) world.entities.push(m);
+      break;
+    }
+  };
+
   Spawner.blazes = function (game) {
     var w = game.world, p = game.player;
     var list = MC.Dim.fortressNear(w.gen, Math.floor(p.x), Math.floor(p.z));

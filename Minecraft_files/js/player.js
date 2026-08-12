@@ -296,7 +296,10 @@
     this.inWebe = !!(drin && drin.name === 'cobweb');
     if (this.inWebe && !this.flying) { speed *= 0.22; if (this.vy < 0) this.vy = Math.max(this.vy, -1.2); }
     if (this.gravLegs && !this.flying) speed *= 1.28;   // Hose: leichtfüßig
-    if (MC.Effekte) speed *= 1 + 0.2 * MC.Effekte.stufe(this, 'schnelligkeit');
+    if (MC.Effekte) {
+      speed *= 1 + 0.2 * MC.Effekte.stufe(this, 'schnelligkeit');
+      speed *= 1 - Math.min(0.7, 0.22 * MC.Effekte.stufe(this, 'langsamkeit'));
+    }
 
     var len = Math.sqrt(fwd * fwd + side * side);
     var wx = 0, wz = 0;

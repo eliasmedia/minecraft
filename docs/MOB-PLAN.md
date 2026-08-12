@@ -1,5 +1,10 @@
 # Kreaturen und Bewohner — Vorschlag für den nächsten Schritt
 
+> **Stand 12. August 2026: erste Runde gebaut.** N1 Witherskelett, N2 Hoglin,
+> N4 Piglin-Hauer, N5 Aschenwicht, A1 Aechorpflanze und A4 Frostwicht sind im
+> Spiel, jede in ihrem Biom. Offen bleiben die zweite Runde (Schwebhase,
+> Wolkenwal, Walküre), die Händler und der Lavagänger mit dem Reitzustand.
+
 Stand: 12. August 2026. Grundlage: Nether und Aether haben seit heute je fünf
 Biome. Die Biome sind gebaut, aber noch **leer bevölkert** — in jedem Nether-Biom
 laufen dieselben Piglins, in jedem Aether-Biom dieselben Moas. Genau das ist die

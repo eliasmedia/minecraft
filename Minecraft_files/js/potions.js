@@ -26,7 +26,11 @@
     nachtsicht:     { titel: 'Nachtsicht', farbe: '#1f1fa1' },
     sprungkraft:    { titel: 'Sprungkraft', farbe: '#22ff4c' },
     heilung:        { titel: 'Heilung', farbe: '#f82423', sofort: true },
-    schaden:        { titel: 'Schaden', farbe: '#430a09', sofort: true }
+    schaden:        { titel: 'Schaden', farbe: '#430a09', sofort: true },
+    // Vom Witherskelett: frisst Leben und lässt sich nicht wegregenerieren
+    verdorren:      { titel: 'Verdorren', farbe: '#4f3a3a' },
+    // Vom Frostwicht: bremst und macht das Springen schwer
+    langsamkeit:    { titel: 'Langsamkeit', farbe: '#5a6c81' }
   };
 
   P.gib = function (spieler, key, stufe, sekunden) {
@@ -67,7 +71,11 @@
       if (e.key === 'regeneration') {
         e.t = (e.t || 0) + dt;
         var takt = 2.5 / e.stufe;
-        if (e.t >= takt) { e.t = 0; spieler.heal(1); }
+        // Verdorren hebt die Regeneration auf – das ist der ganze Witz daran
+        if (e.t >= takt) { e.t = 0; if (!P.stufe(spieler, 'verdorren')) spieler.heal(1); }
+      } else if (e.key === 'verdorren') {
+        e.t = (e.t || 0) + dt;
+        if (e.t >= 2 / e.stufe) { e.t = 0; if (game) spieler.hurt(1, null, game); }
       }
     }
   };
@@ -100,6 +108,7 @@
     water: { nether_wart_item: 'awkward' },
     awkward: {
       ambrosium_shard: 'healing',
+      aechor_petal: 'healing',      // der Weg, der den Aether nie verlässt
       blaze_powder: 'strength',
       sugar: 'swiftness',
       magma_block: 'fire_resistance',

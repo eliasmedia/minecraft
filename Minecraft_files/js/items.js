@@ -77,6 +77,8 @@
     // Aether
     ['zanite_gemstone', 'Zanit', 'material', 0],
     ['gravitite', 'Gravitit', 'material', 0],
+    // Von der Aechorpflanze: die Heiltrankzutat des Aethers
+    ['aechor_petal', 'Aechorschote', 'material', 0],
     // Das Ende: Lohenrute und Enderperle ergeben zusammen das Enderauge
     ['blaze_rod', 'Lohenrute', 'material', 2400],
     ['blaze_powder', 'Lohenstaub', 'material', 0],
