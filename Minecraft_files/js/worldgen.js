@@ -30,7 +30,8 @@
   //   1 = bis August 2026: abs()-Rauschen, Baumteppich, flache Wüste
   //   2 = Erosionsachse, Gebirgskämme, Dünen, große Bäume
   //   3 = Biome im Nether und im Aether
-  MC.GEN_VERSION = 3;
+  //   4 = Hochgebirgsgegenden, Erdrisse, Wüstenkanten geglättet
+  MC.GEN_VERSION = 4;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -103,6 +104,7 @@
     this.nRidge = new U.Noise(s + 12);
     this.nDune = new U.Noise(s + 13);
     this.nGlade = new U.Noise(s + 14);
+    this.nHoch = new U.Noise(s + 15);   // wo die Welt überhaupt Gebirge macht
     this.hCache = {};
     this.hCacheCount = 0;
   }
@@ -126,6 +128,14 @@
       // hunderte Blöcke weit reichen und nicht überall aufploppen.
       cl.mask = U.clamp(this.nMountMask.fbm2(x / 900 + 50, z / 900, 2) * 2.4
                         + 0.02 - cl.eros * 1.6, 0, 1);
+    }
+    if (this.genV >= 4) {
+      // Vierte Achse, absichtlich noch gröber als alles andere: sie sagt
+      // nicht, ob hier ein Berg steht, sondern ob diese Gegend überhaupt
+      // eine Gebirgsgegend ist. Damit gibt es weite Ebenen UND Landstriche,
+      // die sich wie doppelte Bergigkeit anfühlen, ohne dass man am Regler
+      // dreht – vorher war die Welt überall gleich bergig.
+      cl.hoch = U.clamp(this.nHoch.fbm2(x / 2600 - 900, z / 2600 + 900, 2) * 2.2 + 0.48, 0, 1);
     }
     return cl;
   };
@@ -167,21 +177,34 @@
     var mount = 0;
     if (cl.mask > 0) {
       var kamm = this.nRidge.ridge2(x / 300, z / 300, 4);
-      mount = Math.pow(kamm, 1.6) * 78 * cl.mask * cl.mask * this.o.mountains;
+      // In einer Hochgebirgsgegend wird derselbe Kamm gut doppelt so hoch
+      // quadratisch, damit der Unterschied zwischen Hügelland und
+      // Hochgebirge wirklich auffällt statt nur messbar zu sein
+      var wucht = (this.genV >= 4) ? (0.60 + 1.85 * cl.hoch * cl.hoch) : 1;
+      mount = Math.pow(kamm, 1.6) * 78 * cl.mask * cl.mask * this.o.mountains * wucht;
     }
     var h = base + (detail + mount) * this.relief;
 
-    if (this.isDry(cl)) {
-      // Wüstenbecken: flach, aber mit langgezogenen Dünenzügen quer dazu
-      h = SEA + (h - SEA) * 0.45 + 3;
+    // Wüstenbecken: flach, aber mit langgezogenen Dünenzügen quer dazu.
+    //
+    // Die Trockenheit wirkt als weicher Faktor, nicht als Schalter. Als Schalter
+    // sprang die Höhe an der Biomgrenze um bis zu vierzehn Blöcke auf einmal –
+    // das war die Felsmauer, die jede Wüste umgab. Und weil die Formel zum
+    // Meeresspiegel hin zusammendrückt, hob sie Meeresboden über Wasser: daher
+    // die Sandinseln mitten im Ozean. Der zweite Faktor blendet den Effekt
+    // darum über der Küste ein, statt ihn überall anzuwenden.
+    var trocken = U.clamp((cl.temp - 0.08) * 4.5, 0, 1) * U.clamp((0.09 - cl.humid) * 4.5, 0, 1);
+    if (trocken > 0) {
+      var anLand = U.clamp((h - SEA) / 7, 0, 1);
       var duene = this.nDune.fbm2(x / 38, z / 210, 2) + this.nDune.fbm2(z / 45 + 90, x / 240, 2);
-      h += (duene * 0.5 + 0.5) * 6.5 * (1 - cl.mask);
+      var flach = SEA + (h - SEA) * 0.5 + (duene * 0.5 + 0.5) * 6.5 * (1 - cl.mask);
+      h += (flach - h) * trocken * anLand;
     }
     if (cl.cont < -0.2) h = SEA + (h - SEA) * 0.75;
 
     // Weiche Deckelung: über y=96 wird jeder weitere Meter teurer. Ohne das
     // schneidet die Weltdecke die Gipfel zu Tafelbergen ab.
-    if (h > 96) h = 96 + (h - 96) * 0.36;
+    if (h > 96) h = 96 + (h - 96) * (this.genV >= 4 ? 0.30 : 0.36);
     return U.clamp(h, 3, WH - 6);
   };
 
@@ -232,6 +255,114 @@
     if (++this.hCacheCount > 80000) { this.hCache = {}; this.hCacheCount = 0; }
     this.hCache[key] = c;
     return c;
+  };
+
+  // ============================================================
+  //  Erdrisse
+  // ============================================================
+  // Eine lange, schmale Kluft, die von der Oberfläche fast bis zum
+  // Grundgestein reicht. Unten läuft sie spitz zu und endet in Lava – wer
+  // hineinfällt, hat ein Problem, und genau das ist der Reiz.
+  //
+  // Gerechnet wird als Abstand jeder Spalte zur Mittellinie: den Riss Block für
+  // Block auszuschneiden hieße, ihn in jedem berührten Chunk komplett
+  // durchzulaufen. So kostet er nur dort etwas, wo er wirklich liegt.
+  var RISS_REGION = 12;                       // Chunks je Region
+  var RISS_SPAN = RISS_REGION * CS;           // 192 Blöcke
+  var RISS_CHANCE = 0.34;
+
+  Gen.prototype.rissAt = function (rx, rz) {
+    if (this.genV < 4) return null;
+    if (!this._risse) this._risse = {};
+    var key = rx + ',' + rz;
+    if (key in this._risse) return this._risse[key];
+    var r = null;
+    var rnd = U.rng(U.hashString('riss:' + this.seed + ':' + rx + ':' + rz));
+    if (rnd() <= RISS_CHANCE) {
+      var x = rx * RISS_SPAN + 30 + Math.floor(rnd() * (RISS_SPAN - 60));
+      var z = rz * RISS_SPAN + 30 + Math.floor(rnd() * (RISS_SPAN - 60));
+      var winkel = rnd() * Math.PI * 2;
+      var punkte = [[x, z]];
+      var n = 3 + ((rnd() * 3) | 0);
+      for (var i = 0; i < n; i++) {
+        winkel += (rnd() - 0.5) * 1.1;
+        var len = 22 + rnd() * 26;
+        x += Math.cos(winkel) * len;
+        z += Math.sin(winkel) * len;
+        punkte.push([Math.round(x), Math.round(z)]);
+      }
+      var minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+      punkte.forEach(function (p) {
+        if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minZ) minZ = p[1]; if (p[1] > maxZ) maxZ = p[1];
+      });
+      r = {
+        punkte: punkte, breite: 3.5 + rnd() * 3.5, tiefe: 11 + ((rnd() * 8) | 0),
+        minX: minX - 10, maxX: maxX + 10, minZ: minZ - 10, maxZ: maxZ + 10
+      };
+    }
+    this._risse[key] = r;
+    return r;
+  };
+
+  // Abstand eines Punktes zur Mittellinie
+  function rissAbstand(riss, px, pz) {
+    var best = 1e9, p = riss.punkte;
+    for (var i = 0; i < p.length - 1; i++) {
+      var ax = p[i][0], az = p[i][1], bx = p[i + 1][0], bz = p[i + 1][1];
+      var dx = bx - ax, dz = bz - az;
+      var l2 = dx * dx + dz * dz;
+      var t = l2 > 0 ? U.clamp(((px - ax) * dx + (pz - az) * dz) / l2, 0, 1) : 0;
+      var qx = ax + dx * t - px, qz = az + dz * t - pz;
+      var d = qx * qx + qz * qz;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  }
+
+  Gen.prototype.risseNah = function (wx, wz) {
+    var rx = Math.floor(wx / RISS_SPAN), rz = Math.floor(wz / RISS_SPAN);
+    var list = null;
+    for (var dx = -1; dx <= 1; dx++) {
+      for (var dz = -1; dz <= 1; dz++) {
+        var r = this.rissAt(rx + dx, rz + dz);
+        if (!r) continue;
+        if (wx < r.minX - CS || wx > r.maxX + CS || wz < r.minZ - CS || wz > r.maxZ + CS) continue;
+        (list || (list = [])).push(r);
+      }
+    }
+    return list;
+  };
+
+  Gen.prototype.schneideRisse = function (cx, cz, blocks) {
+    var liste = this.risseNah(cx * CS + 8, cz * CS + 8);
+    if (!liste) return;
+    var wx0 = cx * CS, wz0 = cz * CS;
+    var lavaId = ID.lava, bedrock = ID.bedrock, waterId = ID.water;
+    for (var i = 0; i < liste.length; i++) {
+      var riss = liste[i];
+      for (var z = 0; z < CS; z++) {
+        for (var x = 0; x < CS; x++) {
+          var wx = wx0 + x, wz = wz0 + z;
+          if (wx < riss.minX || wx > riss.maxX || wz < riss.minZ || wz > riss.maxZ) continue;
+          var d = rissAbstand(riss, wx, wz);
+          if (d > riss.breite) continue;
+          var info = this.columnInfo(wx, wz);
+          var oben = Math.floor(info.h);
+          // Unter Wasser bleibt der Riss zu – sonst läuft der halbe Ozean hinein
+          if (oben <= this.sea) continue;
+          for (var y = oben; y >= riss.tiefe; y--) {
+            // Nach unten verjüngt sich der Spalt, oben franst er aus
+            var t = (y - riss.tiefe) / Math.max(1, oben - riss.tiefe);
+            var rad = riss.breite * (0.25 + 0.75 * t * t);
+            if (d > rad) continue;
+            var k = x | (z << 4) | (y << 8);
+            if (blocks[k] === bedrock || blocks[k] === waterId) continue;
+            blocks[k] = (y <= riss.tiefe + 1) ? lavaId : 0;
+          }
+        }
+      }
+    }
   };
 
   // ---------- Höhlen ----------
@@ -400,6 +531,8 @@
     }
 
     this.genOres(cx, cz, blocks);
+    // Der Riss schneidet vor dem Bewuchs, sonst stünden Bäume in der Luft
+    if (this.genV >= 4) this.schneideRisse(cx, cz, blocks);
     this.decorate(cx, cz, blocks, meta);
   };
 
@@ -512,9 +645,11 @@
           // leer, sie ist trocken.
           var kaktusP = 0.010, buschP = 0.03;
           if (this.genV >= 2) {
+            // 4,5 % Kaktus je Grasblock war ein Kaktusfeld, keine Wüste – auf
+            // sechzehn Blöcken standen drei. Jetzt einer alle rund achtzig.
             var feld = this.nGlade.fbm2(wxx / 60 + 400, wzz / 60 - 400, 2);
-            kaktusP = feld > 0.15 ? 0.045 : 0.004;
-            buschP = kaktusP + 0.07;
+            kaktusP = feld > 0.22 ? 0.013 : 0.0015;
+            buschP = kaktusP + 0.028;
           }
           if (rr < kaktusP && ground === B.id('sand')) {
             var ch = 1 + ((U.hash3(wxx, 5, wzz) * 3) | 0);
@@ -591,7 +726,7 @@
   BAUM_DICHTE[BIOME.SWAMP] = { p: 0.30, gross: 0.10 };
   BAUM_DICHTE[BIOME.MOUNTAINS] = { p: 0.13, gross: 0.12 };
   // In der Wüste steht kein Baum mehr, sondern nur noch sein Gerippe
-  BAUM_DICHTE[BIOME.DESERT] = { p: 0.11, gross: 0, tot: true };
+  BAUM_DICHTE[BIOME.DESERT] = { p: 0.035, gross: 0, tot: true };
 
   // Was in dieser Zelle steht – reine Funktion der Zellkoordinate
   Gen.prototype.zellBaum = function (gx, gz) {

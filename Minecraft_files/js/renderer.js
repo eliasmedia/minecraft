@@ -528,7 +528,12 @@
     var gl = this.gl, p = game.player, mp = this.progMain;
     // Im Nether ist eine Decke aus Grundgestein, im Aether liegen die Wolken tief
     if (game.world.dim === 'nether' || game.world.dim === 'the_end') return;
-    var y = game.world.dim === 'aether' ? 10 : 118;   // im Aether als ferner Wolkenboden
+    // Im Original liegen die Wolken bei y 192, also gut siebzig Blöcke über dem
+    // höchsten Berg. Unsere Welt ist nur 128 hoch und die Gipfel reichen bis
+    // 120 – bei 118 hingen die Wolken zwischen den Bergen. Die Wolkenebene ist
+    // reine Optik und an keinen Block gebunden, darum darf sie über die
+    // Weltdecke hinaus.
+    var y = game.world.dim === 'aether' ? 10 : 168;   // im Aether als ferner Wolkenboden
     var size = 512;
     var t = game.time * 0.6;
     var cx = Math.floor(p.x / 64) * 64, cz = Math.floor(p.z / 64) * 64;
