@@ -537,6 +537,25 @@
         part('legL', 'mob_piglin_shirt', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
       ]
     },
+    fish: {
+      height: 0.4, width: 0.5, scale: 0.55,
+      parts: [
+        part('body', { all: 'mob_fish', front: 'mob_fish_face' }, -3, 0, -5, 6, 5, 10),
+        part('tail', 'mob_fish', -1, 1, 5, 2, 4, 4, 'tentacle', [0, 3, 5]),
+        part('finR', 'mob_fish', -5, 1, -2, 2, 1, 4, 'armZ', [-3, 2, 0]),
+        part('finL', 'mob_fish', 3, 1, -2, 2, 1, 4, 'armZ', [3, 2, 0])
+      ]
+    },
+    guardian: {
+      height: 1.6, width: 1.5, scale: 1.4,
+      parts: [
+        part('body', { all: 'mob_guardian', front: 'mob_guardian_face' }, -6, 2, -6, 12, 12, 12),
+        part('s0', 'mob_guardian', -8, 6, -2, 2, 4, 2, 'tentacle', [-6, 8, 0]),
+        part('s1', 'mob_guardian', 6, 6, -2, 2, 4, 2, 'tentacle', [6, 8, 0]),
+        part('s2', 'mob_guardian', -1, 14, -1, 2, 4, 2, 'tentacle', [0, 14, 0])
+      ]
+    },
+
     // ---- Erste Runde neuer Kreaturen ----
     wither_skeleton: {
       height: 2.4, width: 0.7, scale: 1.2,
@@ -770,6 +789,15 @@
     // Lohe: einzige Quelle für Lohenruten, darum nur bei den Bastionen
     blaze: { hp: 20, hostile: true, speed: 1.5, damage: 5, ranged: true, flying: true, projectile: 'flame', drops: [{ id: 'blaze_rod', min: 1, max: 2 }], xp: 10, sound: 'fizz', fireproof: true },
 
+    // ---- Meer ----
+    // Fisch: Schwarmtier, das im Wasser bleibt und an Land erstickt
+    fish: { hp: 3, hostile: false, speed: 1.6, damage: 0, schwimmt: true,
+      drops: [{ id: 'fish_raw', min: 1, max: 1 }], xp: 1, sound: 'splash' },
+    // Wächter: bewacht den Tempel
+    guardian: { hp: 30, hostile: true, speed: 1.4, damage: 6, schwimmt: true, ranged: true,
+      drops: [{ id: 'prismarine_shard', min: 1, max: 3 }, { id: 'prismarine_crystals', min: 0, max: 1 }, { id: 'fish_raw', min: 0, max: 1 }],
+      xp: 10, sound: 'splash' },
+
     // ---- Erste Runde neuer Kreaturen ----
     // Das Witherskelett ist der Grund, ins Seelensandtal zu gehen: sein Treffer
     // verdorrt, und Verdorren hebt die Regeneration auf.
@@ -917,6 +945,26 @@
 
     // Fliegende Mobs schweben, statt zu laufen
     if (this.spec.flying) { this.flyTick(dt, game, foeOf(this, game)); return; }
+    // Fische schwimmen wie fliegende Mobs, bleiben aber im Wasser. An Land
+    // zappeln sie und ersticken – das ist billiger als ein eigenes Modell für
+    // beides und sieht genau richtig aus.
+    if (this.spec.schwimmt) {
+      var imWasser = P.inLiquid(world, this, 'water');
+      if (imWasser) {
+        this.flyTick(dt, game, null);
+        // nicht aus dem Wasser herausschwimmen
+        if (world.getBlock(Math.floor(this.x), Math.floor(this.y + 1), Math.floor(this.z)) === 0) {
+          this.vy = Math.min(this.vy, -0.6);
+        }
+        return;
+      }
+      this.landCd = (this.landCd || 0) + dt;
+      this.vy -= 18 * dt;
+      this.yaw += dt * 9;                       // Zappeln
+      this.applyPhysics(dt, 0.9, 0.5);
+      if (this.landCd > 12) this.hurt(20, null, game);
+      return;
+    }
 
     // ---- KI ----
     this.moving = false;
@@ -1592,7 +1640,11 @@
       if (e.type === 'mob' && !e.dead) { mobs++; if (e.hostile) hostiles++; else passives++; }
     }
     var night = world.isNight();
-    var maxHostile = game.difficulty === 'peaceful' ? 0 : (night ? 12 : 4);
+    // Nether, Aether und Ende haben keinen Tageslauf – isNight() liefert dort
+    // immer false, und damit galt die Tagesobergrenze von vier Feinden. Das
+    // war der Grund, weshalb der Nether so leer wirkte.
+    var immerNacht = world.dim === 'nether' || world.dim === 'the_end';
+    var maxHostile = game.difficulty === 'peaceful' ? 0 : ((night || immerNacht) ? 14 : 4);
     var maxPassive = 12;
 
     if (world.dim !== 'overworld') {
@@ -1602,6 +1654,7 @@
     }
 
     Spawner.villagers(game);
+    Spawner.fische(game);
 
     for (var t = 0; t < 4; t++) {
       var ang = Math.random() * Math.PI * 2;
@@ -1825,6 +1878,35 @@
 
   // Dorfbewohner: pro Dorf so viele wie Wohnhäuser, höchstens acht.
   // Jeder besetzt eine feste Platznummer, damit sein Beruf gleich bleibt.
+  // Fische: Schwärme im offenen Wasser, ab Weltversion 5
+  Spawner.fische = function (game) {
+    var world = game.world, p = game.player;
+    if (!p || world.gen.genV < 5) return;
+    var n = 0;
+    for (var i = 0; i < world.entities.length; i++) {
+      if (world.entities[i].mobType === 'fish' && !world.entities[i].dead) n++;
+    }
+    if (n >= 16) return;
+    for (var t = 0; t < 3; t++) {
+      var ang = Math.random() * Math.PI * 2, r = 14 + Math.random() * 26;
+      var x = Math.floor(p.x + Math.cos(ang) * r), z = Math.floor(p.z + Math.sin(ang) * r);
+      var col = world.chunkAt(x, z);
+      if (!col || col.state < 2) continue;
+      var sea = world.gen.sea;
+      // Eine Stelle mit Wasser über und unter sich – mitten im Meer, nicht am Ufer
+      var y = sea - 2 - ((Math.random() * 4) | 0);
+      if (world.getBlock(x, y, z) !== B.id('water')) continue;
+      if (world.getBlock(x, y - 1, z) !== B.id('water')) continue;
+      var gruppe = 2 + ((Math.random() * 4) | 0);
+      for (var k = 0; k < gruppe; k++) {
+        var m = new Mob(world, 'fish', x + 0.5 + (Math.random() - 0.5) * 3,
+                        y + 0.3, z + 0.5 + (Math.random() - 0.5) * 3);
+        world.entities.push(m);
+      }
+      return;
+    }
+  };
+
   Spawner.villagers = function (game) {
     var world = game.world, p = game.player;
     if (!MC.Village || !world.gen.o.structures) return;

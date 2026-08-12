@@ -127,6 +127,11 @@
     this.ui = new MC.UI(this);
     this.ui.init();
     this.input = new Input(this.canvas, this);
+    // Eier ohne Kreatur wären ein toter Eintrag im Kreativmenü
+    if (I.pruefeEier) {
+      var ohne = I.pruefeEier();
+      if (ohne.length) console.warn('Spawn-Ei ohne Kreatur:', ohne.join(', '));
+    }
     this.buildMenu();
     window.addEventListener('resize', function () { self.renderer.resize(); });
     this.loop = this.loop.bind(this);
@@ -771,6 +776,25 @@
 
     if (!it) return;
 
+    // Spawn-Ei: setzt die Kreatur auf die angeklickte Fläche
+    if (it.name.indexOf('egg_') === 0) {
+      var art = it.name.slice(4);
+      if (this.target && MC.MOB_TYPES && MC.MOB_TYPES[art]) {
+        var en = MC.NEI[this.target.face];
+        var ex = this.target.x + en[0] + 0.5;
+        var ey = this.target.y + en[1] + 0.05;
+        var ez = this.target.z + en[2] + 0.5;
+        var neu = new MC.Mob(w, art, ex, ey, ez);
+        // Dorfbewohner ohne Dorf hätten keine Angebote
+        if (art === 'villager') neu.makeVillager('frei:' + Math.floor(ex) + ':' + Math.floor(ez), 0, { x: ex, z: ez }, null);
+        w.entities.push(neu);
+        this.particles.crit(ex, ey + 0.6, ez);
+        if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+        p.swingTime = 1;
+      }
+      return;
+    }
+
     // Trinken
     if (MC.Effekte && MC.Effekte.zerlegen(it.name)) {
       MC.Effekte.trinken(this, p.inventory.selectedStack());
@@ -1038,10 +1062,32 @@
     }
 
     w.setBlock(nx, ny, nz, block.id, meta);
+    // Der Schwamm saugt das Wasser um sich herum weg und wird dabei nass
+    if (block.name === 'sponge') this.saugeSchwamm(nx, ny, nz);
     if (block.liquid) w.scheduleFluid(nx, ny, nz, 2);
     this.audio.place(block.sound);
     p.swingTime = 1;
     if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+  };
+
+  // Schwamm: nimmt in einem Umkreis von fünf Blöcken alles Wasser weg und wird
+  // dabei selbst nass. Getrocknet wird er im Ofen, wie im Original.
+  Game.prototype.saugeSchwamm = function (x, y, z) {
+    var w = this.world, wasser = B.id('water'), n = 0;
+    for (var dy = -5; dy <= 5; dy++) {
+      for (var dz = -5; dz <= 5; dz++) {
+        for (var dx = -5; dx <= 5; dx++) {
+          if (dx * dx + dy * dy + dz * dz > 30) continue;
+          if (w.getBlock(x + dx, y + dy, z + dz) !== wasser) continue;
+          w.setBlock(x + dx, y + dy, z + dz, 0, 0, { noUpdate: true });
+          n++;
+        }
+      }
+    }
+    if (!n) return;
+    w.setBlock(x, y, z, B.id('sponge_wet'), 0, { noUpdate: true });
+    this.particles.splash(x + 0.5, y + 1, z + 0.5, 8);
+    this.audio.play('splash');
   };
 
   Game.prototype.placeBed = function () {
@@ -1104,6 +1150,17 @@
       var curId = w.getBlock(x, y, z);
       if (curId !== 0 && !B.isReplaceable(curId)) return;
       var fluid = it.name === 'water_bucket' ? 'water' : 'lava';
+      // Im Nether verdampft Wasser sofort, wie im Original – der Eimer wird
+      // trotzdem leer, sonst hätte man eine kostenlose Probe.
+      if (fluid === 'water' && w.dim === 'nether') {
+        if (this.mode !== 'creative') {
+          p.inventory.consumeSelected(1);
+          p.inventory.add(I.newStack('bucket', 1));
+        }
+        this.particles.smoke(x + 0.5, y + 0.5, z + 0.5, 10);
+        this.audio.play('fizz');
+        return;
+      }
       w.setBlock(x, y, z, B.id(fluid), 0);
       w.scheduleFluid(x, y, z, 2);
       if (this.mode !== 'creative') {
@@ -1740,7 +1797,7 @@
       if (MC.Effekte) MC.Effekte.tickStand(this);
       // Druckplatten und gedrückte Knöpfe
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
-      if (MC.Caves) MC.Caves.tick(this, dt);
+      if (MC.Caves) { MC.Caves.tick(this, dt); MC.Caves.waechter(this, dt); }
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }

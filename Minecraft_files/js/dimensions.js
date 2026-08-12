@@ -41,7 +41,7 @@
       cStem: B.id('crimson_stem'), wStem: B.id('warped_stem'),
       cWart: B.id('nether_wart_block'), wWart: B.id('warped_wart_block'),
       shroom: B.id('shroomlight'), cRoot: B.id('crimson_roots'), wRoot: B.id('warped_roots'),
-      wart: B.id('nether_wart')
+      wart: B.id('nether_wart'), spawner: B.id('spawner')
     };
   }
 
@@ -374,7 +374,8 @@
   var FORT_REGION = 8;                       // Chunks je Region
   var FORT_SPACING = FORT_REGION * CS;       // 128 Blöcke
   var FORT_CHANCE = 0.62;
-  var FORT_R = 6;                            // halbe Kantenlänge der Plattform
+  var FORT_R = 6;                            // halbe Kantenlänge der Plattform (alt)
+  var FORT_R5 = 13;                          // ab Version 5: deutlich größer
 
   D.fortressAt = function (gen, rx, rz) {
     if (!gen._forts) gen._forts = {};
@@ -383,12 +384,13 @@
     var f = null;
     var rnd = U.rng(U.hashString('festung:' + gen.seed + ':' + rx + ':' + rz));
     if (rnd() <= FORT_CHANCE) {
-      var cx = rx * FORT_SPACING + 24 + Math.floor(rnd() * (FORT_SPACING - 48));
-      var cz = rz * FORT_SPACING + 24 + Math.floor(rnd() * (FORT_SPACING - 48));
+      var R = (gen.genV >= 5) ? FORT_R5 : FORT_R;
+      var cx = rx * FORT_SPACING + 30 + Math.floor(rnd() * (FORT_SPACING - 60));
+      var cz = rz * FORT_SPACING + 30 + Math.floor(rnd() * (FORT_SPACING - 60));
       // Nur auf halbwegs ebenem Grund über dem Lavaspiegel bauen
       var lo = 999, hi = -999;
       for (var s = 0; s < 9; s++) {
-        var sx = cx + ((s % 3) - 1) * FORT_R, sz = cz + (((s / 3) | 0) - 1) * FORT_R;
+        var sx = cx + ((s % 3) - 1) * R, sz = cz + (((s / 3) | 0) - 1) * R;
         var h = D.netherFloor(gen, sx, sz);
         if (h < lo) lo = h;
         if (h > hi) hi = h;
@@ -397,8 +399,8 @@
       // sieht ohnehin besser aus als eine, die es gar nicht gibt.
       var y = Math.max(Math.round(hi), NETHER_LAVA + 4);
       if (hi - lo <= 12 && y < NETHER_ROOF - 22) {
-        f = { id: rx + ':' + rz, x: cx, z: cz, y: y,
-              minX: cx - FORT_R, maxX: cx + FORT_R, minZ: cz - FORT_R, maxZ: cz + FORT_R };
+        f = { id: rx + ':' + rz, x: cx, z: cz, y: y, r: R,
+              minX: cx - R, maxX: cx + R, minZ: cz - R, maxZ: cz + R };
       }
     }
     gen._forts[key] = f;
@@ -434,14 +436,16 @@
 
     for (var n = 0; n < list.length; n++) {
       var f = list[n];
-      // Randbereich mitprüfen, die Bastion räumt drei Blöcke ringsum frei
-      if (f.maxX + 3 < wx0 || f.minX - 3 > wx0 + CS - 1) continue;
-      if (f.maxZ + 3 < wz0 || f.minZ - 3 > wz0 + CS - 1) continue;
-      buildFortress(f, set, ID);
+      // Randbereich mitprüfen, die Bastion räumt einige Blöcke ringsum frei
+      var rand = (gen.genV >= 5) ? 5 : 3;
+      if (f.maxX + rand < wx0 || f.minX - rand > wx0 + CS - 1) continue;
+      if (f.maxZ + rand < wz0 || f.minZ - rand > wz0 + CS - 1) continue;
+      buildFortress(f, set, ID, gen);
     }
   };
 
-  function buildFortress(f, set, ID) {
+  function buildFortress(f, set, ID, gen) {
+    if (gen && gen.genV >= 5) return buildBastion(f, set, ID, gen);
     var y = f.y, x, z, k;
     var R = FORT_R;
 
@@ -516,6 +520,125 @@
 
     // Truhe in der Mitte
     set(f.x, y + 1, f.z, ID.chest, 0);
+  }
+
+  // ============================================================
+  //  Bastion ab Version 5
+  // ============================================================
+  // Die alte Festung war eine Plattform mit einer Stube darauf: in zwanzig
+  // Sekunden ausgeräumt. Diese hier hat einen Bergfried über drei Ebenen, vier
+  // Ecktürme, ein Kellergewölbe und zwei Lohenspawner – man muss sie einnehmen.
+  function buildBastion(f, set, ID, gen) {
+    var y = f.y, R = f.r || FORT_R5;
+    var x, z, k;
+    var rnd = U.rng(U.hashString('bastion:' + gen.seed + ':' + f.id));
+
+    // Ringsum freiräumen und den Unterbau bis auf den Grund ziehen
+    for (x = f.minX - 4; x <= f.maxX + 4; x++) {
+      for (z = f.minZ - 4; z <= f.maxZ + 4; z++) {
+        for (k = 1; k <= 24; k++) set(x, y + k, z, 0, 0);
+      }
+    }
+    for (x = f.minX; x <= f.maxX; x++) {
+      for (z = f.minZ; z <= f.maxZ; z++) {
+        set(x, y, z, ID.bricks, 0);
+        var amRand = (x === f.minX || x === f.maxX || z === f.minZ || z === f.maxZ);
+        var tief = amRand ? 22 : 8;
+        for (k = 1; k <= tief; k++) set(x, y - k, z, ID.bricks, 0);
+      }
+    }
+    // Brüstung ringsum, mit Zinnen
+    for (x = f.minX; x <= f.maxX; x++) {
+      for (z = f.minZ; z <= f.maxZ; z++) {
+        if (x !== f.minX && x !== f.maxX && z !== f.minZ && z !== f.maxZ) continue;
+        set(x, y + 1, z, ID.bricks, 0);
+        if (((x + z) & 1) === 0) set(x, y + 2, z, ID.bricks, 0);
+      }
+    }
+
+    // ---- Kellergewölbe unter dem Hof ----
+    var kw = 5;
+    for (x = -kw; x <= kw; x++) {
+      for (z = -kw; z <= kw; z++) {
+        for (k = 1; k <= 4; k++) set(f.x + x, y - k, f.z + z, 0, 0);
+        set(f.x + x, y - 5, f.z + z, ID.bricks, 0);
+      }
+    }
+    // Treppenschacht vom Hof hinunter
+    for (k = 0; k <= 4; k++) {
+      set(f.x + kw, y - k, f.z, 0, 0);
+      set(f.x + kw, y - k, f.z + 1, 0, 0);
+    }
+    set(f.x - kw + 1, y - 4, f.z - kw + 1, ID.chest, 0);
+    set(f.x + kw - 1, y - 4, f.z + kw - 1, ID.chest, 0);
+    // Der eine Lohenspawner steht im Keller, der andere oben im Bergfried.
+    // Meta 1 sagt dem Spawner, dass hier Lohen herauskommen.
+    set(f.x, y - 4, f.z, ID.spawner, 1);
+
+    // ---- Bergfried: 11x11, drei Geschosse ----
+    var b = 5;
+    for (var etage = 0; etage < 3; etage++) {
+      var by = y + 1 + etage * 5;
+      for (x = -b; x <= b; x++) {
+        for (z = -b; z <= b; z++) {
+          var wand = (x === -b || x === b || z === -b || z === b);
+          for (k = 0; k < 5; k++) {
+            if (!wand) { set(f.x + x, by + k, f.z + z, 0, 0); continue; }
+            // Fenster in Augenhöhe, Durchgang im Erdgeschoss
+            var fenster = (k === 2 && ((x + z) & 3) === 0);
+            var tor = (etage === 0 && Math.abs(x) <= 1 && z === b && k <= 2);
+            set(f.x + x, by + k, f.z + z, (fenster || tor) ? 0 : ID.bricks, 0);
+          }
+          // Zwischendecke, in der Mitte offen für die Leiter
+          if (!wand) {
+            var loch = (Math.abs(x) <= 1 && Math.abs(z) <= 1);
+            set(f.x + x, by + 5, f.z + z, loch && etage < 2 ? 0 : ID.bricks, 0);
+          }
+        }
+      }
+      // Leiter durch alle Geschosse
+      if (etage < 2) for (k = 0; k <= 5; k++) set(f.x, by + k, f.z + 1, ID.fence, 0);
+      // Licht je Geschoss
+      [[-3, -3], [3, -3], [-3, 3], [3, 3]].forEach(function (p2) {
+        set(f.x + p2[0], by + 4, f.z + p2[1], ID.glow, 0);
+      });
+    }
+    // Truhen und der zweite Spawner im Bergfried
+    set(f.x - 3, y + 2, f.z - 3, ID.chest, 0);
+    set(f.x + 3, y + 7, f.z + 3, ID.chest, 0);
+    set(f.x + 3, y + 12, f.z - 3, ID.chest, 0);
+    set(f.x, y + 12, f.z, ID.spawner, 1);
+
+    // ---- Vier Ecktürme, 5x5 und höher als der Bergfried ----
+    var t = R - 3;
+    [[-t, -t], [t, -t], [-t, t], [t, t]].forEach(function (p2) {
+      var tx = f.x + p2[0], tz = f.z + p2[1];
+      var hoehe = 14 + ((rnd() * 5) | 0);
+      for (var ax = -2; ax <= 2; ax++) {
+        for (var az = -2; az <= 2; az++) {
+          var w = (Math.abs(ax) === 2 || Math.abs(az) === 2);
+          for (var ay = 1; ay <= hoehe; ay++) {
+            set(tx + ax, y + ay, tz + az, w ? ID.bricks : 0, 0);
+          }
+          // Zinnen und Plattform oben
+          set(tx + ax, y + hoehe + 1, tz + az, w ? ID.bricks : ID.bricks, 0);
+          if (w && ((ax + az) & 1) === 0) set(tx + ax, y + hoehe + 2, tz + az, ID.bricks, 0);
+        }
+      }
+      // Leuchtfeuer auf jedem Turm – daran erkennt man die Bastion von weitem
+      set(tx, y + hoehe + 2, tz, ID.glow, 0);
+      set(tx, y + hoehe + 3, tz, ID.glow, 0);
+      // Innenschacht mit Aufstieg
+      for (var ly = 1; ly <= hoehe; ly++) set(tx, y + ly, tz + 1, ID.fence, 0);
+    });
+
+    // ---- Glowstone im Hof, damit es sich lohnt hinzugehen ----
+    for (k = 0; k < 8; k++) {
+      var gx = f.minX + 2 + ((rnd() * (R * 2 - 4)) | 0);
+      var gz = f.minZ + 2 + ((rnd() * (R * 2 - 4)) | 0);
+      if (Math.abs(gx - f.x) <= b + 1 && Math.abs(gz - f.z) <= b + 1) continue;
+      set(gx, y + 1, gz, ID.glow, 0);
+    }
   }
 
   // Beute einer Festungstruhe (wie bei den Dorftruhen aus der Position gewürfelt)
@@ -875,7 +998,11 @@
     // Im Nether liegt über allem eine Grundgesteinsdecke – von dort aus nach
     // unten zu suchen würde den Spieler oben drauf setzen.
     var ceil = world.dim === 'nether' ? NETHER_ROOF - 12 : WH - 4;
-    var start = preferY === undefined ? ceil : Math.min(ceil, preferY + 12);
+    // Im Aether von ganz oben suchen. Die Inseln sind mächtig; wer bei der
+    // mitgebrachten Höhe anfängt, startet mitten im Fels und findet als erste
+    // "Oberfläche" ein Loch im Inselinneren – daher stand das Portal im Boden.
+    var start = (world.dim === 'aether' || preferY === undefined)
+      ? ceil : Math.min(ceil, preferY + 12);
     for (var y = start; y > 2; y--) {
       if (!B.isSolid(world.getBlock(x, y, z))) continue;
       var id = world.getBlock(x, y, z);

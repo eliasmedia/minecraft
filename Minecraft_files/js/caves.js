@@ -237,6 +237,164 @@
   }
 
   // ============================================================
+  //  Schiffswracks und Unterwassertempel
+  // ============================================================
+  var WRACK_REGION = 10, WRACK_SPAN = WRACK_REGION * CS, WRACK_CHANCE = 0.55;
+  var TEMPEL_REGION = 40, TEMPEL_SPAN = TEMPEL_REGION * CS, TEMPEL_CHANCE = 0.7;
+
+  var LOOT_WRACK = [
+    ['iron_ingot', 0.5, 1, 4], ['gold_ingot', 0.3, 1, 3], ['bread', 0.5, 1, 3],
+    ['paper', 0.5, 2, 6], ['wheat_item', 0.4, 2, 6], ['coal', 0.4, 2, 6],
+    ['emerald', 0.2, 1, 2], ['diamond', 0.06, 1, 1], ['map', 0.25, 1, 1],
+    ['enchanted_book', 0.18, 1, 1]
+  ];
+  var LOOT_TEMPEL = [
+    ['prismarine_shard', 0.9, 4, 12], ['prismarine_crystals', 0.7, 2, 6],
+    ['gold_ingot', 0.5, 2, 6], ['diamond', 0.25, 1, 2], ['emerald', 0.4, 1, 4],
+    ['sponge', 0.4, 1, 3], ['golden_apple', 0.2, 1, 1], ['enchanted_book', 0.4, 1, 1]
+  ];
+
+  // Ein Wrack liegt auf dem Meeresgrund, gekippt und halb im Sand
+  C.wrackAt = function (gen, rx, rz) {
+    if (gen.genV < 5) return null;
+    if (!gen._wracks) gen._wracks = {};
+    var k = rx + ',' + rz;
+    if (k in gen._wracks) return gen._wracks[k];
+    var w = null;
+    var rnd = U.rng(U.hashString('wrack:' + gen.seed + ':' + rx + ':' + rz));
+    if (rnd() <= WRACK_CHANCE) {
+      var x = rx * WRACK_SPAN + 20 + ((rnd() * (WRACK_SPAN - 40)) | 0);
+      var z = rz * WRACK_SPAN + 20 + ((rnd() * (WRACK_SPAN - 40)) | 0);
+      var h = Math.floor(gen.heightAt(x, z));
+      // Nur im Wasser, und nur wo genug Tiefe ist
+      if (h < gen.sea - 3) {
+        w = { x: x, z: z, y: h + 1, laenge: 9 + ((rnd() * 8) | 0),
+              breite: 4 + ((rnd() * 2) | 0), quer: rnd() < 0.5, saat: (rnd() * 4294967295) >>> 0 };
+        w.minX = x - 12; w.maxX = x + 12; w.minZ = z - 12; w.maxZ = z + 12;
+      }
+    }
+    gen._wracks[k] = w;
+    return w;
+  };
+
+  C.tempelAt = function (gen, rx, rz) {
+    if (gen.genV < 5) return null;
+    if (!gen._tempel) gen._tempel = {};
+    var k = rx + ',' + rz;
+    if (k in gen._tempel) return gen._tempel[k];
+    var t = null;
+    var rnd = U.rng(U.hashString('tempel:' + gen.seed + ':' + rx + ':' + rz));
+    if (rnd() <= TEMPEL_CHANCE) {
+      var x = rx * TEMPEL_SPAN + 60 + ((rnd() * (TEMPEL_SPAN - 120)) | 0);
+      var z = rz * TEMPEL_SPAN + 60 + ((rnd() * (TEMPEL_SPAN - 120)) | 0);
+      // Nur in tiefem, offenem Wasser – ein Tempel im Uferschlick wäre albern
+      var tief = true, lo = 999;
+      for (var s = 0; s < 9; s++) {
+        var hh = Math.floor(gen.heightAt(x + ((s % 3) - 1) * 12, z + (((s / 3) | 0) - 1) * 12));
+        if (hh > gen.sea - 6) tief = false;
+        if (hh < lo) lo = hh;
+      }
+      if (tief) {
+        t = { x: x, z: z, y: lo + 1, r: 12,
+              minX: x - 14, maxX: x + 14, minZ: z - 14, maxZ: z + 14 };
+      }
+    }
+    gen._tempel[k] = t;
+    return t;
+  };
+
+  function nahAt(gen, wx, wz, span, fn) {
+    var rx = Math.floor(wx / span), rz = Math.floor(wz / span);
+    var list = null;
+    for (var dx = -1; dx <= 1; dx++) {
+      for (var dz = -1; dz <= 1; dz++) {
+        var o = fn(gen, rx + dx, rz + dz);
+        if (!o) continue;
+        if (wx < o.minX - CS || wx > o.maxX + CS || wz < o.minZ - CS || wz > o.maxZ + CS) continue;
+        (list || (list = [])).push(o);
+      }
+    }
+    return list;
+  }
+
+  function zeichneWrack(gen, w, set, hole) {
+    var planke = B.id('planks_oak'), zaun = B.id('fence_oak'), truhe = B.id('chest');
+    var stamm = B.id('log_oak'), leiter = B.id('ladder');
+    var rnd = U.rng(w.saat);
+    var L = w.laenge, Bb = w.breite;
+    // Rumpf: ein Kasten, dessen Boden gerundet ist. Um `quer` gedreht.
+    for (var i = 0; i < L; i++) {
+      for (var j = -Bb; j <= Bb; j++) {
+        var rand = Math.abs(j) === Bb || i === 0 || i === L - 1;
+        var tiefe = Math.abs(j) >= Bb - 1 ? 0 : -1;
+        for (var k = tiefe; k <= 2; k++) {
+          var px = w.quer ? w.x + j : w.x + i - (L >> 1);
+          var pz = w.quer ? w.z + i - (L >> 1) : w.z + j;
+          var py = w.y + k;
+          if (k === tiefe || rand) set(px, py, pz, planke);
+          else if (k > tiefe) set(px, py, pz, 0);
+        }
+      }
+    }
+    // Mast und Reling
+    var mx = w.quer ? w.x : w.x + 1, mz = w.quer ? w.z + 1 : w.z;
+    for (var m = 3; m < 8; m++) set(mx, w.y + m, mz, stamm);
+    // Truhe im Rumpf
+    set(w.x, w.y + 1, w.z, truhe);
+    if (rnd() < 0.6) {
+      var ox = w.quer ? w.x + 2 : w.x - 2;
+      set(ox, w.y + 1, w.z, truhe);
+    }
+  }
+
+  function zeichneTempel(gen, t, set, hole) {
+    var pris = B.id('prismarine'), zieg = B.id('prismarine_bricks');
+    var dunkel = B.id('dark_prismarine'), lampe = B.id('sea_lantern');
+    var truhe = B.id('chest'), schwamm = B.id('sponge');
+    var R = t.r, y = t.y, x, z, k;
+    // Grundkörper: ein Stufenbau aus drei Ebenen
+    for (var e = 0; e < 3; e++) {
+      var r = R - e * 3;
+      var hoehe = 5;
+      for (x = -r; x <= r; x++) {
+        for (z = -r; z <= r; z++) {
+          var rand = (Math.abs(x) === r || Math.abs(z) === r);
+          for (k = 0; k < hoehe; k++) {
+            var py = y + e * 5 + k;
+            if (rand || k === 0) {
+              // Wandmuster: Ziegel mit dunklen Feldern
+              var id = ((x + z + k) % 7 === 0) ? dunkel : (((x * z + k) % 5 === 0) ? pris : zieg);
+              set(t.x + x, py, t.z + z, id);
+            } else {
+              set(t.x + x, py, t.z + z, 0);      // Innenraum leerpumpen
+            }
+          }
+          // Decke der Ebene
+          if (!rand) set(t.x + x, y + e * 5 + hoehe, t.z + z, e === 2 ? zieg : 0);
+        }
+      }
+      // Eingänge in jeder Ebene
+      for (k = 1; k <= 3; k++) {
+        set(t.x - r, y + e * 5 + k, t.z, 0);
+        set(t.x + r, y + e * 5 + k, t.z, 0);
+        set(t.x, y + e * 5 + k, t.z - r, 0);
+        set(t.x, y + e * 5 + k, t.z + r, 0);
+      }
+      // Seelaternen an den Ecken
+      [[-r + 1, -r + 1], [r - 1, -r + 1], [-r + 1, r - 1], [r - 1, r - 1]].forEach(function (p) {
+        set(t.x + p[0], y + e * 5 + 3, t.z + p[1], lampe);
+      });
+    }
+    // Schatzkammer ganz oben: acht Schwammblöcke und zwei Truhen
+    var oy = y + 11;
+    for (k = 0; k < 8; k++) {
+      set(t.x - 2 + (k % 4), oy, t.z - 1 + ((k / 4) | 0), schwamm);
+    }
+    set(t.x - 1, oy + 1, t.z, truhe);
+    set(t.x + 1, oy + 1, t.z, truhe);
+  }
+
+  // ============================================================
   //  Einhängen in die Chunkerzeugung
   // ============================================================
   C.decorate = function (gen, cx, cz, blocks, meta) {
@@ -264,6 +422,14 @@
           zeichneGang(minen[m].gaenge[g], set, hole, wx0, wz0, 'mine:' + minen[m].id);
         }
       }
+    }
+
+    // Schiffswracks und Tempel auf dem Meeresgrund
+    if (gen.genV >= 5 && gen.dim === 'overworld') {
+      var wracks = nahAt(gen, wx0 + 8, wz0 + 8, WRACK_SPAN, C.wrackAt);
+      if (wracks) for (var wi = 0; wi < wracks.length; wi++) zeichneWrack(gen, wracks[wi], set, hole);
+      var tempel = nahAt(gen, wx0 + 8, wz0 + 8, TEMPEL_SPAN, C.tempelAt);
+      if (tempel) for (var ti = 0; ti < tempel.length; ti++) zeichneTempel(gen, tempel[ti], set, hole);
     }
 
     // Verliese aus diesem und den acht Nachbarchunks, damit ein Raum an der
@@ -295,6 +461,25 @@
         return wuerfeln(LOOT_DUNGEON, U.rng(U.hashString('vtruhe:' + gen.seed + ':' + wx + ':' + wy + ':' + wz)));
       }
     }
+    // Schiffswrack?
+    var wr = nahAt(gen, wx, wz, WRACK_SPAN, C.wrackAt);
+    if (wr) {
+      for (var wq = 0; wq < wr.length; wq++) {
+        var wv = wr[wq];
+        if (Math.abs(wx - wv.x) > 12 || Math.abs(wz - wv.z) > 12) continue;
+        if (Math.abs(wy - wv.y) > 4) continue;
+        return wuerfeln(LOOT_WRACK, U.rng(U.hashString('wtruhe:' + gen.seed + ':' + wx + ':' + wy + ':' + wz)));
+      }
+    }
+    // Unterwassertempel?
+    var tp = nahAt(gen, wx, wz, TEMPEL_SPAN, C.tempelAt);
+    if (tp) {
+      for (var tq = 0; tq < tp.length; tq++) {
+        var tv = tp[tq];
+        if (Math.abs(wx - tv.x) > 14 || Math.abs(wz - tv.z) > 14) continue;
+        return wuerfeln(LOOT_TEMPEL, U.rng(U.hashString('ttruhe:' + gen.seed + ':' + wx + ':' + wy + ':' + wz)));
+      }
+    }
     // Oder in einer Mine?
     var minen = minenNah(gen, wx, wz);
     if (minen) {
@@ -313,9 +498,41 @@
   // ============================================================
   // Welcher Mob aus einem Spawner kommt, steckt nicht in einem Blockzustand,
   // sondern in seiner Position – so übersteht er jedes Speichern von selbst.
-  C.spawnerMob = function (seed, x, y, z) {
+  // meta 1 = Lohenspawner (Bastionen), sonst entscheidet die Position
+  C.spawnerMob = function (seed, x, y, z, meta) {
+    if (meta === 1) return 'blaze';
     var rnd = U.rng(U.hashString('spawner:' + seed + ':' + x + ':' + y + ':' + z));
     return MOBS[(rnd() * MOBS.length) | 0];
+  };
+
+  // Wächter erscheinen nur in der Nähe eines Tempels, damit sie ein Fund bleiben
+  C.waechter = function (game, dt) {
+    var w = game.world;
+    if (w.dim !== 'overworld' || game.mode === 'creative' || w.gen.genV < 5) return;
+    C.wTimer = (C.wTimer || 0) + dt;
+    if (C.wTimer < 3) return;
+    C.wTimer = 0;
+    var p = game.player;
+    if (!p || p.dead) return;
+    var tp = nahAt(w.gen, Math.floor(p.x), Math.floor(p.z), TEMPEL_SPAN, C.tempelAt);
+    if (!tp || !tp.length) return;
+    var t = tp[0];
+    if (Math.abs(p.x - t.x) > 34 || Math.abs(p.z - t.z) > 34) return;
+    var n = 0;
+    for (var i = 0; i < w.entities.length; i++) {
+      if (w.entities[i].mobType === 'guardian' && !w.entities[i].dead) n++;
+    }
+    if (n >= 6) return;
+    for (var k = 0; k < 6; k++) {
+      var sx = t.x + ((Math.random() * 30) | 0) - 15;
+      var sz = t.z + ((Math.random() * 30) | 0) - 15;
+      var sy = t.y + 2 + ((Math.random() * 12) | 0);
+      if (w.getBlock(sx, sy, sz) !== B.id('water')) continue;
+      var m = new MC.Mob(w, 'guardian', sx + 0.5, sy + 0.2, sz + 0.5);
+      if (m.distTo(p) < 8) continue;
+      w.entities.push(m);
+      return;
+    }
   };
 
   var SPAWNER_R = 8;          // so weit vom Käfig erscheinen sie
@@ -324,7 +541,9 @@
 
   C.tick = function (game, dt) {
     var w = game.world;
-    if (w.dim !== 'overworld' || game.mode === 'creative') return;
+    // Bastionen haben seit Version 5 eigene Lohenspawner – der Nether gehört
+    // deshalb dazu, nicht mehr nur die Oberwelt.
+    if ((w.dim !== 'overworld' && w.dim !== 'nether') || game.mode === 'creative') return;
     C.timer = (C.timer || 0) + dt;
     if (C.timer < SPAWNER_TAKT) return;
     C.timer = 0;
@@ -358,7 +577,7 @@
       if (Math.abs(e.x - x) < 12 && Math.abs(e.z - z) < 12 && Math.abs(e.y - y) < 8) nah++;
     }
     if (nah >= SPAWNER_MAX) return;
-    var art = C.spawnerMob(game.seed, x, y, z);
+    var art = C.spawnerMob(game.seed, x, y, z, w.getMeta(x, y, z));
     for (var t = 0; t < 6; t++) {
       var sx = x + ((Math.random() * (SPAWNER_R * 2 + 1)) | 0) - SPAWNER_R;
       var sz = z + ((Math.random() * (SPAWNER_R * 2 + 1)) | 0) - SPAWNER_R;

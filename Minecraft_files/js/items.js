@@ -79,6 +79,9 @@
     ['gravitite', 'Gravitit', 'material', 0],
     // Von der Aechorpflanze: die Heiltrankzutat des Aethers
     ['aechor_petal', 'Aechorschote', 'material', 0],
+    // Meer
+    ['prismarine_shard', 'Prismarinscherbe', 'material', 0],
+    ['prismarine_crystals', 'Prismarinkristalle', 'material', 0],
     // Das Ende: Lohenrute und Enderperle ergeben zusammen das Enderauge
     ['blaze_rod', 'Lohenrute', 'material', 2400],
     ['blaze_powder', 'Lohenstaub', 'material', 0],
@@ -111,6 +114,8 @@
     ['mutton_cooked', 'Gebratenes Hammelfleisch', 6, 9.6],
     ['golden_apple', 'Goldener Apfel', 4, 9.6],
     ['blueberries', 'Blaubeeren', 2, 0.8],
+    ['fish_raw', 'Roher Fisch', 2, 0.4],
+    ['fish_cooked', 'Gebratener Fisch', 5, 6],
     // Ambrosium ist im Aether das, was der goldene Apfel in der Oberwelt ist
     ['ambrosium_shard', 'Ambrosiumscherbe', 2, 1.2]
   ];
@@ -215,6 +220,51 @@
     title: 'Detektorhelm', stack: 1, durability: 352,
     armor: { slot: 0, defense: 2 }, group: 'ruestung'
   });
+
+  // ---------- Spawn-Eier ----------
+  // Wie im Original: ein Ei je Kreatur, nur im Kreativmenü. Die Liste steht
+  // hier und nicht in entities.js, weil items.js und textures.js beide vor
+  // entities.js geladen werden – und beide brauchen sie.
+  // [Schlüssel, Anzeigename, Grundfarbe, Fleckenfarbe]
+  I.EIER = [
+    ['pig', 'Schwein', [240, 154, 158], [212, 96, 106]],
+    ['cow', 'Kuh', [68, 48, 36], [216, 212, 208]],
+    ['sheep', 'Schaf', [228, 220, 210], [164, 132, 122]],
+    ['chicken', 'Huhn', [232, 232, 228], [232, 178, 62]],
+    ['villager', 'Dorfbewohner', [86, 60, 44], [172, 140, 108]],
+    ['zombie', 'Zombie', [0, 168, 88], [122, 168, 108]],
+    ['skeleton', 'Skelett', [196, 196, 192], [72, 72, 72]],
+    ['creeper', 'Creeper', [12, 208, 72], [0, 0, 0]],
+    ['enderman', 'Enderman', [22, 22, 26], [128, 84, 200]],
+    ['piglin', 'Piglin', [232, 154, 132], [186, 106, 78]],
+    ['piglin_brute', 'Piglin-Hauer', [232, 154, 132], [96, 66, 48]],
+    ['ghast', 'Ghast', [246, 246, 250], [188, 188, 196]],
+    ['magma_cube', 'Magmawürfel', [52, 32, 24], [232, 116, 32]],
+    ['blaze', 'Lohe', [244, 176, 44], [252, 224, 96]],
+    ['wither_skeleton', 'Witherskelett', [58, 58, 56], [20, 20, 20]],
+    ['hoglin', 'Hoglin', [138, 92, 78], [92, 56, 44]],
+    ['ash_wight', 'Aschenwicht', [86, 82, 84], [232, 128, 48]],
+    ['moa', 'Moa', [120, 176, 232], [246, 246, 250]],
+    ['phyg', 'Phyg', [240, 154, 158], [246, 246, 250]],
+    ['sheepuff', 'Sheepuff', [228, 232, 244], [180, 200, 232]],
+    ['cockatrice', 'Cockatrice', [96, 72, 132], [56, 40, 82]],
+    ['zephyr', 'Zephyr', [214, 232, 248], [150, 190, 236]],
+    ['frost_wight', 'Frostwicht', [176, 208, 232], [60, 130, 200]],
+    ['aechor_plant', 'Aechorpflanze', [86, 150, 92], [196, 96, 176]],
+    ['fish', 'Fisch', [98, 132, 170], [216, 228, 240]],
+    ['guardian', 'Wächter', [88, 140, 138], [232, 150, 60]]
+  ];
+  I.EIER.forEach(function (e) {
+    define('egg_' + e[0], { title: e[1] + '-Spawnei', stack: 16, group: 'eier' });
+  });
+  // Beim Start prüfen, ob jedes Ei auch eine Kreatur hat. entities.js lädt
+  // später, darum erst dann – ein Ei ohne Mob wäre sonst ein toter Eintrag
+  // im Kreativmenü, den niemand bemerkt.
+  I.pruefeEier = function () {
+    if (!MC.MOB_TYPES) return [];
+    return I.EIER.map(function (e) { return e[0]; })
+                 .filter(function (k) { return !MC.MOB_TYPES[k]; });
+  };
 
   I.get = function (name) { return I.byName[name] || null; };
 

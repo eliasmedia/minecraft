@@ -205,6 +205,11 @@
   shapeless(['blaze_rod'], 'blaze_powder', 2);
   shapeless(['blaze_powder', 'ender_pearl'], 'ender_eye', 1);
   shaped(['EE', 'EE'], { E: 'end_stone' }, 'end_stone_bricks', 4);
+  // Prismarin aus den Scherben der Wächter
+  shaped(['SS', 'SS'], { S: 'prismarine_shard' }, 'prismarine', 1);
+  shaped(['SSS', 'SSS', 'SSS'], { S: 'prismarine_shard' }, 'prismarine_bricks', 1);
+  shaped(['SSS', 'SCS', 'SSS'], { S: 'prismarine_shard', C: 'coal' }, 'dark_prismarine', 1);
+  shaped(['SCS', 'CCC', 'SCS'], { S: 'prismarine_shard', C: 'prismarine_crystals' }, 'sea_lantern', 1);
 
   // ---------------- Brauen ----------------
   shaped(['G G', ' G '], { G: 'glass' }, 'glass_bottle', 3);
@@ -248,6 +253,8 @@
   smelt('ambrosium_ore', 'ambrosium_shard');
   smelt('log_skyroot', 'charcoal');
   smelt('log_golden_oak', 'charcoal');
+  smelt('fish_raw', 'fish_cooked');
+  smelt('sponge_wet', 'sponge');        // trocknen im Ofen, wie im Original
   fuel('blaze_powder', 2400);
 
   // ---------------- Brennstoffe ----------------

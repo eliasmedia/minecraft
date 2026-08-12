@@ -31,7 +31,8 @@
   //   2 = Erosionsachse, Gebirgskämme, Dünen, große Bäume
   //   3 = Biome im Nether und im Aether
   //   4 = Hochgebirgsgegenden, Erdrisse, Wüstenkanten geglättet
-  MC.GEN_VERSION = 4;
+  //   5 = große Bastionen, Meeresgrund und Strände
+  MC.GEN_VERSION = 5;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -258,6 +259,115 @@
   };
 
   // ============================================================
+  //  Meeresgrund
+  // ============================================================
+  // Der Ozean war bis auf etwas Zuckerrohr am Ufer leer. Drei Grundarten, auf
+  // einer eigenen, feineren Skala als die Landbiome – ein Riff soll ein Fleck
+  // sein, kein halber Kontinent.
+  MC.MEER = { SAND: 0, KELP: 1, RIFF: 2, TIEFE: 3 };
+  MC.MEER_NAME = ['Sandgrund', 'Seetangwald', 'Korallenriff', 'Kalte Tiefsee'];
+
+  Gen.prototype.meerBiom = function (x, z) {
+    if (this.genV < 5) return MC.MEER.SAND;
+    // Unsere Ozeane sind flacher als die im Original – der Grenzwert für die
+    // Tiefsee muss dazu passen, sonst gibt es sie nie.
+    var tiefe = this.sea - this.heightAt(x, z);
+    if (tiefe > 10) return MC.MEER.TIEFE;
+    var w = this.nGlade.fbm2(x / 150 + 6000, z / 150 - 6000, 3);
+    var warm = this.climate(x, z).temp;
+    if (w > 0.10 && warm > -0.05) return MC.MEER.RIFF;
+    if (w < -0.14) return MC.MEER.KELP;
+    return MC.MEER.SAND;
+  };
+
+  // Grund, Bewuchs und Lehmnester. Läuft nach der Dekoration, weil sie den
+  // Meeresboden nicht anfasst.
+  Gen.prototype.meerDeko = function (cx, cz, blocks) {
+    if (this.genV < 5) return;
+    var SEA = this.sea, wx0 = cx * CS, wz0 = cz * CS;
+    var M = MC.MEER;
+    var sandId = ID.sand, gravelId = ID.gravel, clayId = ID.clay;
+    var kelpId = B.id('kelp'), grasId = B.id('seagrass');
+    var korallen = B.CORAL_COLORS.map(function (c) { return B.id('coral_' + c[0]); });
+    var faecher = B.CORAL_COLORS.map(function (c) { return B.id('coral_fan_' + c[0]); });
+    var schwamm = B.id('sponge');
+
+    function set(lx, ly, lz, id) {
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 1 || ly >= WH) return;
+      blocks[lx | (lz << 4) | (ly << 8)] = id;
+    }
+    function hole(lx, ly, lz) {
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= WH) return -1;
+      return blocks[lx | (lz << 4) | (ly << 8)];
+    }
+
+    for (var z = 0; z < CS; z++) {
+      for (var x = 0; x < CS; x++) {
+        var wx = wx0 + x, wz = wz0 + z;
+        var info = this.columnInfo(wx, wz);
+        var h = Math.floor(info.h);
+        var unterWasser = h < SEA;
+        var amUfer = h >= SEA && h <= SEA + 2;
+
+        // ---- Strand: Lehm- und Kiesnester statt reinem Sand ----
+        if (amUfer || (unterWasser && SEA - h < 5)) {
+          var nest = this.nDune.fbm2(wx / 26 + 1200, wz / 26 - 1200, 2);
+          if (nest > 0.30) {
+            for (var d = 0; d < 3; d++) set(x, h - d, z, clayId);
+          } else if (nest < -0.32) {
+            for (var d2 = 0; d2 < 2; d2++) set(x, h - d2, z, gravelId);
+          }
+        }
+        if (!unterWasser) continue;
+
+        var biom = this.meerBiom(wx, wz);
+        var r = U.hash3(wx, 2929, wz);
+
+        // ---- Grund je Biom ----
+        // Der Grundgenerator legt auf den Meeresboden Kies. Sand gehört unter
+        // Tang und Korallen, Kies bleibt der Tiefsee.
+        if (biom === M.TIEFE) {
+          if (r < 0.4) set(x, h, z, gravelId);
+        } else if (r < 0.75) {
+          set(x, h, z, sandId);
+        }
+
+        // ---- Bewuchs ----
+        if (hole(x, h + 1, z) !== ID.water) continue;
+        if (biom === M.KELP) {
+          if (r < 0.34) {
+            // Seetang wächst in Säulen bis fast zur Oberfläche
+            var hoehe = Math.min(SEA - h - 1, 3 + ((U.hash3(wx, 31, wz) * 12) | 0));
+            for (var k = 0; k < hoehe; k++) {
+              if (hole(x, h + 1 + k, z) !== ID.water) break;
+              set(x, h + 1 + k, z, kelpId);
+            }
+          } else if (r < 0.62) set(x, h + 1, z, grasId);
+        } else if (biom === M.RIFF) {
+          if (r < 0.16) {
+            // Korallenstöcke: ein Block Koralle, gelegentlich ein Fächer darauf
+            var art = (U.hash3(wx, 7, wz) * korallen.length) | 0;
+            var stock = 1 + ((U.hash3(wx, 8, wz) * 3) | 0);
+            for (var s = 0; s < stock; s++) {
+              if (hole(x, h + 1 + s, z) !== ID.water) break;
+              set(x, h + 1 + s, z, korallen[art]);
+            }
+            if (hole(x, h + 1 + stock, z) === ID.water && U.hash3(wx, 9, wz) < 0.5) {
+              set(x, h + 1 + stock, z, faecher[art]);
+            }
+          } else if (r < 0.30) set(x, h + 1, z, grasId);
+          // Schwämme wachsen im Riff, aber selten – sonst ist der Reiz weg
+          else if (r > 0.9975) set(x, h + 1, z, schwamm);
+        } else if (biom === M.TIEFE) {
+          if (r < 0.05) set(x, h + 1, z, grasId);
+        } else {
+          if (r < 0.14) set(x, h + 1, z, grasId);
+        }
+      }
+    }
+  };
+
+  // ============================================================
   //  Erdrisse
   // ============================================================
   // Eine lange, schmale Kluft, die von der Oberfläche fast bis zum
@@ -269,7 +379,9 @@
   // durchzulaufen. So kostet er nur dort etwas, wo er wirklich liegt.
   var RISS_REGION = 12;                       // Chunks je Region
   var RISS_SPAN = RISS_REGION * CS;           // 192 Blöcke
-  var RISS_CHANCE = 0.34;
+  // Seltener als beim ersten Anlauf: einer alle rund 340 Blöcke lag so dicht,
+  // dass man ständig über einen stolperte.
+  var RISS_CHANCE = 0.17;
 
   Gen.prototype.rissAt = function (rx, rz) {
     if (this.genV < 4) return null;
@@ -282,11 +394,15 @@
       var x = rx * RISS_SPAN + 30 + Math.floor(rnd() * (RISS_SPAN - 60));
       var z = rz * RISS_SPAN + 30 + Math.floor(rnd() * (RISS_SPAN - 60));
       var winkel = rnd() * Math.PI * 2;
+      // Größe, Länge und Schlängelung streuen deutlich: von der kurzen Kluft
+      // bis zur langen Schlucht, die einen halben Kilometer weit zieht.
+      var wuchs = rnd();                       // 0 = klein, 1 = gewaltig
       var punkte = [[x, z]];
-      var n = 3 + ((rnd() * 3) | 0);
+      var n = 2 + ((rnd() * (3 + wuchs * 7)) | 0);
+      var kurvig = 0.5 + rnd() * 1.4;
       for (var i = 0; i < n; i++) {
-        winkel += (rnd() - 0.5) * 1.1;
-        var len = 22 + rnd() * 26;
+        winkel += (rnd() - 0.5) * kurvig;
+        var len = 14 + rnd() * (18 + wuchs * 40);
         x += Math.cos(winkel) * len;
         z += Math.sin(winkel) * len;
         punkte.push([Math.round(x), Math.round(z)]);
@@ -297,7 +413,7 @@
         if (p[1] < minZ) minZ = p[1]; if (p[1] > maxZ) maxZ = p[1];
       });
       r = {
-        punkte: punkte, breite: 3.5 + rnd() * 3.5, tiefe: 11 + ((rnd() * 8) | 0),
+        punkte: punkte, breite: 2.2 + rnd() * 3 + wuchs * 4, tiefe: 9 + ((rnd() * (10 + wuchs * 16)) | 0),
         minX: minX - 10, maxX: maxX + 10, minZ: minZ - 10, maxZ: maxZ + 10
       };
     }
@@ -686,6 +802,8 @@
       }
     }
 
+    // Meeresgrund und Strand
+    if (this.genV >= 5) this.meerDeko(cx, cz, blocks);
     // Höhlenstrukturen liegen tief unten und stören den Bewuchs nicht
     if (this.genV >= 2 && MC.Caves) MC.Caves.decorate(this, cx, cz, blocks, meta);
     // Zuletzt das Dorf – es überschreibt Gelände und Bewuchs

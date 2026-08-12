@@ -78,6 +78,23 @@ Eichen und Fichten haben einen 2×2-Stamm, Äste und eine Krone aus mehreren
 Laubballen; ein grobes Rauschen legt Lichtungen und Dickichte darüber. Auf zu
 steilem Hang wächst statt eines großen ein kleiner Baum.
 
+**Meer** — Ozean und Strand waren bis auf etwas Zuckerrohr leer. Der Meeresgrund
+hat jetzt vier Arten: **Sandgrund**, **Seetangwald** mit Tangsäulen bis fast zur
+Oberfläche, **Korallenriff** in fünf Farben mit Fächern und selten einem
+**Schwamm**, und **kalte Tiefsee** aus Kies. An den Ufern liegen Lehm- und
+Kiesnester statt reinem Sand. Fische ziehen in Schwärmen durchs offene Wasser;
+an Land zappeln sie und ersticken.
+
+**Schiffswracks** liegen halb im Sand, mit Mast und ein bis zwei Truhen — dort
+findet man auch Karten. Der **Unterwassertempel** ist ein Stufenbau aus
+Prismarin über drei Ebenen, innen trocken, an den Ecken Seelaternen, ganz oben
+eine Schatzkammer mit acht Schwammblöcken. Bewacht wird er von **Wächtern**, die
+nur in seiner Nähe erscheinen. Ihre Scherben ergeben Prismarin, Ziegel, dunklen
+Prismarin und Seelaternen.
+
+Ein gesetzter **Schwamm** saugt das Wasser im Umkreis von fünf Blöcken weg und
+wird dabei nass; getrocknet wird er im Ofen.
+
 **Welt anpassen** — vor dem Start lässt sich die Generierung einstellen: Welttyp
 (Standard, Verstärkt, Große Biome, Flachland), Bergigkeit, Höhlenanteil,
 Meeresspiegel, Biomgröße, Bewuchs, Erzhäufigkeit und ob Dörfer entstehen. Die
@@ -142,7 +159,7 @@ darüber selbst ab und wieder an; die Periode ist 2 × (2 + 2 × Stufe) Ticks, a
 bis 1,0 s. Wichtig ist nur, dass die Schleife dem Trägerblock nicht zu nahe kommt —
 liegt Staub direkt neben ihm, hält sich das Signal selbst und der Takt bleibt stehen.
 
-**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 202
+**Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 208
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
 Sammelbegriffe wie „jede Brettersorte" zeigen einen Vertreter.
 
@@ -287,13 +304,13 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — rund 190 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 210 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
 Truhe, Bett, TNT, Ackerboden, Zaubertisch, Amboss, Braustand, Kolben und
-Beobachter. Rund 320 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
+Beobachter. Rund 370 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
 6 Stufen, Nahrung, Rohstoffe, Kompass, Karte, neun Tränke.
 
-**Spielschleife** — 202 Rezepte (2×2 und 3×3, geformt und ungeformt);
+**Spielschleife** — 208 Rezepte (2×2 und 3×3, geformt und ungeformt);
 Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
@@ -457,8 +474,8 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 ## Noch offen
 
-**Als Nächstes:** die neuen Biome bevölkern — Vorschlagsliste in
-`docs/MOB-PLAN.md`. Dazu der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
+**Als Nächstes:** die zweite Runde aus `docs/MOB-PLAN.md` — Schwebhase,
+Wolkenwal, Walküre — und die Händler. Dazu der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
 zur Laufzeit ändert, und dafür eine eigene Ebene im Texturarray — das ist ein
 Umbau am Renderer, kein Nachmittag.
 

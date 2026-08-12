@@ -1550,7 +1550,7 @@
     var tabs = el('div', 'tabs', win);
     var groups = [['bau', 'Baublöcke'], ['natur', 'Natur'], ['werkzeug', 'Werkzeug'],
                   ['redstone', 'Redstone'], ['material', 'Material'],
-                  ['nahrung', 'Nahrung'], ['ruestung', 'Rüstung']];
+                  ['nahrung', 'Nahrung'], ['ruestung', 'Rüstung'], ['eier', 'Spawn-Eier']];
     groups.forEach(function (g) {
       var t = el('div', 'tab' + (self.creativeTab === g[0] ? ' active' : ''), tabs);
       t.textContent = g[1];

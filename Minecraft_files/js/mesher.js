@@ -75,7 +75,12 @@
     var tex = block.tex;
     if (typeof tex === 'string') return T.layer(tex);
     var name;
-    if (block.shape === B.SHAPE_CROP) return T.layer('wheat_stage' + Math.min(3, meta >> 1));
+    // Wuchsstufen: jede Pflanze bringt ihre eigene Reihe mit. Vorher stand hier
+    // fest 'wheat_stage' – Nethergewächs sah darum aus wie Weizen.
+    if (block.shape === B.SHAPE_CROP) {
+      var reihe = (typeof tex === 'string') ? tex : (tex.stage || 'wheat_stage');
+      return T.layer(reihe + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
+    }
     // Tür: obere/untere Hälfte bestimmt die Textur, nicht die Fläche
     if (block.shape === B.SHAPE_DOOR) return T.layer((meta & 1) ? tex.top : tex.bottom);
     // Endportalrahmen: Meta-Bit 0 = Enderauge eingesetzt

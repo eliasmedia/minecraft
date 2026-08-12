@@ -109,6 +109,7 @@
       soft: !!o.soft,              // dämpft den Fallschaden (goldene Wolke)
       gravityUp: !!o.gravityUp,    // steigt auf statt zu fallen (Gravitit)
       portal: o.portal || null,    // Zieldimension einer Portalfläche
+      stufen: o.stufen || 0,       // Wuchsstufen einer Pflanze (0 = wie Weizen)
       piston6: !!o.piston6,        // Kolbenfamilie: Blickrichtung in Meta-Bit 0..2
       sticky: !!o.sticky,          // Klebkolben: zieht beim Einfahren mit
       group: o.group || 'natur'
@@ -285,7 +286,8 @@
   });
   // Nethergewächs wächst nur auf Seelensand, dafür ohne Licht
   define('nether_wart', {
-    title: 'Nethergewächs', shape: B.SHAPE_CROP, solid: false, opaque: false, cutout: true, collide: false,
+    title: 'Nethergewächs', shape: B.SHAPE_CROP, tex: { stage: 'nether_wart_stage' }, stufen: 4,
+    solid: false, opaque: false, cutout: true, collide: false,
     hardness: 0, sound: 'grass', drop: 'special_wart', item: false, group: 'natur'
   });
 
@@ -331,6 +333,34 @@
       drop: n === 'tall_grass' ? 'special_grass' : n, group: 'natur'
     });
   });
+  // ---------- Meer ----------
+  // Alles, was den Meeresgrund ausmacht. Die Pflanzen stehen im Wasser, sind
+  // also durchsichtig und ohne Kollision – wie Gras, nur nass.
+  ['kelp', 'seagrass'].forEach(function (n) {
+    define(n, {
+      title: n === 'kelp' ? 'Seetang' : 'Seegras',
+      shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
+      hardness: 0, sound: 'grass', drop: n, group: 'natur'
+    });
+  });
+  B.CORAL_COLORS = [['tube', 'Röhren', [58, 84, 208]], ['brain', 'Hirn', [206, 84, 154]],
+                    ['bubble', 'Blasen', [166, 42, 176]], ['fire', 'Feuer', [204, 48, 56]],
+                    ['horn', 'Horn', [218, 196, 60]]];
+  B.CORAL_COLORS.forEach(function (c) {
+    define('coral_' + c[0], { title: c[1] + 'koralle', hardness: 1.5, tool: 'pickaxe', sound: 'stone', group: 'natur' });
+    define('coral_fan_' + c[0], {
+      title: c[1] + 'korallenfächer', shape: B.SHAPE_CROSS, solid: false, opaque: false,
+      cutout: true, collide: false, hardness: 0, sound: 'grass', group: 'natur'
+    });
+  });
+  // Der Schwamm saugt beim Setzen das Wasser um sich herum weg
+  define('sponge', { title: 'Schwamm', hardness: 0.6, sound: 'grass', group: 'natur' });
+  define('sponge_wet', { title: 'Nasser Schwamm', hardness: 0.6, sound: 'grass', drop: 'sponge_wet', group: 'natur' });
+  define('prismarine', { title: 'Prismarin', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('prismarine_bricks', { title: 'Prismarinziegel', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('dark_prismarine', { title: 'Dunkler Prismarin', hardness: 1.5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'bau' });
+  define('sea_lantern', { title: 'Seelaterne', hardness: 0.3, light: 15, sound: 'glass', drop: 'prismarine_crystals', dropCount: 3, group: 'bau' });
+
   define('sugar_cane', {
     title: 'Zuckerrohr', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
     hardness: 0, sound: 'grass', drop: 'sugar_cane_item', group: 'natur'
@@ -840,6 +870,11 @@
     if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB || g.shape === B.SHAPE_FENCE;
     if (b.name === 'wheat') return groundId === B.id('farmland');
     if (b.name === 'nether_wart') return groundId === B.id('soul_sand') || groundId === B.id('soul_soil');
+    if (b.name === 'kelp' || b.name === 'seagrass') {
+      return groundId === B.id('sand') || groundId === B.id('gravel') || groundId === B.id('dirt') ||
+             groundId === B.id('clay') || groundId === B.id('kelp');
+    }
+    if (b.name.indexOf('coral_fan_') === 0) { var gg = B.byId[groundId]; return !!(gg && gg.opaque); }
     if (b.name === 'crimson_roots') return groundId === B.id('crimson_nylium') || groundId === B.id('netherrack');
     if (b.name === 'warped_roots') return groundId === B.id('warped_nylium') || groundId === B.id('netherrack');
     if (b.name === 'sugar_cane') return groundId === B.id('sand') || groundId === B.id('dirt') || groundId === B.id('grass') || groundId === B.id('sugar_cane');

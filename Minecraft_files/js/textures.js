@@ -740,6 +740,24 @@
     tex('potion_' + k, function (g) { flasche(g, hex(MC.Effekte.TRAENKE[k].farbe)); });
   });
 
+  // Vier Wuchsstufen: erst kleine Knubbel, zuletzt dicke Trauben
+  [0, 1, 2, 3].forEach(function (st) {
+    tex('nether_wart_stage' + st, function (g) {
+      g.fill([0, 0, 0], 0);
+      var W = [[110, 20, 26], [140, 28, 34], [86, 14, 20], [168, 40, 44]];
+      var hoehe = 4 + st * 3;
+      var dichte = 0.35 + st * 0.16;
+      for (var x = 2; x < 14; x++) {
+        for (var y = 16 - hoehe; y < 16; y++) {
+          if (g.r() > dichte) continue;
+          g.set(x, y, W[(g.r() * W.length) | 0]);
+        }
+      }
+      // Stängel, damit sie auch jung nach Pflanze aussieht
+      for (var y2 = 16 - hoehe; y2 < 16; y2++) { g.set(7, y2, W[2]); g.set(8, y2, W[0]); }
+    });
+  });
+
   tex('nether_wart_item', function (g) {
     g.fill([0, 0, 0], 0);
     var W = [[122, 24, 30], [156, 34, 40], [92, 18, 24]];
@@ -783,6 +801,120 @@
       g.set(4 + ((g.r() * 8) | 0), 4 + ((g.r() * 8) | 0), K2[(g.r() * 2) | 0]);
     }
     g.set(8, 8, [176, 40, 40]);
+  });
+
+  // ---- Meer ----
+  tex('kelp', function (g) {
+    g.fill([0, 0, 0], 0);
+    var K = [[46, 108, 62], [62, 134, 76], [34, 84, 50], [86, 158, 92]];
+    for (var y = 0; y < 16; y++) {
+      var mx = 8 + Math.round(Math.sin(y / 3.2) * 3);
+      for (var x = mx - 2; x <= mx + 2; x++) g.set(x, y, K[(g.r() * K.length) | 0]);
+    }
+  });
+  tex('seagrass', function (g) {
+    g.fill([0, 0, 0], 0);
+    var K = [[58, 140, 84], [76, 166, 100], [42, 112, 66]];
+    for (var x = 2; x < 14; x++) {
+      if (g.r() < 0.3) continue;
+      var h = 5 + ((g.r() * 7) | 0);
+      for (var y = 16 - h; y < 16; y++) g.set(x, y, K[(g.r() * 3) | 0]);
+    }
+  });
+  MC.Blocks.CORAL_COLORS.forEach(function (c) {
+    tex('coral_' + c[0], function (g) {
+      var r = ramp(c[2], 0.55);
+      g.qn([r.dk, r.bs, r.lt, r.hi], [22, 34, 28, 16]);
+      for (var i = 0; i < 14; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, r.sh);
+    });
+    tex('coral_fan_' + c[0], function (g) {
+      g.fill([0, 0, 0], 0);
+      var r = ramp(c[2], 0.55);
+      for (var a2 = 0; a2 < 7; a2++) {
+        var w = Math.PI + (a2 / 6) * Math.PI;
+        for (var t = 1; t < 8; t++) {
+          g.set(8 + Math.round(Math.cos(w) * t), 15 + Math.round(Math.sin(w) * t),
+                [r.bs, r.lt, r.hi][(g.r() * 3) | 0]);
+        }
+      }
+      for (var y = 12; y < 16; y++) { g.set(7, y, r.dk); g.set(8, y, r.bs); }
+    });
+  });
+  tex('sponge', function (g) {
+    g.qn([[214, 200, 96], [232, 220, 116], [188, 172, 74]], [26, 38, 24]);
+    for (var i = 0; i < 26; i++) {
+      var hx = (g.r() * 16) | 0, hy = (g.r() * 16) | 0;
+      g.set(hx, hy, [136, 122, 48]);
+      if (g.r() < 0.5) g.set(hx + 1, hy, [136, 122, 48]);
+    }
+  });
+  tex('sponge_wet', function (g) { g.copyFrom(data('sponge')); g.tint([170, 190, 150]); });
+  var PRIS = [[96, 168, 154], [116, 190, 174], [78, 142, 132], [140, 208, 192]];
+  tex('prismarine', function (g) {
+    g.qn(PRIS, [24, 34, 26, 16]);
+    for (var i = 0; i < 12; i++) g.set((g.r() * 16) | 0, (g.r() * 16) | 0, [64, 118, 112]);
+  });
+  tex('prismarine_bricks', function (g) {
+    g.qn(PRIS.slice(1), [30, 36, 26]);
+    for (var k = 0; k < 16; k += 8) for (var y = 0; y < 16; y++) g.set(k, y, PRIS[2]);
+    for (var k2 = 0; k2 < 16; k2 += 8) for (var x = 0; x < 16; x++) g.set(x, k2, PRIS[2]);
+  });
+  tex('dark_prismarine', function (g) {
+    g.qn([[36, 78, 66], [46, 94, 80], [28, 62, 54]], [26, 36, 26]);
+    g.frame(0, 0, 16, 16, [22, 50, 44]);
+  });
+  tex('sea_lantern', function (g) {
+    g.qn([[196, 226, 216], [216, 242, 234], [176, 210, 200]], [26, 38, 24]);
+    for (var i = 0; i < 5; i++) g.frame(2 + i, 2 + i, 12 - 2 * i, 12 - 2 * i, i % 2 ? [240, 252, 248] : [150, 196, 186]);
+  });
+  tex('prismarine_shard', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var y = 3; y < 14; y++) {
+      var br = Math.round(Math.sin((y - 2) / 12 * Math.PI) * 4);
+      for (var x = 8 - br; x <= 7 + br; x++) g.set(x, y, PRIS[(g.r() * 3) | 0]);
+    }
+    g.set(7, 5, [220, 250, 244]);
+  });
+  tex('prismarine_crystals', function (g) {
+    g.fill([0, 0, 0], 0);
+    for (var i = 0; i < 4; i++) {
+      var cx2 = 3 + ((g.r() * 9) | 0), cy2 = 4 + ((g.r() * 8) | 0);
+      for (var y = 0; y < 4; y++) g.set(cx2, cy2 + y, [216, 242, 234]);
+      g.set(cx2 + 1, cy2 + 1, [240, 252, 248]);
+    }
+  });
+  tex('fish_raw', function (g) {
+    g.fill([0, 0, 0], 0);
+    var F = [[124, 148, 168], [156, 178, 196], [96, 118, 140]];
+    for (var y = 6; y < 11; y++) for (var x = 3; x < 12; x++) {
+      var dx = (x - 7) / 4.5, dy = (y - 8) / 2.4;
+      if (dx * dx + dy * dy > 1) continue;
+      g.set(x, y, F[(g.r() * 3) | 0]);
+    }
+    g.rect(11, 6, 2, 5, F[2]);       // Schwanz
+    g.set(5, 8, [30, 30, 34]);       // Auge
+  });
+  tex('fish_cooked', function (g) { g.copyFrom(data('fish_raw')); g.tint([232, 190, 150]); });
+
+  // Spawn-Eier: Grundfarbe mit Flecken, wie im Original
+  MC.Items.EIER.forEach(function (e) {
+    tex('egg_' + e[0], function (g) {
+      g.fill([0, 0, 0], 0);
+      var r = ramp(e[2], 0.5);
+      for (var y = 2; y < 15; y++) {
+        var br = Math.round(Math.sin((y - 1) / 14 * Math.PI) * 4.6);
+        for (var x = 8 - br; x <= 7 + br; x++) g.set(x, y, y < 6 ? r.lt : r.bs);
+      }
+      // Flecken
+      for (var i = 0; i < 9; i++) {
+        var fx = 5 + ((g.r() * 6) | 0), fy = 4 + ((g.r() * 9) | 0);
+        g.set(fx, fy, e[3]);
+        if (g.r() < 0.5) g.set(fx + 1, fy, e[3]);
+      }
+      // Glanzlicht links oben, Saum unten
+      g.set(6, 4, [255, 255, 255]); g.set(7, 4, r.hi);
+      for (var x2 = 5; x2 < 11; x2++) g.set(x2, 14, r.sh);
+    });
   });
 
   tex('aechor_petal', function (g) {
@@ -1457,6 +1589,18 @@
     tex(name, function (g) { var r = haut(g, base, 'v'); fn(g, r); });
   }
   var AUGE_W = [248, 248, 252];
+
+  mob('mob_fish', [98, 132, 170], 'h');
+  mobFace('mob_fish_face', [98, 132, 170], function (g) {
+    auge(g, 4, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
+    auge(g, 9, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
+  });
+  mob('mob_guardian', [88, 140, 138], 'v');
+  mobFace('mob_guardian_face', [88, 140, 138], function (g) {
+    g.rect(5, 5, 6, 6, [24, 40, 44]);
+    g.rect(6, 6, 4, 4, [232, 150, 60]);
+    g.rect(7, 7, 2, 2, [30, 20, 16]);
+  });
 
   // ---- Erste Runde neuer Kreaturen ----
   // Alle über dieselbe Hautfunktion wie die vorhandenen Mobs, damit sie im
