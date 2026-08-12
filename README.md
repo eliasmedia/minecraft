@@ -89,13 +89,29 @@ sonst ragte es aus dem Meer. An den Ufern liegen Lehm- und Kiesnester statt
 reinem Sand. Fische ziehen in Schwärmen von vier bis zwölf durchs offene Wasser,
 in der Tiefe in größeren; an Land zappeln sie und ersticken.
 
-Tang, Seegras und Korallenfächer sind **wasserdurchlässig**: sie tragen ihr
-Wasser selbst, statt es zu verdrängen. Es reicht nicht, den Nachbarn das Ziehen
-einer Wand zu verbieten — in der Zelle mit der Pflanze muss auch wirklich Wasser
-stehen, sonst fehlt dort die Oberfläche. In tiefem Wasser fällt das nicht auf, in
-einem Block flachem Wasser klafft genau dort ein Loch: in einem Testbecken von
-49 Feldern mit drei Pflanzen waren nur 24 Felder von einer Wasseroberfläche
-bedeckt, jetzt sind es alle 49.
+**Fluten** — Tang, Seegras und Korallenfächer verdrängen kein Wasser, sie nehmen
+es auf. Entscheidend ist, dass das ein **Zustand** ist und keine Eigenschaft: ob
+eine Pflanze Wasser hält, steht in ihrem Meta, nicht in ihrer Blockdefinition.
+Ein Seegras an Land ist trocken, eines im Meer geflutet, und dieselbe Pflanze
+wechselt den Zustand, wenn Wasser zu ihr fließt oder abläuft.
+
+Daran hängt einiges: eine geflutete Pflanze zählt fürs Fließen als Quelle und
+gibt das Wasser weiter, statt es aufzuhalten. Bricht man sie ab, bleibt das
+Wasser stehen — sie hatte es ja nur aufgenommen. Setzt man sie ins Wasser, füllt
+sie sich; setzt man sie an Land, bleibt sie trocken. Der Schwamm saugt auch das
+Wasser aus ihr heraus, die Pflanze selbst bleibt stehen.
+
+Ohne Wasser in der Zelle selbst fehlt dort die Oberfläche. In tiefem Wasser
+fällt das nicht auf, bei einem Block Tiefe klafft genau dort ein Loch: in einem
+Testbecken von 49 Feldern mit drei Pflanzen waren nur 24 Felder von einer
+Wasseroberfläche bedeckt, jetzt alle 49 — und ein trockenes Seegras rendert
+umgekehrt gar kein Wasser mehr.
+
+**Was Wasser wegreißt** — alles ohne Masse, das kein Wasser aufnehmen kann:
+Blumen, Fackeln, Setzlinge, Pilze, Getreide, Spinnweben. Sie werden zerstört und
+halten das Wasser nicht auf. Vorher stand eine Blume dem Wasser im Weg wie eine
+Mauer. Abgegrenzt wird über die Blockform, nicht über die Kollision — die Leiter
+ist ebenfalls ohne Masse, trägt aber ihre Richtung im Meta.
 
 **Schiffswracks** liegen halb im Sand: ein Rumpf, der zum Bug und zum Heck hin
 schmaler wird, der Kiel schräg im Grund, Reling mit Lücken, eine Kajüte am Heck
@@ -164,7 +180,7 @@ vorher; die neuen Landschaften gibt es nur in einer neu angelegten Welt. Version
 geglätteten Wüstenkanten, 5 die großen Bastionen samt Meeresgrund und Stränden,
 6 die tiefen Meeresbecken, die Schiffswracks mit echtem Rumpf und die Riffe in
 tieferem Wasser, 7 die getrennten Höhlensysteme, 8 die engeren Gänge und die
-Wurmlöcher.
+Wurmlöcher, 9 die Wasserpflanzen mit ihrem Flutzustand.
 
 **Dörfer** — deterministisch aus dem Seed, etwa alle 320 Blöcke außerhalb von
 Ozean, Strand, Sumpf und Bergen. Brunnen, Wohnhäuser, Schmiede, Bibliothek und

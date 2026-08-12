@@ -344,6 +344,7 @@
       title: n === 'kelp' ? 'Seetang' : 'Seegras',
       shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
       nass: true, hardness: 0, sound: 'grass', drop: n, group: 'natur'
+      // replaceable bleibt aus: Wasser reißt sie nicht weg, es füllt sie auf
     });
   });
   B.CORAL_COLORS = [['tube', 'Röhren', [58, 84, 208]], ['brain', 'Hirn', [206, 84, 154]],
@@ -680,10 +681,39 @@
   // Zählt dieser Block für das Wasser als Wasser? Seegras und Tang stehen im
   // Wasser, verdrängen es aber im Blockgitter – ohne diese Abfrage zeichnet das
   // Wasser eine Wand gegen sie, und im Meer stehen überall Löcher.
-  B.zaehltAlsWasser = function (id) {
-    if (id === B.id('water')) return true;
+  // Fluten ist ein Zustand, keine Eigenschaft. `nass` sagt nur, dass ein Block
+  // Wasser aufnehmen KANN – ob er es tut, steht in seinem Meta. Vorher galt
+  // jedes Seegras als randvoll, auch das an Land: Wasser wäre selbst dann
+  // gerendert worden, wenn weit und breit keins ist.
+  B.NASS_BIT = 1;
+
+  B.kannFluten = function (id) {
     var b = B.byId[id];
     return !!(b && b.nass);
+  };
+
+  B.istGeflutet = function (id, meta) {
+    var b = B.byId[id];
+    return !!(b && b.nass && (meta & B.NASS_BIT));
+  };
+
+  // Zählt diese Zelle fürs Rendern, Schwimmen und Fließen als Wasser?
+  B.zaehltAlsWasser = function (id, meta) {
+    if (id === B.id('water')) return true;
+    return B.istGeflutet(id, meta);
+  };
+
+  // Was fließendes Wasser wegreißt: alles ohne Masse, das kein Wasser aufnehmen
+  // kann – Blumen, Fackeln, Setzlinge, Getreide. Vorher hielt eine Blume das
+  // Wasser auf wie eine Mauer, was offensichtlich falsch ist.
+  // Abgegrenzt über die Form, nicht über solid/collide: die Leiter ist ebenfalls
+  // ohne Masse, trägt aber ihre Richtung im Meta – dort ist kein Bit frei, und
+  // weggerissen werden soll sie auch nicht.
+  B.spuehltWeg = function (id) {
+    var b = B.byId[id];
+    if (!b || id === 0) return false;
+    if (b.liquid || b.nass) return false;
+    return b.shape === B.SHAPE_CROSS || b.shape === B.SHAPE_TORCH || b.shape === B.SHAPE_CROP;
   };
 
   B.isLiquid = function (id) { var b = B.byId[id]; return b ? b.liquid : false; };

@@ -235,7 +235,7 @@
               // ziehen – in der Zelle selbst stand aber gar kein Wasser. In
               // tiefem Wasser fiel das nicht auf, in einem Block flachem Wasser
               // klaffte genau dort ein Loch in der Oberfläche.
-              if (block.nass) {
+              if (B.istGeflutet(id, meta)) {
                 var wB = B.byId[B.id('water')];
                 emitLiquid(wB.alphaPass ? alpha : opaque, x, y, z, wB, 0);
               }
@@ -734,14 +734,14 @@
     function liquidHeight(bx, by, bz, id) {
       if (gb(bx, by + 1, bz) === id) return 1.0;
       // Über einer wasserdurchlässigen Pflanze steht ebenfalls Wasser
-      if (id === B.id('water') && B.zaehltAlsWasser(gb(bx, by + 1, bz))) return 1.0;
+      if (id === B.id('water') && B.istGeflutet(gb(bx, by + 1, bz), gm(bx, by + 1, bz))) return 1.0;
       // Unter einem undurchsichtigen Block steht die Flüssigkeit randvoll. Sonst
       // bliebe zwischen ihrer Oberfläche und der Blockdecke ein Spalt – und weil
       // die Oberseite dort weggelassen wird (der Block darüber verdeckt sie ja),
       // sähe man von der Seite durch die Flüssigkeit ins Leere.
       if (B.isOpaque(gb(bx, by + 1, bz))) return 1.0;
       // Die Pflanze selbst hat kein Flüssigkeits-Meta – sie zählt als Quelle
-      if (id === B.id('water') && gb(bx, by, bz) !== id && B.zaehltAlsWasser(gb(bx, by, bz))) return 0.875;
+      if (id === B.id('water') && gb(bx, by, bz) !== id && B.istGeflutet(gb(bx, by, bz), gm(bx, by, bz))) return 0.875;
       var m = gm(bx, by, bz);
       if (m === 0 || m === 8) return 0.875;
       return 0.875 - (m / 8) * 0.75;
@@ -754,17 +754,18 @@
       // Seegras und Tang stehen im Wasser: fürs Rendern zählen sie als Wasser,
       // sonst zieht das Wasser eine Wand gegen sie und man sieht Löcher.
       var wieWasser = (id === B.id('water'))
-        ? function (nid) { return nid === id || B.zaehltAlsWasser(nid); }
+        ? function (nid, nmeta) { return nid === id || B.istGeflutet(nid, nmeta); }
         : function (nid) { return nid === id; };
-      var aboveSame = wieWasser(gb(x, y + 1, z)) || B.isOpaque(gb(x, y + 1, z));
+      function wieWasserAt(bx, by, bz) { return wieWasser(gb(bx, by, bz), gm(bx, by, bz)); }
+      var aboveSame = wieWasserAt(x, y + 1, z) || B.isOpaque(gb(x, y + 1, z));
       // Eckhöhen für ein "fließendes" Aussehen
       function cornerH(dx, dz) {
         if (aboveSame) return 1.0;
         var sum = 0, cnt = 0, maxH = 0;
         for (var ix = 0; ix <= 1; ix++) for (var iz = 0; iz <= 1; iz++) {
           var sx = x + dx * ix, sz = z + dz * iz;
-          if (wieWasser(gb(sx, y + 1, sz))) return 1.0;
-          if (wieWasser(gb(sx, y, sz))) { var hh = liquidHeight(sx, y, sz, id); sum += hh; cnt++; if (hh > maxH) maxH = hh; }
+          if (wieWasserAt(sx, y + 1, sz)) return 1.0;
+          if (wieWasserAt(sx, y, sz)) { var hh = liquidHeight(sx, y, sz, id); sum += hh; cnt++; if (hh > maxH) maxH = hh; }
           else if (B.byId[gb(sx, y, sz)] && !B.byId[gb(sx, y, sz)].opaque) { cnt++; }
         }
         return cnt ? Math.max(sum / cnt, maxH * 0.85) : hC;
@@ -774,7 +775,7 @@
       for (var f = 0; f < 6; f++) {
         var nn = FACES[f].n;
         var nid = gb(x + nn[0], y + nn[1], z + nn[2]);
-        if (wieWasser(nid)) continue;
+        if (wieWasser(nid, gm(x + nn[0], y + nn[1], z + nn[2]))) continue;
         var nB = B.byId[nid];
         if (nB && nB.opaque) continue;
         var mn = [0, 0, 0], mx = [1, hC, 1];

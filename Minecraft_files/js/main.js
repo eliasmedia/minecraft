@@ -689,7 +689,10 @@
       if (this.world.getBlock(other[0], other[1], other[2]) === id) this.world.setBlock(other[0], other[1], other[2], 0, 0);
     }
 
-    this.world.setBlock(x, y, z, 0, 0);
+    // War die Pflanze geflutet, bleibt das Wasser stehen – sie hat es ja nur
+    // aufgenommen, nicht verdrängt.
+    if (B.istGeflutet(id, meta)) this.world.setBlock(x, y, z, B.id('water'), 0);
+    else this.world.setBlock(x, y, z, 0, 0);
     if (this.mode !== 'creative') {
       var it = st ? I.get(st.id) : null;
       if (it && it.tool) this.player.inventory.damageSelected(1, this);
@@ -1082,7 +1085,15 @@
       meta = this.facingFromYaw();
     }
 
+    // Setzt man eine flutbare Pflanze ins Wasser, nimmt sie es auf, statt es
+    // zu verdrängen. An Land bleibt sie trocken.
+    if (B.kannFluten(block.id)) {
+      var davor = w.getBlock(nx, ny, nz);
+      var stand = (davor === B.id('water')) || w.istFluessig(nx, ny, nz, B.id('water'));
+      if (stand) meta |= B.NASS_BIT;
+    }
     w.setBlock(nx, ny, nz, block.id, meta);
+    if (B.kannFluten(block.id)) w.scheduleFluid(nx, ny, nz, 2);
     // Der Schwamm saugt das Wasser um sich herum weg und wird dabei nass
     if (block.name === 'sponge') this.saugeSchwamm(nx, ny, nz);
     if (block.liquid) w.scheduleFluid(nx, ny, nz, 2);
@@ -1099,8 +1110,12 @@
       for (var dz = -5; dz <= 5; dz++) {
         for (var dx = -5; dx <= 5; dx++) {
           if (dx * dx + dy * dy + dz * dz > 30) continue;
-          if (w.getBlock(x + dx, y + dy, z + dz) !== wasser) continue;
-          w.setBlock(x + dx, y + dy, z + dz, 0, 0, { noUpdate: true });
+          var px = x + dx, py = y + dy, pz = z + dz;
+          // Auch das Wasser in gefluteten Pflanzen wird aufgesogen – die
+          // Pflanze bleibt stehen, nur trocken.
+          if (w.entwaessere(px, py, pz)) { n++; continue; }
+          if (w.getBlock(px, py, pz) !== wasser) continue;
+          w.setBlock(px, py, pz, 0, 0, { noUpdate: true });
           n++;
         }
       }

@@ -38,7 +38,8 @@
   //   6 = tiefe Meeresbecken, Wracks als Schiffe, Riffe tiefer
   //   7 = Höhlen als getrennte Röhrensysteme statt einem Weltgerüst
   //   8 = Höhlen enger als Vorgabe (50 %), dazu Wurmlöcher als Struktur
-  MC.GEN_VERSION = 8;
+  //   9 = Wasserpflanzen tragen ihren Flutzustand im Meta
+  MC.GEN_VERSION = 9;
 
   MC.defaultWorldOpts = function () {
     var o = {};
@@ -314,7 +315,7 @@
 
   // Grund, Bewuchs und Lehmnester. Läuft nach der Dekoration, weil sie den
   // Meeresboden nicht anfasst.
-  Gen.prototype.meerDeko = function (cx, cz, blocks) {
+  Gen.prototype.meerDeko = function (cx, cz, blocks, meta) {
     if (this.genV < 5) return;
     var SEA = this.sea, wx0 = cx * CS, wz0 = cz * CS;
     var M = MC.MEER;
@@ -324,9 +325,15 @@
     var faecher = B.CORAL_COLORS.map(function (c) { return B.id('coral_fan_' + c[0]); });
     var schwamm = B.id('sponge');
 
+    // Alles, was hier unter Wasser wächst, steht per Definition im Wasser und
+    // wird darum gleich geflutet gesetzt. Ohne das Bit wäre es trocken und
+    // risse ein Loch in die Wasseroberfläche.
+    var nassBit = (this.genV >= 9) ? B.NASS_BIT : 0;
     function set(lx, ly, lz, id) {
       if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 1 || ly >= WH) return;
-      blocks[lx | (lz << 4) | (ly << 8)] = id;
+      var k = lx | (lz << 4) | (ly << 8);
+      blocks[k] = id;
+      if (meta) meta[k] = B.kannFluten(id) ? nassBit : 0;
     }
     function hole(lx, ly, lz) {
       if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= WH) return -1;
@@ -1110,7 +1117,7 @@
     }
 
     // Meeresgrund und Strand
-    if (this.genV >= 5) this.meerDeko(cx, cz, blocks);
+    if (this.genV >= 5) this.meerDeko(cx, cz, blocks, meta);
     // Höhlenstrukturen liegen tief unten und stören den Bewuchs nicht
     if (this.genV >= 2 && MC.Caves) MC.Caves.decorate(this, cx, cz, blocks, meta);
     // Zuletzt das Dorf – es überschreibt Gelände und Bewuchs

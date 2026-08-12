@@ -797,15 +797,103 @@
   // voller Block, wenn wirklich Flüssigkeit darüber steht – sonst würde ein
   // übriggebliebener Marker wie eine Quelle wirken und die Pfütze am Leben halten.
   World.prototype.effectiveLevel = function (x, y, z, id) {
+    // Eine geflutete Pflanze hält im Original eine Quelle – für alles, was hier
+    // gerechnet wird, ist sie damit ein voller Wasserblock mit Level 0.
+    if (id === B.id('water') && B.istGeflutet(this.getBlock(x, y, z), this.getMeta(x, y, z))) return 0;
     var m = this.getMeta(x, y, z);
     if (m === 0) return 0;
     if (m === 8) return this.getBlock(x, y + 1, z) === id ? 0 : 9;
     return m;
   };
 
+  // Zählt die Zelle für das Fließen als diese Flüssigkeit?
+  World.prototype.istFluessig = function (x, y, z, id) {
+    var bid = this.getBlock(x, y, z);
+    if (bid === id) return true;
+    return id === B.id('water') && B.istGeflutet(bid, this.getMeta(x, y, z));
+  };
+
+  // Wasser läuft in eine flutbare Pflanze hinein, statt sie wegzureißen oder
+  // vor ihr stehenzubleiben. Gibt true zurück, wenn hier geflutet wurde.
+  World.prototype.flute = function (x, y, z, id) {
+    if (id !== B.id('water')) return false;
+    var bid = this.getBlock(x, y, z);
+    if (!B.kannFluten(bid)) return false;
+    var m = this.getMeta(x, y, z);
+    if (m & B.NASS_BIT) return false;
+    this.setMetaOnly(x, y, z, m | B.NASS_BIT);
+    return true;
+  };
+
+  // Läuft das Wasser ab, wird die Pflanze wieder trocken.
+  World.prototype.entwaessere = function (x, y, z) {
+    var bid = this.getBlock(x, y, z);
+    var m = this.getMeta(x, y, z);
+    if (!B.istGeflutet(bid, m)) return false;
+    this.setMetaOnly(x, y, z, m & ~B.NASS_BIT);
+    return true;
+  };
+
+  // Eine geflutete Pflanze ist eine Quelle: sie gibt nach unten und zur Seite
+  // weiter. Und sie prüft, ob sie noch Anschluss hat – sonst wird sie trocken,
+  // sobald man das Wasser um sie herum wegnimmt.
+  World.prototype.tickGeflutet = function (x, y, z) {
+    var wid = B.id('water');
+    var halt = false;
+    if (this.getBlock(x, y + 1, z) === wid) halt = true;
+    if (!halt) {
+      for (var q = 0; q < 4; q++) {
+        var nx = x + HOR[q][0], nz = z + HOR[q][1];
+        if (!this.istFluessig(nx, y, nz, wid)) continue;
+        if (this.effectiveLevel(nx, y, nz, wid) < 7) { halt = true; break; }
+      }
+    }
+    if (!halt) {
+      this.entwaessere(x, y, z);
+      for (var r = 0; r < 4; r++) this.scheduleFluid(x + HOR[r][0], y, z + HOR[r][1], 5);
+      this.scheduleFluid(x, y - 1, z, 5);
+      this.scheduleFluid(x, y + 1, z, 5);
+      return;
+    }
+    // Weitergeben – erst nach unten, sonst zur Seite
+    var unten = this.getBlock(x, y - 1, z);
+    var ub = B.byId[unten];
+    if (y > 0) {
+      if (B.kannFluten(unten)) {
+        if (this.flute(x, y - 1, z, wid)) this.scheduleFluid(x, y - 1, z, 5);
+        return;
+      }
+      if (unten === 0 || B.spuehltWeg(unten) || (ub && ub.replaceable && !ub.liquid)) {
+        if (unten !== 0 && this.onBlockBreak) this.onBlockBreak(x, y - 1, z, unten, 0, null);
+        this.setBlock(x, y - 1, z, wid, 8);
+        this.scheduleFluid(x, y - 1, z, 5);
+        return;
+      }
+      if (unten === wid) return;
+    }
+    for (var h = 0; h < 4; h++) {
+      var hx = x + HOR[h][0], hz = z + HOR[h][1];
+      var tid = this.getBlock(hx, y, hz);
+      var tb = B.byId[tid];
+      if (B.kannFluten(tid)) {
+        if (this.flute(hx, y, hz, wid)) this.scheduleFluid(hx, y, hz, 5);
+      } else if (tid === 0 || B.spuehltWeg(tid) || (tb && tb.replaceable && !tb.liquid)) {
+        if (tid !== 0 && this.onBlockBreak) this.onBlockBreak(hx, y, hz, tid, 0, null);
+        this.setBlock(hx, y, hz, wid, 1);
+        this.scheduleFluid(hx, y, hz, 5);
+      }
+    }
+  };
+
   World.prototype.doFluid = function (x, y, z) {
     var id = this.getBlock(x, y, z);
     var b = B.byId[id];
+    // Eine geflutete Pflanze verhält sich wie eine Wasserquelle: sie verteilt
+    // weiter, und sie trocknet, wenn ringsum das Wasser verschwindet.
+    if (B.istGeflutet(id, this.getMeta(x, y, z))) {
+      this.tickGeflutet(x, y, z);
+      return;
+    }
     if (!b || !b.liquid) return;
     var isWater = b.name === 'water';
     var maxSpread = isWater ? 7 : 3;
@@ -895,7 +983,12 @@
     var belowId = this.getBlock(x, y - 1, z);
     var belowB = B.byId[belowId];
     if (y > 0) {
-      if (belowId === 0 || (belowB && belowB.replaceable && !belowB.liquid)) {
+      if (B.kannFluten(belowId)) {
+        if (this.flute(x, y - 1, z, id)) this.scheduleFluid(x, y - 1, z, delay);
+        return;
+      }
+      if (belowId === 0 || B.spuehltWeg(belowId) || (belowB && belowB.replaceable && !belowB.liquid)) {
+        if (belowId !== 0 && this.onBlockBreak) this.onBlockBreak(x, y - 1, z, belowId, this.getMeta(x, y - 1, z), null);
         this.setBlock(x, y - 1, z, id, 8);
         this.scheduleFluid(x, y - 1, z, delay);
         return;
@@ -921,7 +1014,10 @@
       var hx = x + HOR[h2][0], hz = z + HOR[h2][1];
       var tid = this.getBlock(hx, y, hz);
       var tb = B.byId[tid];
-      if (tid === 0 || (tb && tb.replaceable && !tb.liquid)) {
+      if (B.kannFluten(tid)) {
+        // Seegras füllt sich auf, statt weggerissen zu werden
+        if (this.flute(hx, y, hz, id)) this.scheduleFluid(hx, y, hz, delay);
+      } else if (tid === 0 || B.spuehltWeg(tid) || (tb && tb.replaceable && !tb.liquid)) {
         if (tid !== 0 && this.onBlockBreak) this.onBlockBreak(hx, y, hz, tid, 0, null);
         this.setBlock(hx, y, hz, id, lvl + 1);
         this.scheduleFluid(hx, y, hz, delay);

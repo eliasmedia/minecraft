@@ -104,7 +104,7 @@
         for (var x = x0; x <= x1; x++)
           // Seegras und Tang zählen als Wasser – sonst fällt man mitten im
           // Tangwald plötzlich, weil dort kein Wasserblock steht.
-          if (name === 'water' ? B.zaehltAlsWasser(world.getBlock(x, y, z))
+          if (name === 'water' ? B.zaehltAlsWasser(world.getBlock(x, y, z), world.getMeta(x, y, z))
                                : world.getBlock(x, y, z) === id) return true;
     return false;
   };
@@ -1904,13 +1904,13 @@
       // Grund – der Boden muss von oben herunter gesucht werden.
       var boden = -1;
       for (var y2 = sea; y2 > sea - 48; y2--) {
-        if (!B.zaehltAlsWasser(world.getBlock(x, y2, z))) { boden = y2; break; }
+        if (!B.zaehltAlsWasser(world.getBlock(x, y2, z), world.getMeta(x, y2, z))) { boden = y2; break; }
       }
       if (boden < 0 || sea - boden < 3) continue;
       var tiefe = sea - boden;
       var y = boden + 1 + ((Math.random() * (tiefe - 1)) | 0);
-      if (!B.zaehltAlsWasser(world.getBlock(x, y, z))) continue;
-      if (!B.zaehltAlsWasser(world.getBlock(x, y + 1, z))) continue;
+      if (!B.zaehltAlsWasser(world.getBlock(x, y, z), world.getMeta(x, y, z))) continue;
+      if (!B.zaehltAlsWasser(world.getBlock(x, y + 1, z), world.getMeta(x, y + 1, z))) continue;
       var gruppe = 4 + ((Math.random() * 5) | 0) + (tiefe > 12 ? 3 : 0);
       for (var k = 0; k < gruppe && n < 48; k++, n++) {
         // Nur nach unten streuen – sonst hüpft ein Fisch aus dem Wasser
