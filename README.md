@@ -18,7 +18,7 @@ Minecraft_files/
   js/  util · blocks · potions · items · enchant · recipes · textures
        glcore · mesher · particles · icons · worldgen · village · caves
        map · dimensions · world · redstone · entities · theend
-       achievements · player · renderer · audio · ui · main
+       achievements · player · renderer · audio · commands · ui · main
 ```
 
 ## Steuerung
@@ -34,6 +34,7 @@ Minecraft_files/
 | `Strg` / `Doppel-W` | Sprinten | `P` | Modus: Überleben/Kreativ/Zuschauer |
 | | | `J` | Musik an/aus |
 | `Doppel-Leertaste` | Fliegen (Kreativ/Zuschauer) | `R` | Speichern |
+| `T` | Chat / Befehlszeile | `/` | Befehlszeile mit Schrägstrich |
 | `N` | Karte groß/klein | | |
 | `M` / `Esc` | Pause / Menü | | |
 
@@ -65,6 +66,44 @@ jedem Aufruf aus zwei Dutzend wechselt und im Takt wippt. Die Knöpfe haben den
 hellen Rand oben links und den dunklen unten rechts, unten stehen in den beiden
 Ecken Fassung und Hinweis. Hotbar, Lebensbalken und Fadenkreuz sind auf dem
 Startbildschirm ausgeblendet.
+
+**Befehle** — `T` öffnet die Chatzeile, `/` öffnet sie und setzt den Schrägstrich
+gleich mit. Solange sie offen ist, ruht die Steuerung — sonst liefe man beim
+Tippen von `W` los. **Tab** vervollständigt, **Pfeil hoch/runter** blättert durch
+den Verlauf, Erfolg steht grün im Protokoll, ein Fehler rot mit der Stelle, an
+der es klemmte.
+
+Die Arbeit steckt im Gerüst, nicht in den einzelnen Befehlen: ein Zerleger, der
+`~` (relativ zu dir) und `^` (relativ zu deiner Blickrichtung) versteht, und eine
+**Zielauswahl** `@s @p @a @r @e` mit `type=`, `distance=..10`, `limit=`, `sort=`,
+`name=` und einem Quader aus `x/y/z` und `dx/dy/dz`. Damit ist jeder Befehl nur
+noch ein Tabelleneintrag.
+
+Dabei sind: `gamemode`, `give`, `tp`, `time`, `kill`, `summon`, `setblock`,
+`fill`, `clone`, `effect`, `enchant`, `xp`, `difficulty`, `seed`, `spawnpoint`,
+`clear`, `say`, `me`, `help`, dazu `locate` und `gamerule` und ein
+abgespecktes `execute` mit `as` und `at`. `locate` findet Dorf, Wrack, Tempel,
+Mine, Wurmloch und Festung — alle unsere Strukturen kommen deterministisch aus
+dem Seed, die Suche ist darum eine Schleife über Regionen und kein
+Weltdurchlauf. `fill` und `clone` haben einen Deckel bei 32768 Blöcken.
+
+Sechs **Spielregeln** liegen jetzt an einer Stelle statt verstreut im Code:
+`keepInventory`, `doDaylightCycle`, `doMobSpawning`, `mobGriefing`,
+`doTileDrops`, `doFireTick`. Sie wandern mit in den Spielstand.
+
+Weggelassen ist alles, was Mehrspieler, NBT oder einen Punktestand braucht —
+`/data`, `/scoreboard`, `/tag`, `/kick`. Die kosten mehr als alle anderen
+Befehle zusammen und wirken ohne Unterbau kaum.
+
+**Befehlsblöcke** — drei Sorten wie im Original, an der Farbe zu unterscheiden:
+**Impuls** (orange) führt einmal aus, wenn das Signal ankommt, **Wiederholend**
+(violett) in jedem Takt, solange es anliegt, **Kette** (türkis) hängt am Block
+darüber und läuft, wenn der Erfolg hatte. Dazu die beiden Schalter *braucht
+Redstone / immer aktiv* und *bedingt / unbedingt*. Rechtsklick öffnet das
+Fenster mit Befehlszeile, Vervollständigung und der letzten Ausgabe. Sie sind
+unzerstörbar wie Grundgestein und nur im Kreativmenü zu haben. Ein Deckel von
+128 Ausführungen je Takt und 64 Kettengliedern hält einen wiederholenden Block
+mit einem großen `fill` davon ab, das Spiel stillzulegen.
 
 **Welt** — prozedurale, praktisch unendliche Voxelwelt mit Seed-Eingabe. 9 Biome
 (Ozean, Strand, Ebene, Wald, Wüste, Berge, Taiga, Sumpf, Tundra), Höhlensysteme,

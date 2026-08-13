@@ -615,7 +615,8 @@
     game.audio.play('death');
     game.particles.death(this.x, this.y + 1, this.z);
     // Inventar fallen lassen
-    if (game.mode !== 'creative' && game.keepInventory !== true) {
+    var behalten = MC.Cmd ? MC.Cmd.regel(game, 'keepInventory') : (game.keepInventory === true);
+    if (game.mode !== 'creative' && !behalten) {
       for (var i = 0; i < this.inventory.size; i++) {
         var s = this.inventory.slots[i];
         if (s) { game.spawnItem(this.x, this.y + 1, this.z, s); this.inventory.slots[i] = null; }

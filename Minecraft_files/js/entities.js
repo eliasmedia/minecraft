@@ -388,16 +388,19 @@
     game.particles.smoke(this.x, this.y + 1, this.z, 1);
     if (this.fuse <= 0) {
       this.dead = true;
-      MC.explode(game, this.x, this.y + 0.5, this.z, 4.2);
+      MC.explode(game, this.x, this.y + 0.5, this.z, 4.2, true);
     }
   };
 
   // ============================================================
   //  Explosion
   // ============================================================
-  MC.explode = function (game, x, y, z, power) {
+  MC.explode = function (game, x, y, z, power, vonMob) {
     var world = game.world;
-    var r = Math.ceil(power);
+    // mobGriefing: eine Explosion einer Kreatur schadet dann nur noch, sie
+    // reißt aber keine Blöcke mehr weg
+    var blockschaden = !(vonMob && MC.Cmd && !MC.Cmd.regel(game, 'mobGriefing'));
+    var r = blockschaden ? Math.ceil(power) : 0;
     for (var dx = -r; dx <= r; dx++) {
       for (var dy = -r; dy <= r; dy++) {
         for (var dz = -r; dz <= r; dz++) {
@@ -1015,7 +1018,7 @@
           this.fuse -= dt;
           if (this.fuse <= 0) {
             this.dead = true;
-            MC.explode(game, this.x, this.y + 0.8, this.z, 3.6);
+            MC.explode(game, this.x, this.y + 0.8, this.z, 3.6, true);
             return;
           }
         } else {
@@ -1632,6 +1635,7 @@
 
   Spawner.tick = function (game, dt) {
     var world = game.world, p = game.player;
+    if (MC.Cmd && !MC.Cmd.regel(game, 'doMobSpawning')) return;
     if (!p || game.mode === 'creative') { }
     Spawner.timer = (Spawner.timer || 0) + dt;
     if (Spawner.timer < 4) return;

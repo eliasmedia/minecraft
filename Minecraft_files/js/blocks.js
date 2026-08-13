@@ -374,6 +374,18 @@
     title: 'Spinnwebe', shape: B.SHAPE_CROSS, solid: false, opaque: false, cutout: true, collide: false,
     hardness: 4, tool: 'shears', drop: 'string', sound: 'grass', group: 'natur'
   });
+  // Befehlsblöcke. Drei Sorten wie im Original, unterscheidbar an der Farbe:
+  // Impuls führt einmal aus, Wiederholend in jedem Takt, Kette hängt am
+  // Vorgänger. Unzerstörbar wie Grundgestein und nur im Kreativmenü zu haben.
+  B.BEFEHLSBLOCK = ['command_block', 'command_block_repeat', 'command_block_chain'];
+  [['command_block', 'Befehlsblock'],
+   ['command_block_repeat', 'Wiederholender Befehlsblock'],
+   ['command_block_chain', 'Ketten-Befehlsblock']].forEach(function (c) {
+    define(c[0], {
+      title: c[1], hardness: -1, drop: null, sound: 'stone', group: 'werkzeug'
+    });
+  });
+
   // Monsterspawner: Gitterkäfig, in dem eine kleine Figur kreist. Er lässt sich
   // abbauen, gibt aber nichts her – wie im Original.
   define('spawner', {

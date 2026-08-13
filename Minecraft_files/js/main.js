@@ -73,6 +73,9 @@
       if (self.locked) { self.lockedAt = performance.now(); game.showClickHint(false); return; }
       game._lastUnlock = performance.now();
       if (game.ui.isOpen() || game.paused || !game.started || !game.player || game.player.dead) return;
+      // Chatzeile und Befehlsblockfenster geben den Zeiger absichtlich frei –
+      // das darf das Spiel nicht ins Pausenmenü werfen.
+      if ((MC.Cmd && MC.Cmd.Chat.offen) || game.cbOffen) { game.showClickHint(false); return; }
       // Haben wir selbst gerade entsperrt (Fenster geöffnet/geschlossen)? Dann nicht pausieren.
       if (performance.now() < (game.suppressPauseUntil || 0)) { game.showClickHint(true); return; }
       game.pause(true);
@@ -436,6 +439,7 @@
     var b = B.byId[id];
     if (!b || !b.drop) return;
     if (this.mode === 'creative') return;
+    if (MC.Cmd && !MC.Cmd.regel(this, 'doTileDrops')) return;
     if (!I.canHarvest(toolName, b)) return;
     var drops = [];
     var d = b.drop;
@@ -737,6 +741,11 @@
       var id = w.getBlock(t.x, t.y, t.z);
       var b = B.byId[id];
       if (b.name === 'crafting_table') { this.ui.openScreen('crafting'); return; }
+      // Befehlsblock: Rechtsklick öffnet die Zeile, in der sein Befehl steht
+      if (MC.Cmd && MC.Cmd.Block.SORTEN[b.name]) {
+        MC.Cmd.Block.oeffnen(this, t.x, t.y, t.z);
+        return;
+      }
       if (b.name === 'furnace' || b.name === 'furnace_lit') {
         var te = w.tileEntity(t.x, t.y, t.z, function () { return { type: 'furnace', input: null, fuel: null, output: null, burn: 0, burnMax: 0, cook: 0 }; });
         this.ui.openScreen('furnace', te);
@@ -1358,6 +1367,16 @@
     }
     if (this.paused) return;
 
+    // Chatzeile: T öffnet leer, der Schrägstrich öffnet mit ihm. Solange sie
+    // offen ist, kommt hier gar nichts mehr an – der Eingabefeld-Handler
+    // schluckt die Tasten, sonst liefe man beim Tippen von W los.
+    if (MC.Cmd && !MC.Cmd.Chat.offen) {
+      if (code === 'KeyT') { MC.Cmd.Chat.oeffnen(this, ''); e.preventDefault(); return; }
+      if (code === 'Slash' || code === 'IntlRo' || e.key === '/') {
+        MC.Cmd.Chat.oeffnen(this, '/'); e.preventDefault(); return;
+      }
+    }
+
     switch (code) {
       case 'KeyE': case 'KeyI':
         // Der Zuschauer trägt nichts bei sich – ein Inventar wäre sinnlos
@@ -1852,6 +1871,8 @@
       time: this.world.time,
       mode: this.mode,
       dim: this.dim,
+      difficulty: this.difficulty,
+      regeln: this.regeln || {},
       endState: this.endState,
       achievements: this.achievements,
       player: this.player.serialize(),
@@ -1884,6 +1905,10 @@
   Game.prototype.applySave = function (data) {
     var self = this;
     this.mode = data.mode || 'survival';
+    if (data.difficulty) this.difficulty = data.difficulty;
+    // Spielregeln übernehmen; ältere Spielstände kennen nur keepInventory
+    this.regeln = data.regeln || {};
+    if (MC.Cmd) this.keepInventory = MC.Cmd.regel(this, 'keepInventory');
     this.seed = data.seed >>> 0;
     // `|| {}` ist wichtig: ein Spielstand ganz ohne Einstellungen ist alt und
     // muss den alten Generator behalten, sonst steht sein Haus im Nichts.
@@ -1964,7 +1989,7 @@
     var p = this.player;
 
     // Maus
-    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead) {
+    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead && !(MC.Cmd && MC.Cmd.Chat.offen)) {
       p.yaw -= input.dx * this.sensitivity;
       p.pitch += input.dy * this.sensitivity;
       p.pitch = U.clamp(p.pitch, -Math.PI / 2 + 0.001, Math.PI / 2 - 0.001);
@@ -1980,7 +2005,8 @@
       input.wheel = 0;
     }
 
-    if (!this.paused && !this.ui.isOpen()) {
+    var chatOffen = MC.Cmd && MC.Cmd.Chat.offen;
+    if (!this.paused && !this.ui.isOpen() && !chatOffen) {
       this.tickCount++;
       p.update(dt, input, this);
       this.updateTarget();
@@ -2008,6 +2034,7 @@
       // Druckplatten und gedrückte Knöpfe
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
       if (MC.Caves) { MC.Caves.tick(this, dt); MC.Caves.waechter(this, dt); }
+      if (MC.Cmd) MC.Cmd.Block.tick(this, dt);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }
@@ -2038,6 +2065,10 @@
     this.renderer.render(this, dt);
     this.ui.updateHUD();
     this.ui.updateDebug();
+    if (MC.Cmd && MC.Cmd.Chat.log) {
+      this.chatTimer = (this.chatTimer || 0) + dt;
+      if (this.chatTimer > 0.5) { this.chatTimer = 0; MC.Cmd.Chat.neuZeichnen(); }
+    }
     if (this.ui.open === 'furnace') this.refreshFurnaceUI();
     if (this.ui.open === 'brew') { this.ui.refreshBrewUI(); this.ui.refreshSlots(); }
   };

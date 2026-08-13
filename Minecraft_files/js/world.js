@@ -694,7 +694,7 @@
         if (nb2 && nb2.flammable) { fuel = true; break; }
       }
       if (!fuel && age >= 3) { this.setBlock(x, y, z, 0, 0); return; }
-      if (fuel && Math.random() < 0.28) {
+      if (fuel && Math.random() < 0.28 && (!MC.Cmd || MC.Cmd.regel(MC.game, 'doFireTick'))) {
         var pick = NEI[(Math.random() * 6) | 0];
         var tx = x + pick[0], ty = y + pick[1], tz = z + pick[2];
         var tb = B.byId[this.getBlock(tx, ty, tz)];
@@ -1211,8 +1211,11 @@
 
   // ---------- Tick ----------
   World.prototype.update = function (dt, px, py, pz) {
-    this.time += dt / this.dayLength;
-    if (this.time >= 1) this.time -= 1;
+    // doDaylightCycle: steht die Regel auf false, bleibt die Zeit stehen
+    if (!MC.Cmd || MC.Cmd.regel(MC.game, 'doDaylightCycle')) {
+      this.time += dt / this.dayLength;
+      if (this.time >= 1) this.time -= 1;
+    }
 
     this.tickTimer += dt;
     var maxTicks = 0;

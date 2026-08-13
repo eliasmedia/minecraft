@@ -1014,6 +1014,25 @@
   });
 
   // Spawner: dunkles Gitter, dahinter Schwärze
+  // Befehlsblöcke: Grundton je Sorte, darüber das ätzende Rankenmuster des
+  // Originals, das nach innen zeigt.
+  [['command_block', [186, 132, 88], [214, 164, 112]],
+   ['command_block_chain', [104, 168, 176], [140, 200, 206]],
+   ['command_block_repeat', [140, 108, 190], [176, 146, 220]]].forEach(function (cb) {
+    tex(cb[0], function (g) {
+      g.fill(cb[1], 255);
+      g.noise(14);
+      // vier Bögen, die zur Mitte laufen
+      for (var i = 0; i < 5; i++) {
+        g.set(2 + i, 2 + i, cb[2]); g.set(13 - i, 2 + i, cb[2]);
+        g.set(2 + i, 13 - i, cb[2]); g.set(13 - i, 13 - i, cb[2]);
+      }
+      g.rect(6, 6, 4, 4, [48, 40, 34]);
+      g.rect(7, 7, 2, 2, cb[2]);
+      g.frame(0, 0, 16, 16, [70, 56, 44]);
+    });
+  });
+
   tex('spawner', function (g) {
     g.fill([16, 18, 20], 255);
     var S = [[52, 58, 62], [72, 80, 86], [38, 42, 46]];

@@ -522,7 +522,8 @@
     gl.bindVertexArray(null);
 
     // ---- Hand / gehaltenes Item ----
-    if (game.mode !== 'spectator' && !game.hideHand) this.renderHand(game, daylight);
+    // Im Startbildschirm sieht man die Welt, nicht die Hand des Spielers
+    if (game.mode !== 'spectator' && !game.hideHand && !game.panorama) this.renderHand(game, daylight);
   };
 
   // ---------- Wolken ----------

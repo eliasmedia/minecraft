@@ -1,5 +1,9 @@
 # Befehle und Befehlsblock — Plan
 
+> **Stand August 2026: umgesetzt.** Die Punkte 1 bis 6 der Reihenfolge unten
+> stehen im Spiel, samt Befehlsblock und dem abgespeckten `execute`. Was hier
+> als „bewusst weggelassen" steht, ist weiterhin weggelassen.
+
 Recherchiert am [Minecraft Wiki](https://minecraft.wiki/w/Commands) und
 [Command Block](https://minecraft.wiki/w/Command_Block). Dieses Papier hält fest,
 was aus dem Original sinnvoll übertragbar ist und was nicht — und warum.
