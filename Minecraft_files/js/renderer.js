@@ -699,8 +699,11 @@
     var it = MC.Items.get(e.stack.id);
     var bob = Math.sin(e.age * 3 + e.bob) * 0.06;
     var y = e.y + 0.16 + bob;
-    if (it && it.block) {
-      var blk = B.byName[it.block];
+    // Nur echte Würfel werden als Würfel gezeigt. Redstone zeigt auf die
+    // Leitung, und die ist flach – als Würfel gezeichnet war sie ein weißer
+    // Klotz. Alles, was kein Würfel ist, kommt als Bild.
+    var blk = (it && it.block) ? B.byName[it.block] : null;
+    if (blk && blk.shape === B.SHAPE_CUBE) {
       var n = this.boxGeometry(0, [e.x, y, e.z], 0.26, blk, 0, e.age * 1.4, bl, sl);
       this.drawDyn(n);
     } else {

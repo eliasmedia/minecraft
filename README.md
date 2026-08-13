@@ -18,7 +18,7 @@ Minecraft_files/
   js/  util · blocks · potions · items · enchant · recipes · textures
        glcore · mesher · particles · icons · worldgen · village · caves
        map · dimensions · world · redstone · entities · theend
-       achievements · player · renderer · audio · commands · ui · main
+       achievements · player · renderer · audio · worlds · commands · ui · main
 ```
 
 ## Steuerung
@@ -66,6 +66,22 @@ jedem Aufruf aus zwei Dutzend wechselt und im Takt wippt. Die Knöpfe haben den
 hellen Rand oben links und den dunklen unten rechts, unten stehen in den beiden
 Ecken Fassung und Hinweis. Hotbar, Lebensbalken und Fadenkreuz sind auf dem
 Startbildschirm ausgeblendet.
+
+**Welten** — mehrere Spielstände nebeneinander, jeder mit **Namen**. Die Liste
+zeigt Modus, Seed, Weltversion, letztes Spieldatum und Größe; spielen,
+umbenennen, kopieren und löschen geht je Zeile. Ein Name, den es schon gibt,
+bekommt automatisch eine Nummer. Vorher gab es genau einen Spielstand unter
+einem festen Schlüssel — eine neue Welt überschrieb die alte. Ein solcher alter
+Spielstand wandert beim ersten Öffnen der Liste automatisch hinein.
+
+Zwei Ablagen mit derselben Bedienung: der **Browserspeicher** läuft überall,
+auch beim Start per Doppelklick, hängt aber am Browserprofil. Wer will, wählt
+stattdessen einen **echten Ordner** — dann liegen die Welten dort als lesbare
+`.json`-Dateien, überstehen das Leeren des Browsers und lassen sich kopieren wie
+jede andere Datei. Das geht nur in Chrome und Edge und nur von einer Webseite
+aus; beim Start aus dem Dateisystem verweigert der Browser den Zugriff, und
+dann steht das im Menü auch so da. `Welt exportieren` und `Welt einlesen` gibt
+es unabhängig davon.
 
 **Befehle** — `T` öffnet die Chatzeile, `/` öffnet sie und setzt den Schrägstrich
 gleich mit. Solange sie offen ist, ruht die Steuerung — sonst liefe man beim

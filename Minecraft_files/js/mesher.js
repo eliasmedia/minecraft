@@ -243,7 +243,10 @@
             }
 
             case B.SHAPE_CROP: {
-              var lay2 = T.layer('wheat_stage' + Math.min(3, meta >> 1));
+              // Die Texturreihe steht am Block. Hier stand sie früher fest auf
+              // Weizen – deshalb war ein gesetztes Nethergewächs grün.
+              var reihe = (typeof block.tex === 'string') ? block.tex : (block.tex.stage || 'wheat_stage');
+              var lay2 = T.layer(reihe + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
               emitCross(buf, x, y, z, lay2, gl(x, y, z), 0.95);
               break;
             }

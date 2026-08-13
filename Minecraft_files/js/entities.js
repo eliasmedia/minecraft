@@ -21,6 +21,9 @@
     // ein reiner Y-Zug das collidedH des vorangegangenen Horizontalzugs – davon
     // leben Leiterklettern und der Hindernissprung der Mobs.
     if (dy !== 0) e.onGround = false;
+    // Merken, worauf wir standen: steht der Zug an einer Wand still, wird der
+    // Bodenkontakt am Ende daraus wiederhergestellt.
+    var standVorher = e.onGround;
     if (dx !== 0 || dz !== 0) e.collidedH = false;
 
     // Y
@@ -65,6 +68,11 @@
       }
       e.z += dz;
     }
+    // Ein reiner Waagrechtzug nimmt einem den Boden nicht weg. Ohne das steht
+    // man nach ein paar Bildern gegen einer Wand ohne Bodenkontakt da, weil der
+    // senkrechte Zug mit dy = 0 gar nicht mehr läuft und onGround nie wieder
+    // gesetzt wird – dann verschluckt das Spiel den Sprung.
+    if (dy === 0 && standVorher) e.onGround = true;
     return { dx: e.x - ox, dy: e.y - oy, dz: e.z - oz };
   };
 
@@ -86,6 +94,11 @@
         (afterX - sx) * (afterX - sx) + (afterZ - sz) * (afterZ - sz)) {
       e.x = afterX; e.z = afterZ; e.y = sy;
       P.move(world, e, 0, 0, 0);
+      // Der Hochstiegsversuch hat oben ein P.move mit dy != 0 gemacht, und das
+      // löscht onGround. Scheitert der Versuch, stehen wir aber unverändert auf
+      // demselben Boden – ohne diese Zeile schluckt das Spiel den Sprung, wenn
+      // man gegen einen Block läuft und dabei die Leertaste drückt.
+      e.onGround = wasGround;
     }
     return { dx: e.x - sx, dy: e.y - sy, dz: e.z - sz };
   };

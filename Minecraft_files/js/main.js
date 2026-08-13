@@ -142,9 +142,13 @@
   };
 
   // ---------- Welt starten ----------
-  Game.prototype.newWorld = function (seedStr, mode, settings) {
+  Game.prototype.newWorld = function (seedStr, mode, settings, name) {
     var self = this;
     this.stopPanorama();
+    // Jede Welt bekommt eine eigene Kennung und einen Namen – vorher hat eine
+    // neue Welt die alte schlicht überschrieben.
+    this.weltId = MC.Welten.neueId();
+    this.weltName = MC.Welten.freierName(name || 'Neue Welt');
     var seed = seedStr ? (/^\d+$/.test(seedStr) ? (parseInt(seedStr, 10) >>> 0) : U.hashString(seedStr)) : (Math.random() * 4294967295) >>> 0;
     this.mode = mode || 'survival';
     this.seed = seed;
@@ -173,7 +177,8 @@
     this.audio.init();
     this.requestPointerLock();
     this.ui.updateHotbar();
-    this.ui.toast('Welt erzeugt — Seed ' + seed);
+    this.saveWorld(true);
+    this.ui.toast('„' + this.weltName + '" erzeugt — Seed ' + seed);
   };
 
   Game.prototype.settleSpawn = function () {
@@ -1551,6 +1556,105 @@
     return c;
   };
 
+  // ---------- Weltenliste ----------
+  Game.prototype.buildWeltenListe = function (h, btn) {
+    var self = this;
+    var box = this.menuBox;
+    h('Welten', 'mtitle');
+
+    // Beim ersten Öffnen wandert der alte Einzelspielstand in die Liste
+    if (MC.Welten.altenUebernehmen()) this.ui.toast('Bisheriger Spielstand übernommen');
+
+    var liste = MC.Welten.liste();
+    var wrap = document.createElement('div');
+    wrap.className = 'wliste';
+    box.appendChild(wrap);
+
+    if (!liste.length) {
+      var leer = document.createElement('div');
+      leer.className = 'wleer';
+      leer.textContent = 'Noch keine Welt gespeichert.';
+      wrap.appendChild(leer);
+    }
+
+    liste.forEach(function (e) {
+      var z = document.createElement('div');
+      z.className = 'wzeile' + (e.id === self.weltId ? ' aktiv' : '');
+      var links = document.createElement('div');
+      links.className = 'wtext';
+      links.innerHTML = '<b>' + MC.Cmd.escape(e.name) + '</b>' +
+        '<span>' + (MC.MODUS_NAME[e.mode] || e.mode) + ' · Seed ' + e.seed +
+        ' · Weltversion ' + (e.gen || 1) + '</span>' +
+        '<span>' + MC.Welten.datum(e.zuletzt) +
+        (e.groesse ? ' · ' + MC.Welten.groesse(e.groesse) : '') + '</span>';
+      z.appendChild(links);
+
+      var knoepfe = document.createElement('div');
+      knoepfe.className = 'wknoepfe';
+      function kn(txt, titel, fn) {
+        var b = document.createElement('button');
+        b.className = 'wbtn'; b.textContent = txt; b.title = titel;
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); self.audio.play('click'); fn(); });
+        knoepfe.appendChild(b);
+      }
+      kn('Spielen', 'Diese Welt laden', function () { self.loadWorld(e.id); });
+      kn('Umbenennen', 'Namen ändern', function () {
+        var n = prompt('Neuer Name für „' + e.name + '"', e.name);
+        if (n === null) return;
+        MC.Welten.umbenennen(e.id, n.trim() || e.name);
+        if (self.weltId === e.id) self.weltName = MC.Welten.eintrag(e.id).name;
+        self.showMenu('welten');
+      });
+      kn('Kopieren', 'Eine Kopie anlegen', function () {
+        MC.Welten.duplizieren(e.id, function (neu) {
+          self.ui.toast(neu ? 'Kopie angelegt' : 'Kopieren ging nicht');
+          self.showMenu('welten');
+        });
+      });
+      kn('Löschen', 'Diese Welt löschen', function () {
+        if (!confirm('„' + e.name + '" wirklich löschen? Das lässt sich nicht rückgängig machen.')) return;
+        MC.Welten.loeschen(e.id, function () {
+          if (self.weltId === e.id) { self.weltId = null; self.weltName = null; }
+          self.showMenu('welten');
+        });
+      });
+      z.appendChild(knoepfe);
+      wrap.appendChild(z);
+    });
+
+    // Ordner: nur anbieten, wo der Browser ihn hergibt
+    var hinweis = document.createElement('div');
+    hinweis.className = 'wordner';
+    if (MC.Welten.ordnerAktiv()) {
+      hinweis.innerHTML = 'Ordner: <b>' + MC.Cmd.escape(MC.Welten.ordnerName()) + '</b> — ' +
+        'die Welten liegen dort als lesbare .json-Dateien.';
+      box.appendChild(hinweis);
+      btn('Ordner lösen (zurück in den Browserspeicher)', function () {
+        MC.Welten.ordnerLoesen(); self.showMenu('welten');
+      });
+    } else if (MC.Welten.ordnerMoeglich()) {
+      hinweis.innerHTML = 'Die Welten liegen im Browserspeicher. Du kannst stattdessen ' +
+        'einen Ordner wählen — dann liegen sie als .json-Dateien darin und überstehen ' +
+        'auch das Leeren des Browsers.';
+      box.appendChild(hinweis);
+      btn('Ordner wählen …', function () {
+        MC.Welten.ordnerWaehlen(function (ok, was) {
+          self.ui.toast(ok ? 'Ordner: ' + was : was);
+          self.showMenu('welten');
+        });
+      });
+    } else {
+      hinweis.innerHTML = 'Die Welten liegen im Browserspeicher. Einen echten Ordner geben ' +
+        'nur Chrome und Edge her, und nur von einer Webseite aus — beim Start per ' +
+        'Doppelklick verweigert der Browser den Zugriff. Zum Sichern gibt es ' +
+        '„Welt exportieren".';
+      box.appendChild(hinweis);
+    }
+
+    btn('Welt einlesen (.json)', function () { self.importWorld(); });
+    btn('Zurück', function () { self.showMenu(self.started ? 'pause' : 'main'); });
+  };
+
   // ---------- Startbildschirm: das Panorama ----------
   // Das Original zeigt hinter dem Menü einen langsam schwenkenden Ausschnitt
   // einer Welt. Wir haben den Renderer ohnehin – also erzeugen wir eine kleine
@@ -1682,6 +1786,13 @@
       splash.textContent = SPLASHES[(Math.random() * SPLASHES.length) | 0];
       kopf.appendChild(splash);
       box.appendChild(kopf);
+      var namensReihe = document.createElement('div'); namensReihe.className = 'mrow'; box.appendChild(namensReihe);
+      var nameFeld = document.createElement('input');
+      nameFeld.className = 'minput'; nameFeld.placeholder = 'Name der Welt';
+      nameFeld.value = this.newWorldName || '';
+      nameFeld.addEventListener('input', function () { self.newWorldName = nameFeld.value; });
+      namensReihe.appendChild(nameFeld);
+
       var row = document.createElement('div'); row.className = 'mrow'; box.appendChild(row);
       var seed = document.createElement('input');
       seed.className = 'minput'; seed.placeholder = 'Seed (optional)';
@@ -1695,9 +1806,12 @@
       modeSel.value = this.newWorldMode || 'survival';
       modeSel.addEventListener('change', function () { self.newWorldMode = modeSel.value; });
       row.appendChild(modeSel);
-      btn('Neue Welt erschaffen', function () { self.newWorld(seed.value.trim(), modeSel.value, self.newWorldSettings); });
+      btn('Neue Welt erschaffen', function () {
+        self.newWorld(seed.value.trim(), modeSel.value, self.newWorldSettings, nameFeld.value.trim());
+      });
       btn('Welt anpassen …', function () { self.showMenu('worldopts'); });
-      if (this.hasSave()) btn('Welt laden', function () { self.loadWorld(); });
+      btn('Welten' + (this.hasSave() ? ' (' + MC.Welten.liste().length + ')' : '') + ' …',
+          function () { self.showMenu('welten'); });
       btn('Steuerung & Ziele', function () { self.showMenu('help'); });
       // Die beiden Ecken unten wie im Original: links die Fassung, rechts der
       // Hinweis, dass das hier nichts mit Mojang zu tun hat.
@@ -1705,6 +1819,8 @@
       ecke.innerHTML = '<span>HTML Edition &nbsp;·&nbsp; Weltversion ' + MC.GEN_VERSION +
                        '</span><span>Ein Nachbau — nicht von Mojang</span>';
       this.menuEl.appendChild(ecke);
+    } else if (which === 'welten') {
+      this.buildWeltenListe(h, btn);
     } else if (which === 'worldopts') {
       this.buildWorldOpts(h, btn);
     } else if (which === 'pause') {
@@ -1724,6 +1840,7 @@
         self.setMode(MC.MODI[(MC.MODI.indexOf(self.mode) + 1) % MC.MODI.length]);
         self.showMenu('pause');
       });
+      btn('Welten …', function () { self.showMenu('welten'); });
       btn('Welt exportieren (.json)', function () { self.exportWorld(); });
       btn('Welt importieren', function () { self.importWorld(); });
       btn('Steuerung', function () { self.showMenu('help'); });
@@ -1871,6 +1988,8 @@
       time: this.world.time,
       mode: this.mode,
       dim: this.dim,
+      weltId: this.weltId,
+      weltName: this.weltName,
       difficulty: this.difficulty,
       regeln: this.regeln || {},
       endState: this.endState,
@@ -1880,26 +1999,34 @@
     };
   };
 
-  Game.prototype.saveWorld = function () {
+  Game.prototype.saveWorld = function (still) {
     if (!this.started) return;
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.collectSave()));
-      this.ui.toast('Welt gespeichert');
-    } catch (err) {
-      this.ui.toast('Speichern fehlgeschlagen — nutze „Welt exportieren"');
-    }
+    var self = this;
+    if (!this.weltId) { this.weltId = MC.Welten.neueId(); this.weltName = MC.Welten.freierName(this.weltName); }
+    MC.Welten.speichern(this.weltId, this.weltName, this.collectSave(), function (ok, warum) {
+      if (still) return;
+      self.ui.toast(ok ? 'Welt gespeichert' : (warum || 'Speichern fehlgeschlagen'));
+    });
   };
 
   Game.prototype.hasSave = function () {
-    try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+    return MC.Welten.liste().length > 0;
   };
 
-  Game.prototype.loadWorld = function () {
-    var data;
-    try { data = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { }
-    if (!data) { this.ui.toast('Kein Spielstand gefunden'); return; }
-    this.stopPanorama();
-    this.applySave(data);
+  // Lädt eine bestimmte Welt aus der Liste. Ohne Angabe die zuletzt gespielte.
+  Game.prototype.loadWorld = function (id) {
+    var self = this;
+    var liste = MC.Welten.liste();
+    if (!id) { if (!liste.length) { this.ui.toast('Kein Spielstand gefunden'); return; } id = liste[0].id; }
+    var e = MC.Welten.eintrag(id);
+    MC.Welten.laden(id, function (data) {
+      if (!data) { self.ui.toast('Diese Welt lässt sich nicht lesen'); return; }
+      self.stopPanorama();
+      self.weltId = id;
+      self.weltName = (e && e.name) || data.weltName || 'Welt';
+      self.applySave(data);
+      self.ui.toast('„' + self.weltName + '" geladen');
+    });
   };
 
   Game.prototype.applySave = function (data) {
@@ -1948,7 +2075,7 @@
     var blob = new Blob([data], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'minecraft-welt-' + this.world.seed + '.json';
+    a.download = (this.weltName || 'minecraft-welt-' + this.world.seed).replace(/[^\w\-]+/g, '_') + '.json';
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
     this.ui.toast('Welt exportiert');
@@ -1964,7 +2091,17 @@
       if (!f) return;
       var fr = new FileReader();
       fr.onload = function () {
-        try { self.applySave(JSON.parse(fr.result)); }
+        try {
+          var d = JSON.parse(fr.result);
+          // Eine eingelesene Datei wird eine eigene Welt in der Liste, sonst
+          // wäre sie nach dem nächsten Start wieder weg.
+          self.stopPanorama();
+          self.weltId = MC.Welten.neueId();
+          self.weltName = MC.Welten.freierName(d.weltName || f.name.replace(/\.json$/i, ''));
+          self.applySave(d);
+          self.saveWorld(true);
+          self.ui.toast('„' + self.weltName + '" eingelesen');
+        }
         catch (e) { self.ui.toast('Datei konnte nicht gelesen werden'); }
       };
       fr.readAsText(f);
@@ -1973,6 +2110,10 @@
   };
 
   // ---------- Hauptschleife ----------
+  // Steht ein Fenster offen, bekommt der Spieler diese Eingabe: nichts gedrückt.
+  // So fällt er weiter, ertrinkt weiter und brennt weiter – er läuft nur nicht.
+  var LEER_EINGABE = { key: function () { return false; }, sprintToggle: false, dx: 0, dy: 0, wheel: 0, locked: false };
+
   Game.prototype.loop = function (now) {
     requestAnimationFrame(this.loop);
     var dt = Math.min(0.1, (now - (this.lastTime || now)) / 1000);
@@ -1989,7 +2130,7 @@
     var p = this.player;
 
     // Maus
-    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead && !(MC.Cmd && MC.Cmd.Chat.offen)) {
+    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead && !(MC.Cmd && MC.Cmd.Chat.offen) && !this.cbOffen) {
       p.yaw -= input.dx * this.sensitivity;
       p.pitch += input.dy * this.sensitivity;
       p.pitch = U.clamp(p.pitch, -Math.PI / 2 + 0.001, Math.PI / 2 - 0.001);
@@ -2005,13 +2146,21 @@
       input.wheel = 0;
     }
 
-    var chatOffen = MC.Cmd && MC.Cmd.Chat.offen;
-    if (!this.paused && !this.ui.isOpen() && !chatOffen) {
+    // Ein offenes Fenster hält im Original die Welt nicht an – nur der Spieler
+    // fasst nichts mehr an. Vorher stand hier alles still: Zeit, Kreaturen,
+    // Ofen, Redstone. Jetzt läuft die Welt weiter, und lediglich die Eingabe
+    // wird abgeklemmt.
+    var chatOffen = !!(MC.Cmd && MC.Cmd.Chat.offen);
+    var fensterAuf = this.ui.isOpen() || chatOffen || this.cbOffen;
+    if (!this.paused) {
       this.tickCount++;
-      p.update(dt, input, this);
-      this.updateTarget();
-      this.handleMining(dt);
-      this.handleUseHold(dt);
+      p.update(dt, fensterAuf ? LEER_EINGABE : input, this);
+      if (fensterAuf) { this.mining = null; this.bowCharge = 0; }
+      else {
+        this.updateTarget();
+        this.handleMining(dt);
+        this.handleUseHold(dt);
+      }
 
       // Entities
       var ents = this.world.entities;

@@ -293,6 +293,8 @@
     if (this.sneaking && !this.flying) speed = 1.45;
     if (this.flying) speed = this.sprinting ? 21 : 10.5;
     if (this.inWater && !this.flying) speed *= 0.62;
+    // In Lava kommt man voran, nur zäh – vorher sank man einfach hilflos ab
+    if (inLava && !this.inWater && !this.flying) speed *= 0.34;
     if (this.onGround && !this.flying && groundB && groundB.slow) speed *= (1 - groundB.slow);
     // In einer Spinnwebe kommt man kaum vorwärts – anders als Seelensand
     // bremst sie, wenn man drinsteckt, nicht wenn man darauf steht.
@@ -359,6 +361,17 @@
             this.vy = Math.min(this.vy + 24 * dt, maxAuf);
           }
         }
+        else if (inLava) {
+          // Auch in Lava kommt man nach oben, nur halb so schnell wie im Wasser.
+          // Herauszukommen bleibt ein Wettlauf gegen den Hitzeschaden – aber
+          // es ist einer, den man gewinnen kann.
+          if (input.key('Space')) {
+            // Der Auftrieb muss die Schwerkraft übertreffen, sonst sinkt man
+            // trotz gedrückter Taste weiter – nur eben langsamer.
+            var maxLava = this.collidedH ? 2.6 : 1.5;
+            this.vy = Math.min(this.vy + 26 * dt, maxLava);
+          }
+        }
         else if (this.onGround || this.coyote > 0) {
           // Brustpanzer aus Gravitit hebt einen deutlich höher
           this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
@@ -378,8 +391,10 @@
       }
       if (this.onGround) this.doubleJumped = false;
 
-      this.vy -= (this.inWater ? 9 : 32) * dt;
+      // Lava zieht stärker nach unten als Wasser und bremst das Sinken mehr
+      this.vy -= (this.inWater ? 9 : (inLava ? 14 : 32)) * dt;
       if (this.inWater && this.vy < -3) this.vy = -3;
+      if (inLava && !this.inWater && this.vy < -1.6) this.vy = -1.6;
       if (this.vy < -78) this.vy = -78;
 
       this.onLadder = this.checkLadder();
