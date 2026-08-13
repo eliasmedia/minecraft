@@ -1699,6 +1699,24 @@
     g.rect(6, 8, 4, 3, [240, 170, 40]); g.rect(6, 8, 4, 1, [252, 200, 80]);
     g.rect(6, 1, 4, 3, [196, 50, 44]); g.rect(6, 1, 4, 1, [226, 72, 62]);
   });
+  // Herobrine: die alte Legende. Steve, nur mit leeren, leuchtenden Augen –
+  // mehr braucht es nicht, das Unheimliche macht der Auftritt, nicht die Textur.
+  var HERO_HAUT = [222, 176, 138];
+  mob('mob_herobrine', HERO_HAUT, 'v');
+  mob('mob_herobrine_shirt', [80, 156, 152], 'v');
+  mob('mob_herobrine_hose', [78, 88, 148], 'v');
+  mobFace('mob_herobrine_face', HERO_HAUT, function (g, r) {
+    // Haare
+    g.rect(0, 0, 16, 4, [58, 42, 30]);
+    g.rect(0, 4, 2, 3, [58, 42, 30]); g.rect(14, 4, 2, 3, [58, 42, 30]);
+    // Keine Pupillen, keine Iris: zwei weiße Flächen, die leicht überstrahlen
+    g.rect(2, 5, 4, 3, [255, 255, 255]);
+    g.rect(10, 5, 4, 3, [255, 255, 255]);
+    g.rect(2, 4, 4, 1, [206, 232, 236]);
+    g.rect(10, 4, 4, 1, [206, 232, 236]);
+    g.rect(6, 11, 4, 1, r.dk);
+  });
+
   mob('mob_zombie', [66, 102, 62], 'v');
   mob('mob_zombie_shirt', [62, 88, 148], 'v');
   mobFace('mob_zombie_face', [82, 126, 70], function (g, r) {

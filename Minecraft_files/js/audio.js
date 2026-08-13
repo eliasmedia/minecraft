@@ -173,6 +173,13 @@
       case 'cow': this.tone(t, 0.6, 0.24 * g, 'sawtooth', 180, 120, 6); break;
       case 'sheep': this.tone(t, 0.45, 0.2 * g, 'square', 420, 330, 20); break;
       case 'chicken': this.tone(t, 0.1, 0.18 * g, 'square', 900, 600); this.tone(t + 0.11, 0.09, 0.15 * g, 'square', 700, 1000); break;
+      // Herobrine: ein tiefes, kurzes Wehen mit einem Anflug von Ton darunter.
+      // Nichts Grelles – der Schreck kommt vom Hinsehen, nicht vom Klang.
+      case 'herobrine':
+        this.noise(t, 1.1, 0.34 * g, 'lowpass', 320, 0.9, 90);
+        this.tone(t, 0.9, 0.16 * g, 'sine', 62, 41, 3);
+        this.tone(t + 0.05, 0.7, 0.07 * g, 'sawtooth', 128, 96, 5);
+        break;
       case 'zombie': this.tone(t, 0.55, 0.24 * g, 'sawtooth', 150, 95, 9); this.noise(t, 0.5, 0.12 * g, 'lowpass', 500, 1, 250); break;
       case 'skeleton': for (var k = 0; k < 4; k++) this.noise(t + k * 0.07, 0.05, 0.16 * g, 'bandpass', 2200 + k * 300, 6, 1800); break;
       case 'creeper': this.noise(t, 0.7, 0.26 * g, 'highpass', 2800, 1, 4200); break;

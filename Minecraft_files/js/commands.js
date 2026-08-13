@@ -625,7 +625,8 @@
     doMobSpawning: { def: true, text: 'Kreaturen erscheinen von selbst' },
     mobGriefing: { def: true, text: 'Kreaturen dürfen Blöcke verändern' },
     doTileDrops: { def: true, text: 'Blöcke lassen etwas fallen' },
-    doFireTick: { def: true, text: 'Feuer breitet sich aus' }
+    doFireTick: { def: true, text: 'Feuer breitet sich aus' },
+    herobrine: { def: true, text: 'Die alte Legende erscheint' }
   };
   C.REGELN = REGELN;
 

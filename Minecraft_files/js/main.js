@@ -145,6 +145,7 @@
   Game.prototype.newWorld = function (seedStr, mode, settings, name) {
     var self = this;
     this.stopPanorama();
+    if (MC.Herobrine) MC.Herobrine.zuruecksetzen();
     // Jede Welt bekommt eine eigene Kennung und einen Namen – vorher hat eine
     // neue Welt die alte schlicht überschrieben.
     this.weltId = MC.Welten.neueId();
@@ -2184,6 +2185,7 @@
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
       if (MC.Caves) { MC.Caves.tick(this, dt); MC.Caves.waechter(this, dt); }
       if (MC.Cmd) MC.Cmd.Block.tick(this, dt);
+      if (MC.Herobrine) MC.Herobrine.tick(this, dt);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }

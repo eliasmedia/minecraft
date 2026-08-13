@@ -18,7 +18,8 @@ Minecraft_files/
   js/  util · blocks · potions · items · enchant · recipes · textures
        glcore · mesher · particles · icons · worldgen · village · caves
        map · dimensions · world · redstone · entities · theend
-       achievements · player · renderer · audio · worlds · commands · ui · main
+       achievements · player · renderer · audio · herobrine · worlds
+       commands · ui · main
 ```
 
 ## Steuerung
@@ -66,6 +67,30 @@ jedem Aufruf aus zwei Dutzend wechselt und im Takt wippt. Die Knöpfe haben den
 hellen Rand oben links und den dunklen unten rechts, unten stehen in den beiden
 Ecken Fassung und Hinweis. Hotbar, Lebensbalken und Fadenkreuz sind auf dem
 Startbildschirm ausgeblendet.
+
+**Herobrine** — die alte Legende, die auf die Anfangszeit von Minecraft
+zurückgeht: ein Screenshot, ein Forenbeitrag, eine Geschichte, die nie stimmte
+und trotzdem nie wegging. Er war nie im Spiel. Hier ist er es — aber **nicht als
+Gegner**. Er greift nicht an, lässt sich nicht schlagen, gibt nichts her und
+sagt nichts. Er steht nur da, wo keiner stehen sollte.
+
+Zwei Auftritte, beide selten (im Mittel gut eine Stunde Spielzeit, danach zehn
+Minuten Ruhe):
+
+*In der Ferne* steht er plötzlich am Rand der Sicht, vierzig bis sechzig Blöcke
+weit weg, immer mit freier Sichtlinie — hinter einer Wand wäre er keiner. Geht
+man auf ihn zu, ist er nach zweieinhalb Blöcken weg. Sieht man stattdessen weg,
+rückt er genau in diesem Augenblick näher, wie ein Weinender Engel: 43 → 29 → 21
+→ 13 → 10 Blöcke. Näher als zehn kommt er nie; dort verschwindet er beim
+nächsten Blickwechsel oder Schritt. Ab dem zweiten Sprung hört man ihn dabei ganz
+leise — gerade so, dass man sich hinterher nicht sicher ist.
+
+*Direkt hinter einem* erscheint er, wenn man länger als eine halbe Minute
+stillsteht: erst ein tiefes, kurzes Wehen, dann steht er zwei Blöcke im Rücken.
+Dreht man sich um, ist er eine halbe Sekunde später weg.
+
+Ob er überhaupt auftaucht, hängt an `/gamerule herobrine`. Ein Spawn-Ei gibt es
+für ihn nicht.
 
 **Welten** — mehrere Spielstände nebeneinander, jeder mit **Namen**. Die Liste
 zeigt Modus, Seed, Weltversion, letztes Spieldatum und Größe; spielen,

@@ -511,6 +511,19 @@
         part('leg1', 'mob_chicken_leg', 1, 0, -1, 1, 5, 3, 'legFL', [1, 5, 0])
       ]
     },
+    // Herobrine hat Steves Maße – er soll aussehen wie ein Spieler, der dort
+    // steht, wo keiner stehen sollte.
+    herobrine: {
+      height: 1.85, width: 0.6, scale: 0.94,
+      parts: [
+        part('head', { all: 'mob_herobrine', front: 'mob_herobrine_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
+        part('body', 'mob_herobrine_shirt', -4, 12, -2, 8, 12, 4),
+        part('armR', 'mob_herobrine_shirt', -8, 12, -2, 4, 12, 4, 'armZ', [-6, 23, 0]),
+        part('armL', 'mob_herobrine_shirt', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
+        part('legR', 'mob_herobrine_hose', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
+        part('legL', 'mob_herobrine_hose', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
+      ]
+    },
     zombie: {
       height: 1.85, width: 0.6, scale: 0.94,
       parts: [
@@ -797,6 +810,9 @@
     cow: { hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'beef_raw', min: 1, max: 3 }, { id: 'leather', min: 0, max: 2 }], xp: 2, sound: 'cow' },
     sheep: { hp: 8, hostile: false, speed: 2.0, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
     chicken: { hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
+    // Er greift nicht an, er nimmt keinen Schaden, er bewegt sich nicht von
+    // selbst. Alles, was er tut, steuert herobrine.js.
+    herobrine: { hp: 1, hostile: false, speed: 0, steht: true, damage: 0, drops: [], xp: 0, unsterblich: true },
     zombie: { hp: 20, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'porkchop_raw', min: 0, max: 0 }], xp: 5, sound: 'zombie', burns: true },
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
     creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },
@@ -1577,6 +1593,9 @@
   };
 
   Mob.prototype.hurt = function (amount, source, game) {
+    // Herobrine lässt sich nicht schlagen. Er ist kein Gegner, sondern ein
+    // Anblick – ein Treffer würde ihn zu einem Gegner machen.
+    if (this.unverwundbar) return;
     if (this.hurtTime > 0.25 || this.dead) return;
     this.hp -= amount;
     this.hurtTime = 0.5;
