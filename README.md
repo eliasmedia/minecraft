@@ -50,6 +50,22 @@ Zeigers — normale Bewegung bleibt unverändert.
 
 ## Was drin ist
 
+**Startbildschirm** — kein Standbild und kein schwarzer Kasten: hinter dem Menü
+läuft eine **echte Welt**. Beim Aufrufen des Hauptmenüs wird aus einem von fünf
+Seeds eine Welt erzeugt, eine Kamera auf eine Kuppe gestellt und langsam
+geschwenkt — dieselbe Generierung und derselbe Renderer wie im Spiel. Gesucht
+wird dabei nicht der höchste Gipfel (von dort sieht man nur Himmel), sondern ein
+mäßig erhöhter Punkt mit Relief ringsum. Kostet einmalig gut 200 ms.
+
+Darüber liegt das Menü im Stil des Originals: der Schriftzug ist mit der
+**Grasblock-Textur gefüllt** — die liegt ohnehin prozedural im Speicher —, hat
+einen versetzten Schatten und eine dunkle Kante, damit er vor der Landschaft
+stehen bleibt. Rechts unten am Logo hängt schräg der gelbe **Spruch**, der bei
+jedem Aufruf aus zwei Dutzend wechselt und im Takt wippt. Die Knöpfe haben den
+hellen Rand oben links und den dunklen unten rechts, unten stehen in den beiden
+Ecken Fassung und Hinweis. Hotbar, Lebensbalken und Fadenkreuz sind auf dem
+Startbildschirm ausgeblendet.
+
 **Welt** — prozedurale, praktisch unendliche Voxelwelt mit Seed-Eingabe. 9 Biome
 (Ozean, Strand, Ebene, Wald, Wüste, Berge, Taiga, Sumpf, Tundra), Höhlensysteme,
 Erzverteilung nach Tiefe, drei Baumarten, Blumen, Kakteen, Zuckerrohr, Kürbisse,

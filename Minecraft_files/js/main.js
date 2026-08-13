@@ -141,6 +141,7 @@
   // ---------- Welt starten ----------
   Game.prototype.newWorld = function (seedStr, mode, settings) {
     var self = this;
+    this.stopPanorama();
     var seed = seedStr ? (/^\d+$/.test(seedStr) ? (parseInt(seedStr, 10) >>> 0) : U.hashString(seedStr)) : (Math.random() * 4294967295) >>> 0;
     this.mode = mode || 'survival';
     this.seed = seed;
@@ -1476,6 +1477,145 @@
     else { this.hideMenu(); this.requestPointerLock(); }
   };
 
+  // Der gelbe Spruch unter dem Logo. Im Original stehen dort Insiderwitze –
+  // unsere drehen sich um dieses Projekt.
+  var SPLASHES = [
+    'Komplett offline!', 'Keine einzige Abhängigkeit!', 'Texturen zur Laufzeit gemalt!',
+    'Doppelklick genügt!', 'Ein einziges HTML!', 'Kein Build-Schritt!',
+    'Auch der Aether ist drin!', '495 Texturen, alle selbst gemacht!',
+    'Neun Weltversionen tief!', 'Wurmlöcher gibt es wirklich!',
+    'Seegras ist jetzt richtig nass!', 'Höhlen mit Sackgassen!',
+    'Der Drache wartet.', 'Enderperlen tun weh.', 'Nicht in die Lava.',
+    'Mit Verzauberungen!', 'Mit Kolben!', 'Mit Ambossen!',
+    'Läuft aus dem Downloadordner!', 'Bitte nicht die Werkbank essen.',
+    'Auch im Zuschauermodus!', 'Glowstone nur in Bastionen!',
+    'Zanit! Gravitit!', 'Hergestellt in Absam.'
+  ];
+
+  // Das Logo: Text mit einer Blocktextur gefüllt, dazu ein harter Schatten.
+  Game.prototype.logoCanvas = function () {
+    var text = 'MINECRAFT';
+    var gross = Math.min(96, Math.max(40, Math.floor(window.innerWidth / 11)));
+    var c = document.createElement('canvas');
+    var ctx = c.getContext('2d');
+    ctx.font = 'bold ' + gross + 'px "Courier New", monospace';
+    var breite = ctx.measureText(text).width;
+    var rand = Math.ceil(gross * 0.22);
+    c.width = Math.ceil(breite) + rand * 2;
+    c.height = Math.ceil(gross * 1.5) + rand;
+    c.className = 'mlogo';
+    ctx = c.getContext('2d');
+    ctx.font = 'bold ' + gross + 'px "Courier New", monospace';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    var mx = c.width / 2, my = c.height / 2;
+
+    var muster = null;
+    try {
+      // Grasseite, deutlich aufgehellt – ungebleicht säuft das Logo vor dem
+      // Panorama ab und ist nur noch ein dunkler Fleck
+      var kachel = MC.Textures.tileCanvas('grass_side', 1.75);
+      muster = ctx.createPattern(kachel, 'repeat');
+    } catch (e) { muster = null; }
+
+    // Schatten nach unten rechts, wie die versetzten Blöcke im Original
+    var tiefe = Math.max(3, Math.round(gross * 0.10));
+    ctx.fillStyle = 'rgba(0,0,0,.75)';
+    for (var d = tiefe; d > 0; d--) ctx.fillText(text, mx + d, my + d);
+
+    ctx.fillStyle = muster || '#7a9a5c';
+    ctx.fillText(text, mx, my);
+    // Dunkle Kante, damit die Buchstaben vor dem Panorama stehen bleiben
+    ctx.lineWidth = Math.max(1.5, gross * 0.045);
+    ctx.strokeStyle = 'rgba(0,0,0,.85)';
+    ctx.strokeText(text, mx, my);
+    return c;
+  };
+
+  // ---------- Startbildschirm: das Panorama ----------
+  // Das Original zeigt hinter dem Menü einen langsam schwenkenden Ausschnitt
+  // einer Welt. Wir haben den Renderer ohnehin – also erzeugen wir eine kleine
+  // Welt, stellen eine Kamera auf eine Anhöhe und drehen sie. Kein Standbild,
+  // sondern dieselbe Weltgenerierung, die das Spiel auch sonst benutzt.
+  var PANORAMA_SEEDS = [1337, 4242, 90210, 777, 20260813];
+
+  Game.prototype.startPanorama = function () {
+    if (this.started || this.panorama) return;
+    // Hotbar, Lebensbalken und Fadenkreuz gehören nicht auf den Startbildschirm
+    var hud = document.getElementById('hud');
+    var kreuz = document.getElementById('crosshair');
+    if (hud) hud.style.display = 'none';
+    if (kreuz) kreuz.style.display = 'none';
+    try {
+      var seed = PANORAMA_SEEDS[(Math.random() * PANORAMA_SEEDS.length) | 0];
+      this.seed = seed;
+      this.worldSettings = MC.defaultWorldOpts();
+      this.worlds = {};
+      this.savedDims = null;
+      this.dim = 'overworld';
+      var w = this.dimWorld('overworld');
+      this.world = w;
+      this.particles = new MC.Particles(w);
+
+      // Ein Aussichtspunkt, kein Spawnpunkt. Gesucht wird eine Stelle mit
+      // Höhenunterschied ringsum – vom flachen Strand aus sieht man nur Nebel.
+      // Nicht der höchste Gipfel – von dort sieht man nur Himmel, weil alles
+      // ringsum tiefer liegt. Gesucht ist ein mäßig erhöhter Punkt mit Relief
+      // in der Nachbarschaft, also eine Kuppe über einer bewegten Landschaft.
+      var punkt = null, besteWucht = -1;
+      var SEA = w.gen.sea;
+      for (var v = 0; v < 60; v++) {
+        var px = (v * 613) % 2400 - 1200, pz = (v * 977) % 2400 - 1200;
+        var mitte = w.gen.heightAt(px, pz);
+        if (mitte < SEA + 6 || mitte > SEA + 34) continue;
+        var wucht = 0;
+        for (var r = 0; r < 8; r++) {
+          var a2 = r / 8 * Math.PI * 2;
+          wucht += Math.abs(w.gen.heightAt(px + Math.cos(a2) * 45, pz + Math.sin(a2) * 45) - mitte);
+        }
+        if (wucht > besteWucht) { besteWucht = wucht; punkt = { x: px, z: pz, h: mitte }; }
+      }
+      if (!punkt) { var sp = w.gen.findSpawn(); punkt = { x: sp.x, z: sp.z, h: sp.y }; }
+      var kam = new MC.Player(w, punkt.x + 0.5, punkt.h + 9, punkt.z + 0.5);
+      kam.flying = true;
+      // Leicht gesenkt, damit Land die untere Hälfte füllt und nicht Himmel
+      kam.pitch = -0.20;
+      this.player = kam;
+
+      // Kleine Sichtweite, sonst frisst der Startbildschirm mehr als das Spiel
+      this.panoDistanz = this.renderer.renderDistance;
+      this.renderer.renderDistance = Math.max(this.panoDistanz, 7);
+      this.ensureChunksAround(kam.x, kam.z, 2);
+      this.time = 0;
+      this.world.time = 0.33;          // Vormittag, Sonne hoch genug für Kontrast
+      this.panorama = true;
+    } catch (e) {
+      this.panorama = false;
+    }
+  };
+
+  Game.prototype.stopPanorama = function () {
+    var hud = document.getElementById('hud');
+    var kreuz = document.getElementById('crosshair');
+    if (hud) hud.style.display = '';
+    if (kreuz) kreuz.style.display = '';
+    if (!this.panorama) return;
+    this.panorama = false;
+    if (this.panoDistanz) this.renderer.renderDistance = this.panoDistanz;
+  };
+
+  // Eigener, abgespeckter Takt: kein Spieler, keine Kreaturen, nur laden,
+  // vernetzen, drehen, zeichnen.
+  Game.prototype.tickPanorama = function (dt) {
+    var p = this.player;
+    if (!p) return;
+    p.yaw += dt * 0.045;
+    while (p.yaw > Math.PI) p.yaw -= Math.PI * 2;
+    this.ensureChunksAround(p.x, p.z, false);
+    this.buildMeshes(false);
+    this.renderer.render(this, dt);
+  };
+
   // ---------- Menü ----------
   Game.prototype.buildMenu = function () {
     var self = this;
@@ -1499,6 +1639,9 @@
     var box = this.menuBox;
     this.menuEl.style.display = 'flex';
     box.innerHTML = '';
+    box.classList.remove('titel');
+    var alteEcken = this.menuEl.querySelector('.mecken');
+    if (alteEcken) alteEcken.remove();
     function h(txt, cls) { var e = document.createElement('div'); e.className = cls || 'mtitle'; e.innerHTML = txt; box.appendChild(e); return e; }
     function btn(txt, fn) {
       var b = document.createElement('button');
@@ -1509,7 +1652,17 @@
 
     if (which === 'main') {
       if (!this.newWorldSettings) this.newWorldSettings = MC.defaultWorldOpts();
-      h('<span class="logo">MINECRAFT</span><span class="sub">HTML Edition</span>', 'mhead');
+      this.startPanorama();
+      box.classList.add('titel');
+      // Das Logo wird aus einer Blocktextur gefüllt, genau wie im Original –
+      // wir haben die Texturen ohnehin prozedural im Speicher.
+      var kopf = document.createElement('div'); kopf.className = 'mhead';
+      kopf.appendChild(this.logoCanvas());
+      var splash = document.createElement('div');
+      splash.className = 'splash';
+      splash.textContent = SPLASHES[(Math.random() * SPLASHES.length) | 0];
+      kopf.appendChild(splash);
+      box.appendChild(kopf);
       var row = document.createElement('div'); row.className = 'mrow'; box.appendChild(row);
       var seed = document.createElement('input');
       seed.className = 'minput'; seed.placeholder = 'Seed (optional)';
@@ -1527,9 +1680,12 @@
       btn('Welt anpassen …', function () { self.showMenu('worldopts'); });
       if (this.hasSave()) btn('Welt laden', function () { self.loadWorld(); });
       btn('Steuerung & Ziele', function () { self.showMenu('help'); });
-      var f = document.createElement('div'); f.className = 'mfoot';
-      f.innerHTML = 'Läuft komplett offline aus dem Ordner. Benötigt WebGL2.';
-      box.appendChild(f);
+      // Die beiden Ecken unten wie im Original: links die Fassung, rechts der
+      // Hinweis, dass das hier nichts mit Mojang zu tun hat.
+      var ecke = document.createElement('div'); ecke.className = 'mecken';
+      ecke.innerHTML = '<span>HTML Edition &nbsp;·&nbsp; Weltversion ' + MC.GEN_VERSION +
+                       '</span><span>Ein Nachbau — nicht von Mojang</span>';
+      this.menuEl.appendChild(ecke);
     } else if (which === 'worldopts') {
       this.buildWorldOpts(h, btn);
     } else if (which === 'pause') {
@@ -1721,6 +1877,7 @@
     var data;
     try { data = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { }
     if (!data) { this.ui.toast('Kein Spielstand gefunden'); return; }
+    this.stopPanorama();
     this.applySave(data);
   };
 
@@ -1798,7 +1955,10 @@
     this.time += dt;
     this.fps = this.fps * 0.92 + (1 / Math.max(0.0001, dt)) * 0.08;
 
-    if (!this.started) { return; }
+    if (!this.started) {
+      if (this.panorama) this.tickPanorama(dt);
+      return;
+    }
 
     var input = this.input;
     var p = this.player;

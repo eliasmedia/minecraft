@@ -481,10 +481,11 @@ canvas#gl {
 #death p { opacity: .85; }
 
 /* ---------- Menü ---------- */
+/* Hinter dem Menü läuft eine echte Welt (siehe startPanorama). Der Hintergrund
+   ist darum nur noch ein Schleier, kein deckendes Muster mehr. */
 #menu {
   position: fixed; inset: 0;
-  background: linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,.86)),
-              repeating-linear-gradient(45deg, #2b2016 0 12px, #33261a 12px 24px);
+  background: radial-gradient(ellipse at 50% 38%, rgba(0,0,0,.28) 0%, rgba(0,0,0,.62) 70%, rgba(0,0,0,.8) 100%);
   display: flex; align-items: center; justify-content: center;
   pointer-events: auto; z-index: 40;
 }
@@ -493,7 +494,25 @@ canvas#gl {
   display: flex; flex-direction: column; gap: 9px;
   background: rgba(0,0,0,.45); padding: 26px; border: 2px solid #555;
 }
-.mhead { text-align: center; margin-bottom: 12px; }
+/* Der Startbildschirm steht frei vor der Welt – ohne Kasten, wie im Original */
+.menubox.titel {
+  background: none; border: none; padding: 0 26px;
+  width: 420px; gap: 8px;
+}
+.mhead { text-align: center; margin-bottom: 26px; position: relative; }
+.mlogo { display: block; margin: 0 auto; max-width: 100%; image-rendering: pixelated; }
+/* Der gelbe Spruch hängt schräg an der rechten Ecke des Logos und wippt */
+.splash {
+  position: absolute; right: -34px; bottom: -22px;
+  color: #ffff55; font-size: 15px; text-shadow: 2px 2px 0 #3f3f00;
+  transform: rotate(-18deg); transform-origin: 50% 50%;
+  animation: splashwipp .95s ease-in-out infinite alternate;
+  white-space: nowrap; pointer-events: none;
+}
+@keyframes splashwipp {
+  from { transform: rotate(-18deg) scale(1); }
+  to   { transform: rotate(-18deg) scale(1.09); }
+}
 .logo {
   display: block; font-size: 40px; letter-spacing: 3px; font-weight: bold;
   text-shadow: 3px 3px 0 #3a3a3a, 0 0 24px rgba(120,255,120,.25);
@@ -503,16 +522,30 @@ canvas#gl {
 .mrow { display: flex; gap: 8px; }
 .minput {
   flex: 1; padding: 9px; font-family: inherit; font-size: 13px;
-  background: #111; color: #eee; border: 2px solid #666;
+  background: rgba(0,0,0,.62); color: #eee; border: 2px solid;
+  border-color: #2d2d2d #9a9a9a #9a9a9a #2d2d2d;
 }
+.minput:focus { outline: none; border-color: #fff #6a6a6a #6a6a6a #fff; }
+/* Knöpfe wie im Original: heller Rand oben links, dunkler unten rechts */
 .mbtn {
-  padding: 11px; font-family: inherit; font-size: 14px; color: #fff;
-  background: #6b6b6b; border: 2px solid; border-color: #b9b9b9 #333 #333 #b9b9b9;
-  cursor: pointer; text-shadow: 1px 1px 0 #000;
+  padding: 11px; font-family: inherit; font-size: 14px; color: #ddd;
+  background: linear-gradient(#8b8b8b, #6d6d6d);
+  border: 2px solid; border-color: #c6c6c6 #2b2b2b #2b2b2b #c6c6c6;
+  cursor: pointer; text-shadow: 2px 2px 0 #2a2a2a;
 }
-.mbtn:hover { background: #7f8f6f; }
-.mbtn:active { border-color: #333 #b9b9b9 #b9b9b9 #333; }
+.mbtn:hover { background: linear-gradient(#a3b18a, #7e9160); color: #fff; }
+.mbtn:active {
+  border-color: #2b2b2b #c6c6c6 #c6c6c6 #2b2b2b;
+  background: linear-gradient(#6d6d6d, #8b8b8b);
+}
 .mfoot { text-align: center; font-size: 11px; opacity: .55; margin-top: 8px; }
+/* Die zwei Ecken unten, wie Version und Copyright im Original */
+.mecken {
+  position: absolute; left: 0; right: 0; bottom: 6px;
+  display: flex; justify-content: space-between;
+  padding: 0 10px; font-size: 11px; color: #ddd;
+  text-shadow: 1px 1px 0 #000; pointer-events: none;
+}
 
 /* ---------- Welt anpassen ---------- */
 .optrow {
