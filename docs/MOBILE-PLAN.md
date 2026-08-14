@@ -76,33 +76,60 @@ nennt. Damit fangen wir an, weil es ohne einen zweiten Zielpfad auskommt.
 ### Aufteilung des Schirms
 
 ```
-┌──────────────────────────────────────────────────────┐
-│ [☰]                                            [👁] │   Menü · Chat
-│                                                      │
-│                          ✛                           │   Fadenkreuz bleibt
-│                                                      │
-│      ╭───╮                              [⤒]  [⛏]     │   springen · abbauen
-│      │ ◉ │   ← Knüppel      Umsehen →   [⤓]  [✋]     │   ducken · setzen
-│      ╰───╯                                           │
-│  ▣▣▣▣▣▣▣▣▣                                    [▤]   │   Hotbar · Inventar
-└──────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ [☰]  [💬]                                      [🗺]  [F3] │  Menü·Chat   Karte·Debug
+│                                                            │
+│                             ✛                              │  Fadenkreuz bleibt
+│                                          ╭───╮   ╭───╮     │
+│      ╭─────╮                             │ ⛏ │   │ ✋ │     │  Aktion · Benutzen
+│      │  ◉  │  ← Knüppel     Umsehen →    ╰───╯   ╰───╯     │
+│      ╰─────╯                             ╭───╮   ╭───╮     │
+│                                          │ ⤒ │   │ ⤓ │     │  Springen · Ducken
+│  ▣▣▣▣▣▣▣▣▣                                          [▤]   │  Hotbar · Inventar
+└────────────────────────────────────────────────────────────┘
 ```
 
-* **Links unten: Knüppel.** Wo der Finger zuerst aufsetzt, entsteht die Mitte —
-  ein Knüppel, den man erst treffen muss, ist am Telefon eine Zumutung.
-  Auslenkung steuert Richtung *und* Tempo; ganz außen und kurz gehalten heißt
-  sprinten, wie in Bedrock mit „Sprint using the joystick".
-* **Rechts: Umsehen.** Ziehen irgendwo in der freien Fläche dreht die Kamera.
-  Empfindlichkeit als eigener Regler, weil die vom Rechner am Telefon nicht
-  passt.
-* **Abbauen und Setzen als Knöpfe.** Abbauen ist Halten mit Fortschrittsanzeige
-  (wir haben `handleMining` schon als Halte-Logik), Setzen ist Tippen.
-* **Springen und Ducken** rechts, Ducken mit Doppeltipp zum Feststellen. Im
-  Kreativ- und Zuschauermodus werden daraus Steigen und Sinken.
-* **Hotbar** unten: die Steine sind schon da, sie brauchen nur größere
-  Trefferflächen und ein Tippen statt der Zifferntasten. Wischen quer über die
-  Hotbar blättert durch.
-* **Vier Ecken:** Menü, Chat/Befehle, Inventar, Karte.
+### Der vollständige Knopfsatz
+
+Aus dem Code gezogen, damit nichts durchrutscht. Zwanzig Belegungen — aber
+längst nicht jede braucht eine Fläche auf dem Schirm.
+
+**Ein Befund vorweg:** Angriff und Abbauen sind schon heute **derselbe Knopf**.
+`onMouseDown(0)` schlägt zu, wenn eine Kreatur anvisiert ist, und baut sonst ab.
+Ein eigener Angriffsknopf wäre also ein zweiter Schalter für dieselbe Leitung —
+und einer, bei dem man im Ernstfall den falschen drückt. Stattdessen **wechselt
+das Symbol mit dem Ziel**: Schwert, wenn eine Kreatur im Fadenkreuz steht,
+Spitzhacke bei einem Block, ausgegraut bei nichts. Man sieht damit sogar mehr
+als am Rechner, wo dieselbe Taste stumm beides tut.
+
+| Heute | Am Telefon | Wo |
+|---|---|---|
+| Linksklick — angreifen **oder** abbauen | **Aktionsknopf**, Halten baut ab, Symbol wechselt mit dem Ziel | rechts, groß |
+| Rechtsklick — setzen, benutzen, essen, handeln, schießen | **Benutzen-Knopf**, Halten spannt den Bogen | rechts, groß |
+| `W A S D` | Knüppel | links unten |
+| Maus | Ziehfläche | rechte Hälfte |
+| Leertaste — springen, auftauchen, steigen | **Springen** | rechts |
+| Shift — schleichen, sinken | **Ducken**, Doppeltipp stellt fest | rechts |
+| Strg / Doppel-W — sprinten | Knüppel ganz außen | — |
+| Doppel-Leertaste — fliegen | Doppeltipp auf Springen | — |
+| `1`–`9` — Hotbar | Platz antippen, quer wischen blättert | unten |
+| Mausrad — Hotbar | dito | — |
+| Mausrad-Klick — Block aufnehmen | **langes Drücken auf den Aktionsknopf** | — |
+| `E` / `I` — Inventar | **Inventarknopf** | unten rechts |
+| `Q` — wegwerfen (mit Shift der Stapel) | langes Drücken auf den Hotbarplatz | — |
+| `T` / `/` — Chat und Befehle | **Chatknopf** | oben links |
+| `N` — Karte | **Kartenknopf** | oben rechts |
+| `M` / `Esc` — Pause | **Menüknopf** | oben links |
+| `F` Sichtweite, `P` Modus, `J` Musik, `R` Speichern, `F5` Hand | nur im Pausenmenü | — |
+| `F3` — Debug | kleiner Knopf, abschaltbar | oben rechts |
+
+Macht **neun Flächen** plus Knüppel, Ziehfläche und Hotbar. Das ist die Grenze
+dessen, was auf ein Telefon passt, ohne dass man mehr Knöpfe als Welt sieht —
+darum wandert alles Seltene ins Pausenmenü und nicht auf den Schirm.
+
+Größe und Lage gehören später einstellbar (Bedrock kann das auch), aber erst,
+wenn die Vorgabe steht. Ein Konfigurator für eine Anordnung, die noch niemand
+gespielt hat, ist verfrüht.
 
 ### Was das im Code heißt
 
@@ -129,7 +156,81 @@ nicht im ersten.
 
 ---
 
-## 5. Fenster und Menüs
+## 5. Der Browser frisst die Gesten
+
+Der Punkt, an dem solche Overlays üblicherweise scheitern: zwei Finger
+gleichzeitig — laufen und springen, laufen und abbauen — und plötzlich zoomt
+die Seite oder die Ansicht verrutscht. Das hat **zwei verschiedene Ursachen**,
+und beide muss man einzeln erschlagen.
+
+### Ursache 1: Der Browser hält die Geste für seine
+
+Unser `user-scalable=no` im Viewport-Meta hilft dabei **nicht**. iOS Safari
+ignoriert die Angabe seit iOS 10 bewusst — Apple hat sich für die
+Bedienbarkeit gegen die Angabe entschieden, und daran führt kein Weg vorbei
+([Hintergrund](https://medium.com/@johan_ronsse/re-apple-disabling-maximum-scale-behavior-on-responsive-websites-in-ios10-17bc7b0f27c0)).
+Das Meta steht also da und tut auf dem wichtigsten Zielgerät gar nichts.
+
+Was wirklich hilft, sind vier Dinge zusammen:
+
+1. **`touch-action: none`** auf Canvas und Overlay. Das schaltet die
+   Browsergesten für diese Elemente vollständig ab — Wischen, Zoomen,
+   Doppeltipp-Zoom. Seit September 2019 überall verfügbar, in Safari ab 13
+   ([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/touch-action)).
+2. **`preventDefault()`** auf den Berührungsereignissen, zwingend mit
+   `{ passive: false }`. MDN ist da deutlich: man braucht **beides**.
+   `touch-action` sagt dem Browser *vorher*, dass er sich heraushalten soll,
+   `preventDefault` stoppt ihn *nachher* — ohne das erste wartet der Browser
+   erst ab, ob wir abbrechen, und das kostet Reaktionszeit.
+3. **`gesturestart` / `gesturechange` / `gestureend` abfangen.** Die feuert nur
+   iOS, und dort greift sie auch auf älteren Fassungen, wo `touch-action` noch
+   nicht zog. Kostet drei Zeilen und schließt die letzte Lücke.
+4. **`overscroll-behavior: none`** gegen Ziehen-zum-Neuladen, dazu
+   `-webkit-touch-callout: none` und `user-select: none` gegen Lupe und
+   Auswahlmenü beim langen Drücken — und genau das brauchen wir ja als Geste.
+
+**Eine Einschränkung, die ich nicht verschweigen will:** `touch-action: none`
+nimmt auch Leuten das Zoomen, die es zum Lesen brauchen. Deshalb kommt es
+**nur auf Canvas und Steuerungsoverlay**, nicht auf die Seite. Inventar,
+Weltenliste und Pausenmenü bleiben zoombar. Das ist kein Verzicht: dort will
+niemand mit zwei Fingern durch die Welt laufen.
+
+Die Wischgeste vom Bildschirmrand für Zurück/Vorwärts lässt sich in Safari
+gar nicht abfangen. Dagegen hilft nur der **Start vom Startbildschirm** — als
+installierte Seite gibt es diese Geste nicht. Ein weiteres Argument für das
+Manifest aus Schritt 5.
+
+### Ursache 2: Wir verwalten die Finger falsch
+
+Die häufigere Ursache, und die eigentlich ärgerliche. Wer `touches[0]` liest,
+baut sich den Fehler selbst ein: setzt ein zweiter Finger auf, verschieben
+sich die Einträge, und der Knüppel bekommt plötzlich die Bewegung des Daumens,
+der auf „Springen" liegt. Genau das fühlt sich an wie „die Ansicht verrutscht".
+
+Der Ausweg heißt **Besitz statt Reihenfolge**:
+
+* **Pointer Events statt Touch Events.** Sie vereinheitlichen Maus, Finger und
+  Stift, jeder Zeiger trägt eine `pointerId`, und `setPointerCapture` heftet
+  ihn an das Element, auf dem er angefangen hat. Ein Daumen, der beim Laufen
+  über den Rand des Knüppels rutscht, bleibt damit beim Knüppel — ohne eigene
+  Buchhaltung.
+* **Beim Aufsetzen wird der Besitzer bestimmt**, danach nie wieder. Knüppel,
+  Ziehfläche oder ein bestimmter Knopf — und nur dieser Besitzer verarbeitet
+  die Bewegungen dieses Zeigers.
+* **Jeder Besitzer hält seinen eigenen Zustand.** Der Knüppel merkt sich seinen
+  Mittelpunkt, die Ziehfläche ihre letzte Position für das Delta. Nichts davon
+  liegt in einer gemeinsamen Liste, die durcheinandergeraten könnte.
+
+Damit funktionieren beliebig viele Finger gleichzeitig: laufen, umsehen,
+springen und abbauen zu viert sind dann kein Sonderfall, sondern der Normalfall.
+
+**Prüfbar machen:** ein Debugfeld, das die offenen Zeiger mit ihrer `pointerId`
+und ihrem Besitzer anzeigt. Ohne das sucht man solche Fehler blind, weil sie
+sich nur mit mehreren Fingern auf einem echten Gerät zeigen.
+
+---
+
+## 6. Fenster und Menüs
 
 Der Fund aus der Bestandsaufnahme macht das billig: die gesamte Oberfläche
 hängt an `--slot` und `--icon`. Eine Medienabfrage genügt für die Grundlast.
@@ -149,7 +250,7 @@ hängt an `--slot` und `--icon`. Eine Medienabfrage genügt für die Grundlast.
 
 ---
 
-## 6. Leistung — der eigentliche Punkt
+## 7. Leistung — der eigentliche Punkt
 
 Hier entscheidet sich, ob das Ding Spaß macht. Drei Stellschrauben, in der
 Reihenfolge ihrer Wirkung:
@@ -175,7 +276,7 @@ und danach wird getunt. Alles andere wäre geraten.
 
 ---
 
-## 7. Was sonst noch am Spiel hängt
+## 8. Was sonst noch am Spiel hängt
 
 * **Vollbild.** iOS Safari kennt `requestFullscreen` für Elemente nicht. Die
   Adressleiste frisst Höhe und taucht beim Scrollen wieder auf. Gegenmittel:
@@ -195,15 +296,18 @@ und danach wird getunt. Alles andere wäre geraten.
 
 ---
 
-## 8. Reihenfolge
+## 9. Reihenfolge
 
 **Schritt 0 — messen.** Debugfeld, auf deinem Telefon öffnen, Bildzeit und
 Chunkzeit in Wald, Dorf, Höhle und am Meer notieren. Ergebnis entscheidet über
 die Vorgaben in Schritt 4.
 
-**Schritt 1 — Eingabe umleiten.** `mobile.js` mit Erkennung, Knüppel,
-Umsehen-Fläche und den nötigsten Knöpfen; Pointer Lock am Telefon aushängen.
-Ziel: man kann sich bewegen, umsehen, abbauen und setzen. Sonst nichts.
+**Schritt 1 — Eingabe umleiten, mit Gestensperre von Anfang an.** `mobile.js`
+mit Erkennung, Zeigerverwaltung über `pointerId`, Knüppel, Umsehen-Fläche und
+den nötigsten Knöpfen; Pointer Lock am Telefon aushängen. Die vier Maßnahmen
+gegen die Browsergesten gehören in denselben Schritt — ein Overlay, bei dem der
+zweite Finger die Seite zoomt, ist nicht „fast fertig", sondern unbenutzbar.
+Ziel: bewegen, umsehen, abbauen und setzen, auch mit vier Fingern gleichzeitig.
 
 **Schritt 2 — Oberfläche.** Querformat-Hinweis, Slotgrößen, langes Drücken
 statt Rechtsklick, Hotbar antippbar, die vier Eckknöpfe.
@@ -222,7 +326,7 @@ Knopfanordnung frei verschiebbar, Gamepad über die Gamepad-API.
 
 ---
 
-## 9. Bewusst nicht dabei
+## 10. Bewusst nicht dabei
 
 * **Eine eigene App.** Cordova, Capacitor, ein Store-Eintrag — das ist ein
   anderes Projekt mit Signaturen, Zertifikaten und Freigaben. Eine zum
