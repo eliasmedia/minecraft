@@ -79,7 +79,7 @@
   // Versucht, eine Stufe hochzusteigen
   P.moveWithStep = function (world, e, dx, dz, stepHeight) {
     var sx = e.x, sy = e.y, sz = e.z;
-    var wasGround = e.onGround;
+    var wasGround = e.onGround, wasVy = e.vy;
     var r = P.move(world, e, dx, 0, dz);
     if (!e.collidedH || !wasGround) return r;
     var movedX = e.x - sx, movedZ = e.z - sz;
@@ -94,13 +94,37 @@
         (afterX - sx) * (afterX - sx) + (afterZ - sz) * (afterZ - sz)) {
       e.x = afterX; e.z = afterZ; e.y = sy;
       P.move(world, e, 0, 0, 0);
-      // Der Hochstiegsversuch hat oben ein P.move mit dy != 0 gemacht, und das
-      // löscht onGround. Scheitert der Versuch, stehen wir aber unverändert auf
-      // demselben Boden – ohne diese Zeile schluckt das Spiel den Sprung, wenn
-      // man gegen einen Block läuft und dabei die Leertaste drückt.
-      e.onGround = wasGround;
     }
+    // Der Versuch ist eine PROBE: er hebt den Körper an, schiebt ihn und setzt
+    // ihn wieder ab. Dabei laufen drei P.move mit dy != 0, und jedes davon
+    // löscht den Bodenkontakt. Beim Absetzen kommt er nicht zuverlässig
+    // zurück, weil der Landetest ein echtes Unterschreiten der Oberkante
+    // verlangt – nach genau 0,6 hoch und 0,6 runter landet man exakt darauf.
+    //
+    // Ergebnis war der verschluckte Sprung: wer gegen eine ein Block hohe
+    // Stufe läuft, verliert dabei den Bodenkontakt und darf nicht springen.
+    // Steht der Körper am Ende wieder auf seiner Ausgangshöhe, ist gar nichts
+    // passiert – dann werden Bodenkontakt und Fallgeschwindigkeit
+    // zurückgesetzt, als hätte die Probe nie stattgefunden.
+    if (Math.abs(e.y - sy) < 1e-6) { e.onGround = wasGround; e.vy = wasVy; }
     return { dx: e.x - sx, dy: e.y - sy, dz: e.z - sz };
+  };
+
+  // Steht wirklich fester Boden unter den Füßen? Fragt die Welt statt das
+  // Flag. Das Flag ist ein Rechenergebnis, das ein Zug zwischendurch löschen
+  // kann; der Block darunter liegt einfach da.
+  P.stehtAuf = function (world, e) {
+    var w = e.width / 2, y = e.y - 0.06;
+    var x0 = Math.floor(e.x - w), x1 = Math.floor(e.x + w);
+    var z0 = Math.floor(e.z - w), z1 = Math.floor(e.z + w);
+    var by = Math.floor(y);
+    for (var z = z0; z <= z1; z++) {
+      for (var x = x0; x <= x1; x++) {
+        var b = B.byId[world.getBlock(x, by, z)];
+        if (b && b.collide !== false && b.solid !== false && b.name !== 'water' && b.name !== 'lava') return true;
+      }
+    }
+    return false;
   };
 
   P.blockAtFeet = function (world, e) {

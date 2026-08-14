@@ -112,12 +112,12 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + inhalt + '</svg>';
   }
   var SYM = {
-    // Spitzhacke: Stiel senkrecht, darüber der geschwungene Kopf mit zwei
-    // Spitzen. Bei 26 Pixeln Kantenlänge muss die Silhouette allein tragen —
-    // Feinheiten verschwinden ohnehin.
-    hacke: svg('<path d="M12 8.5V20.5" />' +
-               '<path d="M4 12C6 6.5 9.5 3.5 12 3.5s6 3 8 8.5" />' +
-               '<path d="M4 12l2.5-1.5" /><path d="M20 12l-2.5-1.5" />'),
+    // Kein Werkzeug, sondern das Ergebnis: ein Block mit einem Riss. Eine
+    // Spitzhacke bei 26 Pixeln war ein senkrechter Stiel mit einem Bogen
+    // darüber — und damit vom Sprungpfeil daneben nicht zu unterscheiden.
+    // Der Rissblock kann mit nichts sonst verwechselt werden.
+    hacke: svg('<rect x="4" y="4" width="16" height="16" />' +
+               '<path d="M9.5 4l2 5-3 2.5 3.5 3-1.5 5.5" />'),
     // Schwert: Klinge nach oben rechts, Parierstange quer, kurzer Griff
     schwert: svg('<path d="M20.5 3.5L11 13" />' +
                  '<path d="M20.5 3.5l-4.2.5-.5 4.2" />' +
@@ -163,7 +163,7 @@
     w.id = 'touchui';
     w.innerHTML =
       '<div id="tblick"></div>' +
-      '<div id="tstick"><i></i></div>' +
+      '<div id="tstick"><b></b><i></i></div>' +
       '<div class="tecke ol"></div>' +
       '<div class="tecke or"></div>' +
       '<div class="tecke ur"></div>' +
@@ -328,6 +328,7 @@
       el.classList.remove('an');
       M.stickKnauf.style.transform = 'translate(-50%,-50%)';
       M.stickSetzen(0, 0, 0);
+      if (M.game && M.game.input) M.game.input.schub = 1;
       ev.preventDefault();
     }
     el.addEventListener('pointerup', los, { passive: false });
@@ -336,17 +337,34 @@
 
   // Aus der Auslenkung werden dieselben Tastenflags, die die Tastatur setzt.
   // Eine Schwelle in der Mitte, damit ein ruhender Daumen nicht zittert.
+  // Ab hier zählt eine Auslenkung als Bewegung, ab SPRINT_AB als Sprint. Der
+  // Ring auf dem Knüppel zeichnet genau diesen zweiten Wert nach, damit man
+  // sieht, wie weit man ziehen muss.
+  M.TOT = 0.16;
+  M.SPRINT_AB = 0.86;
+
   M.stickSetzen = function (nx, ny, laenge) {
     var g = M.game;
     if (!g || !g.input) return;
     var k = g.input.keys;
-    var schwelle = 0.34;
-    k.KeyW = ny < -schwelle;
-    k.KeyS = ny > schwelle;
-    k.KeyA = nx < -schwelle;
-    k.KeyD = nx > schwelle;
-    // Ganz außen heißt sprinten, wie in Bedrock mit „Sprint using the joystick"
-    g.input.sprintToggle = laenge > 0.92 && ny < -schwelle;
+    // Die Richtung entscheidet die Achse, nicht ein fester Schwellwert je
+    // Achse – sonst läuft man bei schräger Auslenkung nur diagonal oder gar
+    // nicht. Alles, was mehr als ein Drittel der Hauptrichtung ausmacht,
+    // zählt mit.
+    var stark = Math.max(Math.abs(nx), Math.abs(ny));
+    var mit = stark * 0.36;
+    var an = laenge > M.TOT;
+    k.KeyW = an && -ny > mit && ny < 0;
+    k.KeyS = an && ny > mit && ny > 0;
+    k.KeyA = an && -nx > mit && nx < 0;
+    k.KeyD = an && nx > mit && nx > 0;
+
+    // Stufenlos gehen: die Auslenkung wird zum Schub zwischen Schleichen und
+    // vollem Tempo. Am Rechner bleibt das Feld unberührt und damit wirkungslos.
+    if (!an) g.input.schub = 0;
+    else g.input.schub = 0.28 + 0.72 * Math.min(1, (laenge - M.TOT) / (0.82 - M.TOT));
+    g.input.sprintToggle = laenge >= M.SPRINT_AB && k.KeyW;
+    M.stick.classList.toggle('sprint', g.input.sprintToggle);
   };
 
   // ============================================================

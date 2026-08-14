@@ -62,6 +62,11 @@ Spitzhacke bei einem Block —, denn beides ist dieselbe Taste. Langes Drücken
 auf einen Slot ersetzt den Rechtsklick zum Stapelteilen. Nur im Querformat;
 hochkant kommt ein Hinweis.
 
+Der Knüppel läuft **stufenlos**: eine kleine Auslenkung geht langsam, eine
+große schnell, und ab 86 % springt der Sprint an. Der gestrichelte Ring auf dem
+Knüppel zeichnet genau diese Schwelle nach und leuchtet grün, sobald sie
+erreicht ist — sonst rät man, wie weit man ziehen muss.
+
 Zwei Gesten, die es am Rechner nicht braucht: **auf dem Aktionsknopf wischen**
 dreht die Kamera mit, während er gedrückt bleibt — sonst müsste man zum
 Abbauen jedes nächsten Blocks loslassen, sich umsehen und neu drücken. Und der

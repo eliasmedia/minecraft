@@ -307,6 +307,11 @@
       speed *= 1 - Math.min(0.7, 0.22 * MC.Effekte.stufe(this, 'langsamkeit'));
     }
 
+    // Stufenloser Schub vom Knüppel. Ohne ihn (Tastatur) ist er 1 und ändert
+    // nichts – am Telefon läuft man mit kleiner Auslenkung langsam.
+    var schub = (input.schub === undefined) ? 1 : input.schub;
+    if (schub > 0 && schub < 1 && !this.sprinting) speed *= schub;
+
     var len = Math.sqrt(fwd * fwd + side * side);
     var wx = 0, wz = 0;
     if (len > 0) {
@@ -372,7 +377,12 @@
             this.vy = Math.min(this.vy + 26 * dt, maxLava);
           }
         }
-        else if (this.onGround || this.coyote > 0) {
+        // Der Bodenkontakt kommt aus einem Flag, und ein Zug zwischendurch
+        // kann es löschen — der Hochstiegsversuch an einer Stufe tut genau
+        // das. Darum zählt zusätzlich, ob unter den Füßen tatsächlich ein
+        // fester Block liegt. Ein Sprung, der an einer Buchführung scheitert,
+        // während man sichtbar auf festem Grund steht, ist immer falsch.
+        else if (this.onGround || this.coyote > 0 || P.stehtAuf(world, this)) {
           // Brustpanzer aus Gravitit hebt einen deutlich höher
           this.vy = this.gravChest ? 13.4 : 8.85;   // sonst ~1,2 Blöcke wie im Original
           // Sprungkraft legt je Stufe gut einen halben Block drauf
