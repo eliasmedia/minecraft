@@ -19,7 +19,7 @@ Minecraft_files/
        glcore · mesher · particles · icons · worldgen · village · caves
        map · dimensions · world · redstone · entities · theend
        achievements · player · renderer · audio · herobrine · worlds
-       commands · ui · main
+       commands · mobile · ui · main
 ```
 
 ## Steuerung
@@ -51,6 +51,37 @@ werden verworfen, ebenso die ersten Millisekunden nach dem Zurückholen des
 Zeigers — normale Bewegung bleibt unverändert.
 
 ## Was drin ist
+
+**Am Handy** — wird ein Touchgerät erkannt (`pointer: coarse` **und**
+Berührungspunkte, kein Raten am User-Agent), legt sich ein Steuerungsoverlay
+über das Spiel. Der Knüppel unten links entsteht dort, wo der Daumen aufsetzt;
+ganz ausgelenkt heißt sprinten. Rechts liegen **Aktion** und **Benutzen**, dazu
+Springen, Ducken und Inventar, in den oberen Ecken Menü, Chat, Karte und Debug.
+Das Symbol des Aktionsknopfes folgt dem Ziel — Schwert bei einer Kreatur,
+Spitzhacke bei einem Block —, denn beides ist dieselbe Taste. Langes Drücken
+auf einen Slot ersetzt den Rechtsklick zum Stapelteilen. Nur im Querformat;
+hochkant kommt ein Hinweis.
+
+Entscheidend ist, was **nicht** passiert: es gibt keine zweite Spiellogik. Der
+Knüppel schreibt in dieselben Tastenflags wie die Tastatur, das Ziehen in
+dieselben `dx/dy` wie die Maus. `Player.update` merkt keinen Unterschied.
+
+Zwei Dinge sind dabei heikler, als sie aussehen. **Der Browser hält die Gesten
+für seine** — `user-scalable=no` im Viewport-Meta hilft auf iOS seit Version 10
+nachweislich nicht mehr, Apple ignoriert die Angabe. Es braucht
+`touch-action: none`, `preventDefault` mit `passive: false` und die
+iOS-eigenen gesture-Ereignisse, und das alles **nur auf Canvas und Overlay** —
+in Inventar und Menü bleibt das Zoomen erlaubt, denn es zu verbieten nimmt es
+auch denen, die es zum Lesen brauchen. Und **mehrere Finger**: wer `touches[0]`
+liest, baut sich den Fehler ein, dass ein zweiter Finger dem Knüppel die
+Bewegung wegnimmt. Darum Pointer Events mit `pointerId` und
+`setPointerCapture` — jeder Zeiger gehört ab dem Aufsetzen genau einem
+Bedienelement. Geprüft mit vier gleichzeitigen Fingern: laufen, umsehen,
+springen und abbauen stören einander nicht.
+
+Am Rechner ändert sich davon nichts. `mobile.js` meldet sich nicht an, die
+Klasse am `<html>` fehlt, keine einzige der neuen CSS-Regeln greift. Im
+Pausenmenü lässt sich die Touch-Steuerung von Hand ein- und ausschalten.
 
 **Startbildschirm** — kein Standbild und kein schwarzer Kasten: hinter dem Menü
 läuft eine **echte Welt**. Beim Aufrufen des Hauptmenüs wird aus einem von fünf

@@ -1,5 +1,11 @@
 # Pocket-Version — Plan
 
+> **Stand August 2026: Schritt 1 und 2 sind umgesetzt** — Eingabe umgeleitet,
+> Gestensperre, Zeigerverwaltung über `pointerId`, neun Knöpfe, Knüppel,
+> Blickfläche, Querformat-Hinweis und langes Drücken statt Rechtsklick. Offen
+> sind Schritt 0 (Messung auf einem echten Gerät), 3 (Feinschliff), 4
+> (Leistung) und 5 (Manifest, Wake Lock).
+
 Das Spiel am Handy spielbar machen: Steuerungsoverlay, angepasste Fenster,
 tragbare Leistung. Recherchiert an den Touch-Schemata von
 [Bedrock/Pocket Edition](https://minecraft.wiki/w/Controls), der Rest ist am

@@ -691,3 +691,111 @@ canvas#gl {
 .wbtn:hover { background: linear-gradient(#a3b18a, #7e9160); color: #fff; }
 .wleer { opacity: .6; text-align: center; padding: 18px; font-size: 12px; }
 .wordner { font-size: 11px; opacity: .68; line-height: 1.5; margin-bottom: 4px; }
+
+/* ============================================================
+   Pocket-Version: Steuerung für den Finger
+
+   Alles hier hängt an der Klasse `touch` am <html>-Element, die mobile.js
+   nur auf einem Touchgerät setzt. Ohne sie greift keine einzige Regel —
+   die Fassung für den Rechner bleibt unverändert.
+   ============================================================ */
+
+/* Browsergesten abschalten, aber NUR auf Spielfeld und Overlay. Auf der
+   ganzen Seite würde das auch denen das Zoomen nehmen, die es zum Lesen
+   brauchen; in Inventar und Menü bleibt es darum erlaubt. */
+.touch #gl, .touch #touchui {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+}
+.touch, .touch body { overscroll-behavior: none; }
+/* Die Adressleiste frisst Höhe und taucht beim Scrollen wieder auf.
+   dvh rechnet mit der tatsächlich sichtbaren Höhe. */
+.touch body, .touch #ui, .touch #gl { height: 100dvh; }
+
+#touchui { display: none; }
+.touch #touchui {
+  display: block; position: fixed; inset: 0; z-index: 22;
+  pointer-events: none;
+}
+.touch #touchui.weg { display: none; }
+
+/* Die Blickfläche liegt unter allen Knöpfen und nimmt den Rest des Schirms */
+#tblick {
+  position: absolute; inset: 0; pointer-events: auto;
+}
+
+/* ---------- Knüppel ---------- */
+#tstick {
+  position: absolute; left: 14px; bottom: 78px;
+  width: 148px; height: 148px; border-radius: 50%;
+  background: rgba(0,0,0,.20); border: 2px solid rgba(255,255,255,.22);
+  pointer-events: auto; touch-action: none;
+}
+#tstick.an { background: rgba(0,0,0,.30); }
+#tstick i {
+  position: absolute; left: 50%; top: 50%;
+  width: 62px; height: 62px; margin: 0; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: rgba(255,255,255,.30); border: 2px solid rgba(255,255,255,.5);
+}
+
+/* ---------- Knöpfe ---------- */
+.tecke { position: absolute; display: flex; gap: 8px; pointer-events: none; }
+.tecke.ol { left: 8px; top: 8px; }
+.tecke.or { right: 8px; top: 8px; }
+.tecke.ur {
+  right: 10px; bottom: 76px;
+  display: grid; grid-template-columns: repeat(2, auto); gap: 10px;
+  justify-items: end;
+}
+.tknopf {
+  pointer-events: auto; touch-action: none;
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px; line-height: 1; color: #fff;
+  background: rgba(0,0,0,.34); border: 2px solid rgba(255,255,255,.34);
+  text-shadow: 1px 1px 0 #000; user-select: none;
+}
+.tknopf.gross { width: 68px; height: 68px; font-size: 27px; }
+.tknopf.an { background: rgba(255,255,255,.34); }
+.tknopf.blass { opacity: .45; }
+
+/* ---------- Querformat erzwingen ---------- */
+#tdreh { display: none; }
+.touch #tdreh {
+  position: fixed; inset: 0; z-index: 60; pointer-events: auto;
+  background: rgba(10,13,20,.88); color: #ddd;
+  align-items: center; justify-content: center; text-align: center;
+  font-size: 15px; line-height: 1.7; padding: 24px;
+}
+#tdreh > div::before {
+  content: '⟳'; display: block; font-size: 46px; margin-bottom: 10px; opacity: .8;
+}
+@media (orientation: portrait) {
+  .touch #tdreh { display: flex; }
+  .touch #touchui .tecke, .touch #tstick, .touch #tblick { display: none; }
+}
+
+/* ---------- Oberfläche für kleine Schirme ---------- */
+/* Die Slotgrößen regelt schon die bestehende Abfrage weiter oben nach
+   Fensterbreite – hier steht nur, was am Finger zusätzlich anders sein muss. */
+@media (pointer: coarse) and (max-width: 900px) {
+  .touch .window { padding: 8px 10px 10px; }
+  .touch .wtitle { font-size: 15px; }
+  .touch .whint { display: none; }
+  .touch .tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .touch #chat { width: 78%; bottom: 82px; }
+}
+@media (pointer: coarse) and (max-width: 700px) {
+  .touch .tknopf { width: 46px; height: 46px; font-size: 19px; }
+  .touch .tknopf.gross { width: 60px; height: 60px; font-size: 24px; }
+  .touch #tstick { width: 124px; height: 124px; bottom: 66px; }
+  .touch #tstick i { width: 54px; height: 54px; }
+}
+
+/* Die Hotbar bekommt größere Trefferflächen, ohne größer auszusehen */
+.touch #hotbar .slot { position: relative; }
+.touch #hotbar .slot::before {
+  content: ''; position: absolute; inset: -7px;
+}

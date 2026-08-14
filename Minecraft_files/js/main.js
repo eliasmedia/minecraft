@@ -48,7 +48,9 @@
 
     canvas.addEventListener('mousedown', function (e) {
       if (e.button === 1) e.preventDefault();   // sonst startet der Autoscroll
-      if (!self.locked) {
+      // Am Telefon gibt es keinen Pointer Lock. Ohne diesen Zweig würde der
+      // erste Fingertipp ihn anfordern, scheitern und das Spiel pausieren.
+      if (!self.locked && !(MC.Mobile && MC.Mobile.aktiv)) {
         game.showClickHint(false);
         game._lastUnlock = 0;
         game.requestPointerLock();
@@ -1479,6 +1481,8 @@
   };
 
   Game.prototype.showClickHint = function (on) {
+    // Am Telefon gibt es nichts anzuklicken – der Hinweis stünde dauerhaft im Bild
+    if (MC.Mobile && MC.Mobile.aktiv) on = false;
     var el = document.getElementById('clickhint');
     if (el) el.style.display = on ? 'flex' : 'none';
   };
@@ -1743,6 +1747,9 @@
   // ---------- Menü ----------
   Game.prototype.buildMenu = function () {
     var self = this;
+    // Die Pocket-Steuerung meldet sich selbst an – auf dem Rechner tut der
+    // Aufruf nichts, weil MC.Mobile.sollAn() dort falsch ist.
+    if (MC.Mobile) MC.Mobile.start(this);
     var m = document.getElementById('menu');
     this.menuEl = m;
     m.innerHTML = '';
@@ -1837,6 +1844,11 @@
         var v = self.audio.volume + 0.2; if (v > 1.01) v = 0;
         self.audio.setVolume(v); self.showMenu('pause');
       });
+      if (MC.Mobile && (MC.Mobile.aktiv || MC.Mobile.erkannt() || MC.Mobile.wahl())) {
+        btn('Touch-Steuerung: ' + (MC.Mobile.aktiv ? 'an' : 'aus'), function () {
+          MC.Mobile.umschalten();
+        });
+      }
       btn('Modus: ' + MC.MODUS_NAME[this.mode], function () {
         self.setMode(MC.MODI[(MC.MODI.indexOf(self.mode) + 1) % MC.MODI.length]);
         self.showMenu('pause');
@@ -2216,6 +2228,7 @@
     this.renderer.render(this, dt);
     this.ui.updateHUD();
     this.ui.updateDebug();
+    if (MC.Mobile && MC.Mobile.aktiv) MC.Mobile.zielAnzeigen();
     if (MC.Cmd && MC.Cmd.Chat.log) {
       this.chatTimer = (this.chatTimer || 0) + dt;
       if (this.chatTimer > 0.5) { this.chatTimer = 0; MC.Cmd.Chat.neuZeichnen(); }
