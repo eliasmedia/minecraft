@@ -388,7 +388,7 @@
       if (art === 'herobrine' && MC.Herobrine) {
         if (!l.restlos()) l.rest();
         MC.Herobrine.zuruecksetzen();
-        MC.Herobrine.fernStarten(k.game);
+        MC.Herobrine.fernStarten(k.game, true);
         if (!MC.Herobrine.zustand) throw new Fehler('Kein Platz in Sichtweite — dreh dich ins Offene');
         var hm = MC.Herobrine.zustand.mob;
         return 'Er steht ' + Math.round(hm.distTo(k.game.player)) + ' Blöcke entfernt.';

@@ -173,9 +173,19 @@
   };
 
   // ---------- In der Ferne ----------
-  H.fernStarten = function (game) {
+  // `gruendlich` ist für den Befehl: der von selbst kommende Auftritt darf
+  // ausfallen, wenn gerade kein Platz im Blick liegt – ein Befehl, der jedes
+  // zweite Mal nichts tut, taugt dagegen nicht als Werkzeug. Er weitet die
+  // Suche darum stufenweise auf, statt beim ersten Fehlschlag aufzugeben.
+  H.fernStarten = function (game, gruendlich) {
     var p = game.player;
     var ort = H.platzSuchen(game, FERN_MIN, FERN_MAX, true, p.yaw);
+    if (!ort && gruendlich) {
+      // erst rundherum statt nur nach vorn, dann näher heran
+      ort = H.platzSuchen(game, FERN_MIN, FERN_MAX, true)
+         || H.platzSuchen(game, 24, FERN_MIN, true)
+         || H.platzSuchen(game, 24, FERN_MAX, false, p.yaw);
+    }
     if (!ort) return;
     var m = H.stellen(game, ort);
     H.zustand = {
