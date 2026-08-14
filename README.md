@@ -89,8 +89,15 @@ leise — gerade so, dass man sich hinterher nicht sicher ist.
 stillsteht: erst ein tiefes, kurzes Wehen, dann steht er zwei Blöcke im Rücken.
 Dreht man sich um, ist er eine halbe Sekunde später weg.
 
+Er **rührt sich nie**: keine Schritte, keine Arme, kein Kopfdrehen. Das Modell
+trägt dafür ein eigenes Feld `starr`, das der Renderer vor jeder Gliedrotation
+prüft — auch mit erzwungener Laufanimation steht er reglos da. Jede Regung
+machte ihn zu einer Figur, die etwas vorhat; genau das soll er nicht sein.
+
 Ob er überhaupt auftaucht, hängt an `/gamerule herobrine`. Ein Spawn-Ei gibt es
-für ihn nicht.
+für ihn nicht, und **`/summon herobrine` stellt ihn nicht vor die Füße, sondern
+löst den Auftritt in der Ferne aus** — hingesetzt wäre er nur eine Figur, der
+Auftritt ist die ganze Kreatur.
 
 **Welten** — mehrere Spielstände nebeneinander, jeder mit **Namen**. Die Liste
 zeigt Modus, Seed, Weltversion, letztes Spieldatum und Größe; spielen,

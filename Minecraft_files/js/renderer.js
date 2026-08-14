@@ -864,6 +864,10 @@
   function animRot(anim, mob, walk, swing) {
     var r = { x: 0, y: 0, z: 0 };
     if (!anim) return r;
+    // Starre Kreaturen rühren sich nicht: keine Beine, keine Arme, kein Kopf.
+    // Herobrine soll einfach nur dastehen – jede Regung nähme ihm das
+    // Unheimliche und machte ihn zu einer Figur, die etwas vorhat.
+    if (mob.spec && mob.spec.starr) return r;
     var amp = 0.85 * swing;
     switch (anim) {
       case 'head':

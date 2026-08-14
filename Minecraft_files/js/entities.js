@@ -812,7 +812,7 @@
     chicken: { hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
     // Er greift nicht an, er nimmt keinen Schaden, er bewegt sich nicht von
     // selbst. Alles, was er tut, steuert herobrine.js.
-    herobrine: { hp: 1, hostile: false, speed: 0, steht: true, damage: 0, drops: [], xp: 0, unsterblich: true },
+    herobrine: { hp: 1, hostile: false, speed: 0, steht: true, starr: true, damage: 0, drops: [], xp: 0, unsterblich: true },
     zombie: { hp: 20, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'porkchop_raw', min: 0, max: 0 }], xp: 5, sound: 'zombie', burns: true },
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
     creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },

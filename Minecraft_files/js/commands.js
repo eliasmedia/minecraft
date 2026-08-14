@@ -383,6 +383,16 @@
       var stelle = l.pos;
       var art = C.kurzname(l.wort('eine Kreaturenart'));
       if (!MC.MOB_TYPES[art]) throw new Fehler('Keine Kreatur namens "' + art + '"', stelle);
+      // Herobrine stellt man nicht hin, man löst ihn aus. Vor die Füße gesetzt
+      // wäre er nur eine Figur; der Auftritt ist die ganze Kreatur.
+      if (art === 'herobrine' && MC.Herobrine) {
+        if (!l.restlos()) l.rest();
+        MC.Herobrine.zuruecksetzen();
+        MC.Herobrine.fernStarten(k.game);
+        if (!MC.Herobrine.zustand) throw new Fehler('Kein Platz in Sichtweite — dreh dich ins Offene');
+        var hm = MC.Herobrine.zustand.mob;
+        return 'Er steht ' + Math.round(hm.distTo(k.game.player)) + ' Blöcke entfernt.';
+      }
       var o = l.restlos() ? k.ort : C.leseOrt(l, k);
       var m = new MC.Mob(k.game.world, art, o.x, o.y, o.z);
       k.game.world.entities.push(m);
