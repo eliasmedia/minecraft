@@ -62,6 +62,11 @@ Spitzhacke bei einem Block —, denn beides ist dieselbe Taste. Langes Drücken
 auf einen Slot ersetzt den Rechtsklick zum Stapelteilen. Nur im Querformat;
 hochkant kommt ein Hinweis.
 
+Halten und dabei wischen dreht auf **allen vier Halteknöpfen** die Kamera mit —
+abbauen, setzen, springen, ducken. Und die Empfindlichkeit des Umsehens lässt
+sich im Pausenmenü in sieben Stufen einstellen; der Wert vom Rechner passt am
+Daumen nicht und ist ohnehin Geschmackssache.
+
 Der Knüppel läuft **stufenlos**: eine kleine Auslenkung geht langsam, eine
 große schnell, und ab 86 % springt der Sprint an. Der gestrichelte Ring auf dem
 Knüppel zeichnet genau diese Schwelle nach und leuchtet grün, sobald sie

@@ -901,3 +901,14 @@ canvas#gl {
   box-shadow: 0 0 10px rgba(150,230,110,.5) inset;
 }
 #tstick.sprint i { background: rgba(190,240,150,.45); border-color: rgba(210,255,180,.8); }
+
+/* Der Rückweg, wenn die Touch-Steuerung ausgeschaltet wurde: ohne ihn gäbe es
+   auf einem Telefon weder Tastatur noch Overlay und damit keinen Weg zurück. */
+#tzurueck {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+  z-index: 50; pointer-events: auto; cursor: pointer;
+  padding: 9px 16px; font-size: 12px; color: #ddd;
+  background: linear-gradient(#8b8b8b, #6d6d6d);
+  border: 2px solid; border-color: #c6c6c6 #2b2b2b #2b2b2b #c6c6c6;
+  text-shadow: 1px 1px 0 #2a2a2a;
+}

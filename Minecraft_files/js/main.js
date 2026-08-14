@@ -1848,6 +1848,12 @@
         btn('Touch-Steuerung: ' + (MC.Mobile.aktiv ? 'an' : 'aus'), function () {
           MC.Mobile.umschalten();
         });
+        if (MC.Mobile.aktiv) {
+          btn('Umsehen: ' + MC.Mobile.empfProzent(), function () {
+            MC.Mobile.empfWeiter();
+            self.showMenu('pause');
+          });
+        }
       }
       btn('Modus: ' + MC.MODUS_NAME[this.mode], function () {
         self.setMode(MC.MODI[(MC.MODI.indexOf(self.mode) + 1) % MC.MODI.length]);

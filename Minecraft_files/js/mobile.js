@@ -65,14 +65,54 @@
   // ============================================================
   //  Aufbau
   // ============================================================
+  // Sicherheitsnetz gegen hängende Knöpfe: endet ein Zeiger irgendwo anders,
+  // als er begonnen hat, wird er trotzdem gelöst.
+  M.netzSpannen = function () {
+    ['pointerup', 'pointercancel'].forEach(function (n) {
+      window.addEventListener(n, function (ev) { M.zeigerEndet(ev.pointerId); }, true);
+    });
+    window.addEventListener('blur', function () { M.alleLoslassen(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) M.alleLoslassen();
+    });
+  };
+
+  M.zeigerEndet = function (id) {
+    for (var i = 0; i < M.knoepfe.length; i++) {
+      if (M.knoepfe[i].hat && M.knoepfe[i].hat(id)) M.knoepfe[i].loesen();
+    }
+  };
+
+  // Wer die Touch-Steuerung auf einem Telefon ausschaltet, hat danach weder
+  // Tastatur noch Overlay – und der Browser merkt sich die Wahl. Damit wäre
+  // das Spiel dauerhaft unbedienbar. Deshalb bleibt in diesem Fall ein kleiner
+  // Knopf stehen, der sie zurückholt.
+  M.rueckwegAnbieten = function () {
+    if (document.getElementById('tzurueck')) return;
+    var b = document.createElement('div');
+    b.id = 'tzurueck';
+    b.textContent = 'Touch-Steuerung einschalten';
+    b.addEventListener('click', function () {
+      try { localStorage.setItem(WAHL_KEY, 'an'); } catch (e) { }
+      location.reload();
+    });
+    (document.getElementById('ui') || document.body).appendChild(b);
+  };
+
   M.start = function (game) {
-    if (M.aktiv || !M.sollAn()) return false;
+    if (M.aktiv) return false;
+    if (!M.sollAn()) {
+      if (M.erkannt()) M.rueckwegAnbieten();
+      return false;
+    }
     M.aktiv = true;
     M.game = game;
     document.documentElement.classList.add('touch');
+    M.empfLaden();
     M.gestenSperren();
     M.bauen();
     M.langesDrueckenEinrichten();
+    M.netzSpannen();
     M.fensterBeobachten();
     // Ohne das wertet die Spielschleife die Blickdeltas nicht aus – auf dem
     // Telefon gibt es keinen Pointer Lock, der das Flag setzen könnte.
@@ -152,8 +192,8 @@
     { id: 'debug',  ecke: 'or', sym: 'info',      titel: 'Debug' },
     { id: 'aktion', ecke: 'ur', sym: 'hacke',     titel: 'Abbauen und Angreifen', halt: true, gross: true, zieht: true },
     { id: 'nutzen', ecke: 'ur', sym: 'hand',      titel: 'Setzen und Benutzen', halt: true, gross: true, zieht: true },
-    { id: 'sprung', ecke: 'ur', sym: 'hoch',      titel: 'Springen', halt: true },
-    { id: 'ducken', ecke: 'ur', sym: 'runter',    titel: 'Ducken', halt: true },
+    { id: 'sprung', ecke: 'ur', sym: 'hoch',      titel: 'Springen', halt: true, zieht: true },
+    { id: 'ducken', ecke: 'ur', sym: 'runter',    titel: 'Ducken', halt: true, zieht: true },
     { id: 'inv',    ecke: 'ur', sym: 'kisten',    titel: 'Inventar' }
   ];
 
@@ -198,8 +238,25 @@
     try { el.setPointerCapture(ev.pointerId); } catch (e) { }
   }
 
+  // Alle Halteknöpfe, damit sie sich zwangsweise lösen lassen. Ohne das bleibt
+  // ein Knopf gedrückt, wenn sein pointerup nie ankommt – und das passiert,
+  // sobald das Overlay ausgeblendet wird, während der Finger noch daraufliegt.
+  M.knoepfe = [];
+
+  M.alleLoslassen = function () {
+    for (var i = 0; i < M.knoepfe.length; i++) M.knoepfe[i].loesen();
+  };
+
   M.zeigerBinden = function (el, k) {
     var eigen = null, lx = 0, ly = 0, gewischt = 0;
+    var eintrag = { id: k.id, hat: function (id) { return eigen === id; }, loesen: function () {
+      if (eigen === null) return;
+      try { el.releasePointerCapture(eigen); } catch (e) { }
+      eigen = null;
+      el.classList.remove('an');
+      M.aus(k.id, false);
+    } };
+    M.knoepfe.push(eintrag);
     el.addEventListener('pointerdown', function (ev) {
       if (eigen !== null) return;
       eigen = ev.pointerId;
@@ -292,8 +349,29 @@
     el.addEventListener('pointercancel', los, { passive: false });
   };
 
+  // Empfindlichkeit des Umsehens. Am Telefon passt der Wert vom Rechner nicht,
+  // und er ist Geschmackssache – darum einstellbar und gemerkt.
+  var EMPF_KEY = 'minecraft_html_touch_empf';
+  var EMPF_STUFEN = [0.6, 0.85, 1.1, 1.35, 1.7, 2.1, 2.6];
   M.EMPF = 1.35;
+
+  M.empfLaden = function () {
+    try {
+      var v = parseFloat(localStorage.getItem(EMPF_KEY));
+      if (isFinite(v) && v > 0) M.EMPF = v;
+    } catch (e) { }
+  };
+
   M.empfindlichkeit = function () { return M.EMPF; };
+
+  M.empfWeiter = function () {
+    var i = EMPF_STUFEN.indexOf(M.EMPF);
+    M.EMPF = EMPF_STUFEN[(i + 1) % EMPF_STUFEN.length];
+    try { localStorage.setItem(EMPF_KEY, String(M.EMPF)); } catch (e) { }
+    return M.empfProzent();
+  };
+
+  M.empfProzent = function () { return Math.round(M.EMPF / 1.35 * 100) + ' %'; };
 
   // ---------- Knüppel ----------
   // Die Mitte entsteht dort, wo der Finger aufsetzt. Ein Knüppel, den man
@@ -505,7 +583,13 @@
                   (m && getComputedStyle(m).display !== 'none') ||
                   !!document.getElementById('cbfenster') ||
                   (MC.Cmd && MC.Cmd.Chat && MC.Cmd.Chat.offen);
+      // Wird das Overlay ausgeblendet, während ein Finger auf einem Knopf
+      // liegt, kommt dessen pointerup nie an – der Knopf bliebe für immer
+      // gedrückt. Genau so blieb der Setzen-Knopf hängen und man konnte
+      // nichts mehr platzieren.
+      var warWeg = M.wurzel.classList.contains('weg');
       M.wurzel.classList.toggle('weg', !!offen);
+      if (offen && !warWeg) M.alleLoslassen();
     };
     var beob = new MutationObserver(pruefe);
     ['screen', 'menu', 'ui'].forEach(function (id) {
@@ -514,6 +598,22 @@
     });
     pruefe();
     M.fensterPruefen = pruefe;
+
+    // Die Chatzeile ändert nur ihre eigene Klasse, und die liegt tief in #ui.
+    // Ein childList-Beobachter sieht davon nichts – darum blieb das Overlay
+    // nach dem Schließen des Chats verschwunden. Statt den halben Baum zu
+    // beobachten, sagen wir es dem Chat direkt.
+    if (MC.Cmd && MC.Cmd.Chat) {
+      ['oeffnen', 'schliessen', 'absenden'].forEach(function (n) {
+        var alt = MC.Cmd.Chat[n];
+        if (typeof alt !== 'function') return;
+        MC.Cmd.Chat[n] = function () {
+          var r = alt.apply(this, arguments);
+          pruefe();
+          return r;
+        };
+      });
+    }
   };
 
 })();
