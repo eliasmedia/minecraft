@@ -62,6 +62,16 @@ Spitzhacke bei einem Block —, denn beides ist dieselbe Taste. Langes Drücken
 auf einen Slot ersetzt den Rechtsklick zum Stapelteilen. Nur im Querformat;
 hochkant kommt ein Hinweis.
 
+Zwei Gesten, die es am Rechner nicht braucht: **auf dem Aktionsknopf wischen**
+dreht die Kamera mit, während er gedrückt bleibt — sonst müsste man zum
+Abbauen jedes nächsten Blocks loslassen, sich umsehen und neu drücken. Und der
+Knopf oben rechts blättert **im Halten und Wischen durch die Schnellleiste**,
+weil neun Plätze am Daumen schlecht einzeln zu treffen sind.
+
+Die Symbole sind als winzige SVG gezeichnet, nicht als Emoji. Emojis sehen auf
+jedem Gerät anders aus, bringen eine fremde Schriftart mit und passen nicht zum
+Pixelstil — und eine Datei wollten wir auch nicht.
+
 Entscheidend ist, was **nicht** passiert: es gibt keine zweite Spiellogik. Der
 Knüppel schreibt in dieselben Tastenflags wie die Tastatur, das Ziehen in
 dieselben `dx/dy` wie die Maus. `Player.update` merkt keinen Unterschied.

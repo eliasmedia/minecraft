@@ -759,7 +759,7 @@ canvas#gl {
 }
 .tknopf.gross { width: 68px; height: 68px; font-size: 27px; }
 .tknopf.an { background: rgba(255,255,255,.34); }
-.tknopf.blass { opacity: .45; }
+.tknopf.blass { opacity: .62; }
 
 /* ---------- Querformat erzwingen ---------- */
 #tdreh { display: none; }
@@ -778,16 +778,18 @@ canvas#gl {
 }
 
 /* ---------- Oberfläche für kleine Schirme ---------- */
-/* Die Slotgrößen regelt schon die bestehende Abfrage weiter oben nach
-   Fensterbreite – hier steht nur, was am Finger zusätzlich anders sein muss. */
-@media (pointer: coarse) and (max-width: 900px) {
+/* Alle Abfragen hier hängen zusätzlich an `.touch`, also an der Klasse, die
+   mobile.js setzt — nicht an `(pointer: coarse)`. Die Browserabfrage meldet je
+   nach Gerät und Fenster Unterschiedliches; die Klasse ist dasselbe Signal,
+   das auch das Overlay einschaltet, und damit die verlässlichere Bedingung. */
+@media (max-width: 900px) {
   .touch .window { padding: 8px 10px 10px; }
   .touch .wtitle { font-size: 15px; }
   .touch .whint { display: none; }
   .touch .tabs { overflow-x: auto; flex-wrap: nowrap; }
   .touch #chat { width: 78%; bottom: 82px; }
 }
-@media (pointer: coarse) and (max-width: 700px) {
+@media (max-width: 700px) {
   .touch .tknopf { width: 46px; height: 46px; font-size: 19px; }
   .touch .tknopf.gross { width: 60px; height: 60px; font-size: 24px; }
   .touch #tstick { width: 124px; height: 124px; bottom: 66px; }
@@ -798,4 +800,90 @@ canvas#gl {
 .touch #hotbar .slot { position: relative; }
 .touch #hotbar .slot::before {
   content: ''; position: absolute; inset: -7px;
+}
+
+/* ---------- Pocket: Nachbesserungen ---------- */
+/* Piktogramme statt Emojis – gezeichnet, damit sie auf jedem Gerät gleich
+   aussehen und zum Rest passen. */
+.tknopf svg {
+  width: 56%; height: 56%;
+  fill: none; stroke: #fff; stroke-width: 2.2;
+  stroke-linecap: round; stroke-linejoin: round;
+  /* Rundum abgesetzt statt nur nach unten rechts: die Knöpfe liegen über
+     hellem Sand genauso wie über dunklem Laub. */
+  filter: drop-shadow(0 0 2px rgba(0,0,0,.9)) drop-shadow(1px 1px 0 rgba(0,0,0,.8));
+}
+.tknopf.gross svg { width: 52%; height: 52%; }
+/* Die Inventarfelder sind gefüllt, nicht gestrichelt */
+.tknopf[data-tb="inv"] svg rect { fill: #fff; stroke: none; }
+
+/* Der Knüppel gehört in die Ecke, nicht auf halbe Höhe */
+.touch #tstick { bottom: 16px; }
+
+/* Fenster dürfen nicht unten abgeschnitten werden. #screen zentriert sonst
+   senkrecht, und was nicht hineinpasst, ragt oben und unten heraus. */
+.touch #screen {
+  padding: 6px 0;
+  align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
+}
+.touch .window {
+  max-height: calc(100dvh - 12px);
+  overflow-y: auto; overscroll-behavior: contain;
+  max-width: 98vw;
+}
+/* Dasselbe für Haupt- und Pausenmenü: die stehen in einem Flexkasten, der
+   mittig ausrichtet – zu hoher Inhalt wird dort oben und unten abgeschnitten. */
+.touch #menu {
+  align-items: flex-start; overflow-y: auto;
+  padding: 6px 0; -webkit-overflow-scrolling: touch;
+}
+.touch .menubox {
+  max-height: none; padding: 12px 16px;
+  margin: auto 0;
+}
+.touch .menubox.titel { padding: 6px 16px; }
+.touch .mhelp { font-size: 11px; line-height: 1.45; }
+.touch .wliste { max-height: 40dvh; }
+
+/* Flache Schirme: Querformat am Telefon heißt oft unter 420 px Höhe.
+   Dann muss alles kleiner werden, sonst passt kein Inventar hinein. */
+@media (max-height: 470px) {
+  .touch { --slot: 30px; --icon: 24px; }
+  .touch .window { padding: 6px 8px 8px; }
+  .touch .wtitle { font-size: 13px; margin-bottom: 4px; }
+  .touch .wsep { height: 4px; }
+  .touch .tabs .tab { padding: 2px 7px; font-size: 11px; }
+  .touch .pager { margin-top: 4px; }
+  .touch .pagebtn { padding: 2px 10px; font-size: 12px; }
+  .touch .mbtn { padding: 7px; font-size: 12px; }
+  .touch .minput { padding: 6px; font-size: 12px; }
+  .touch .mrow { gap: 6px; }
+  .touch .menubox { gap: 5px; }
+  /* Eng gesetzte Spalten liessen die Beschriftung umbrechen und machten die
+     Zeile höher statt niedriger – die Breite bleibt, es stehen nur zwei
+     Zeilen nebeneinander. */
+  .touch .optrow { gap: 6px; padding: 4px 7px; font-size: 12px; }
+  .touch .menubox:not(.titel) { padding: 8px 12px; }
+}
+@media (max-height: 380px) {
+  .touch { --slot: 26px; --icon: 24px; }
+}
+
+/* Im Querformat ist Breite im Überfluss da und Höhe knapp. Zwölf Knöpfe
+   untereinander ergeben 400 Pixel, die es nicht gibt — nebeneinander sind es
+   200. Nur die Knöpfe; Überschriften, Zeilen und Listen bleiben durchgehend. */
+@media (max-height: 470px) {
+  .touch .menubox:not(.titel) {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 5px 8px; width: min(96vw, 640px);
+  }
+  .touch .menubox:not(.titel) > .mtitle,
+  .touch .menubox:not(.titel) > .mhead,
+  .touch .menubox:not(.titel) > .mrow,
+  .touch .menubox:not(.titel) > .mhelp,
+  .touch .menubox:not(.titel) > .mfoot,
+  .touch .menubox:not(.titel) > .wliste,
+  .touch .menubox:not(.titel) > .wordner,
+  .touch .menubox:not(.titel) > .optnote { grid-column: 1 / -1; }
 }

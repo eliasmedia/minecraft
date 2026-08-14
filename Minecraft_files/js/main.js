@@ -1904,7 +1904,7 @@
   // ---------- Welt anpassen ----------
   var OPT_LABELS = {
     mountains: ['flach', 'normal', 'sehr bergig'],
-    caves: ['keine', 'normal', 'durchlöchert'],
+    caves: ['wenige', 'normal', 'durchlöchert'],
     biomeSize: ['klein', 'normal', 'riesig'],
     vegetation: ['karg', 'normal', 'überwuchert'],
     ores: ['selten', 'normal', 'reichlich']
@@ -1915,7 +1915,13 @@
     var lab = OPT_LABELS[spec.key];
     var pct = Math.round(v * 100) + ' %';
     if (!lab) return pct;
-    var word = Math.abs(v - 1) < 0.05 ? lab[1] : (v < 1 ? lab[0] : lab[2]);
+    // Nur die Null heißt wirklich „aus". Alles dazwischen ist weniger, nicht
+    // nichts – bei der Höhlenvorgabe von 50 % stand sonst „keine" im Menü,
+    // obwohl es Höhlen gibt.
+    var word;
+    if (v <= 0.02) word = 'aus';
+    else if (Math.abs(v - 1) < 0.05) word = lab[1];
+    else word = v < 1 ? lab[0] : lab[2];
     return pct + ' — ' + word;
   }
 

@@ -105,16 +105,56 @@
   // ---------- Das Overlay ----------
   // data-tb ist die Kennung des Bedienelements, data-halt heißt „wirkt,
   // solange gedrückt", sonst wird beim Loslassen ausgelöst.
+  // Piktogramme statt Emojis: die sehen auf jedem Gerät anders aus, bringen
+  // eine fremde Schriftart mit und passen nicht zum Pixelstil. Hier sind sie
+  // als winzige SVG gezeichnet — keine Datei, keine Schrift, überall gleich.
+  function svg(inhalt) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' + inhalt + '</svg>';
+  }
+  var SYM = {
+    // Spitzhacke: Stiel senkrecht, darüber der geschwungene Kopf mit zwei
+    // Spitzen. Bei 26 Pixeln Kantenlänge muss die Silhouette allein tragen —
+    // Feinheiten verschwinden ohnehin.
+    hacke: svg('<path d="M12 8.5V20.5" />' +
+               '<path d="M4 12C6 6.5 9.5 3.5 12 3.5s6 3 8 8.5" />' +
+               '<path d="M4 12l2.5-1.5" /><path d="M20 12l-2.5-1.5" />'),
+    // Schwert: Klinge nach oben rechts, Parierstange quer, kurzer Griff
+    schwert: svg('<path d="M20.5 3.5L11 13" />' +
+                 '<path d="M20.5 3.5l-4.2.5-.5 4.2" />' +
+                 '<path d="M8.2 12.2l3.6 3.6" />' +
+                 '<path d="M9.5 16.2L6 19.7" />'),
+    // Hand: Handfläche mit vier Fingern
+    hand: svg('<path d="M9 12V5.5a1.5 1.5 0 013 0V11" /><path d="M12 11V4.5a1.5 1.5 0 013 0V11" />' +
+              '<path d="M15 11V6.5a1.5 1.5 0 013 0V14c0 4-2.5 6.5-6 6.5s-6-2-6-5.5v-3l-1.5-2a1.4 1.4 0 012-2L9 12" />'),
+    hoch: svg('<path d="M12 20V6" /><path d="M6 12l6-6 6 6" />'),
+    runter: svg('<path d="M12 4v14" /><path d="M6 12l6 6 6-6" />'),
+    // Inventar: neun Felder
+    kisten: svg('<rect x="3.5" y="3.5" width="5" height="5" /><rect x="9.5" y="3.5" width="5" height="5" />' +
+                '<rect x="15.5" y="3.5" width="5" height="5" /><rect x="3.5" y="9.5" width="5" height="5" />' +
+                '<rect x="9.5" y="9.5" width="5" height="5" /><rect x="15.5" y="9.5" width="5" height="5" />' +
+                '<rect x="3.5" y="15.5" width="5" height="5" /><rect x="9.5" y="15.5" width="5" height="5" />' +
+                '<rect x="15.5" y="15.5" width="5" height="5" />'),
+    balken: svg('<path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" />'),
+    blase: svg('<path d="M4 5h16v11H9l-5 4v-4H4z" />'),
+    // Hotbar blättern: zwei Pfeile um eine Reihe Felder
+    blaettern: svg('<path d="M5 8.5L1.5 12 5 15.5" /><path d="M19 8.5L22.5 12 19 15.5" />' +
+                   '<rect x="7.5" y="8.5" width="4" height="7" /><rect x="12.5" y="8.5" width="4" height="7" />'),
+    info: svg('<circle cx="12" cy="12" r="8.5" /><path d="M12 11v5" /><path d="M12 7.6v.9" />')
+  };
+
+  // `zieht: true` heißt: der Finger darf vom Knopf wegwandern und dreht dabei
+  // die Kamera — genau das braucht man, um mehrere Blöcke hintereinander
+  // abzubauen, ohne zwischendurch loszulassen.
   var KNOEPFE = [
-    { id: 'menu',   ecke: 'ol', text: '☰',  titel: 'Menü' },
-    { id: 'chat',   ecke: 'ol', text: '💬', titel: 'Chat und Befehle' },
-    { id: 'karte',  ecke: 'or', text: '🗺',  titel: 'Karte' },
-    { id: 'debug',  ecke: 'or', text: 'i',  titel: 'Debug' },
-    { id: 'aktion', ecke: 'ur', text: '⛏',  titel: 'Abbauen und Angreifen', halt: true, gross: true },
-    { id: 'nutzen', ecke: 'ur', text: '✋',  titel: 'Setzen und Benutzen', halt: true, gross: true },
-    { id: 'sprung', ecke: 'ur', text: '⤒',  titel: 'Springen', halt: true },
-    { id: 'ducken', ecke: 'ur', text: '⤓',  titel: 'Ducken', halt: true },
-    { id: 'inv',    ecke: 'ur', text: '▤',  titel: 'Inventar' }
+    { id: 'menu',   ecke: 'ol', sym: 'balken',    titel: 'Menü' },
+    { id: 'chat',   ecke: 'ol', sym: 'blase',     titel: 'Chat und Befehle' },
+    { id: 'leiste', ecke: 'or', sym: 'blaettern', titel: 'Halten und wischen: Schnellleiste', wischt: true },
+    { id: 'debug',  ecke: 'or', sym: 'info',      titel: 'Debug' },
+    { id: 'aktion', ecke: 'ur', sym: 'hacke',     titel: 'Abbauen und Angreifen', halt: true, gross: true, zieht: true },
+    { id: 'nutzen', ecke: 'ur', sym: 'hand',      titel: 'Setzen und Benutzen', halt: true, gross: true, zieht: true },
+    { id: 'sprung', ecke: 'ur', sym: 'hoch',      titel: 'Springen', halt: true },
+    { id: 'ducken', ecke: 'ur', sym: 'runter',    titel: 'Ducken', halt: true },
+    { id: 'inv',    ecke: 'ur', sym: 'kisten',    titel: 'Inventar' }
   ];
 
   M.bauen = function () {
@@ -138,7 +178,7 @@
       b.className = 'tknopf' + (k.gross ? ' gross' : '');
       b.setAttribute('data-tb', k.id);
       b.title = k.titel;
-      b.textContent = k.text;
+      b.innerHTML = SYM[k.sym];
       w.querySelector('.tecke.' + k.ecke).appendChild(b);
       M.zeigerBinden(b, k);
     });
@@ -159,16 +199,49 @@
   }
 
   M.zeigerBinden = function (el, k) {
-    var eigen = null;
+    var eigen = null, lx = 0, ly = 0, gewischt = 0;
     el.addEventListener('pointerdown', function (ev) {
       if (eigen !== null) return;
       eigen = ev.pointerId;
+      lx = ev.clientX; ly = ev.clientY; gewischt = 0;
       fangen(el, ev);
       el.classList.add('an');
       ev.preventDefault();
       if (M.game && M.game.audio) M.game.audio.init();
       M.aus(k.id, true);
     }, { passive: false });
+
+    el.addEventListener('pointermove', function (ev) {
+      if (eigen !== ev.pointerId) return;
+      var dx = ev.clientX - lx, dy = ev.clientY - ly;
+
+      // Halten und wischen: durch die Schnellleiste blättern. Ein Schritt je
+      // angefangenem Stück Weg, damit es sich rastend anfühlt.
+      if (k.wischt) {
+        // Bei einem Richtungswechsel muss der angesammelte Weg weg, sonst
+        // frisst der Rest aus der Gegenrichtung den ersten Schritt zurück.
+        if (dx !== 0 && (dx > 0) !== (gewischt > 0)) gewischt = 0;
+        gewischt += dx;
+        var stufe = 26;
+        if (Math.abs(gewischt) >= stufe) {
+          M.leisteSchieben(gewischt > 0 ? 1 : -1);
+          gewischt = 0;
+        }
+      }
+      // Ziehen auf dem Aktions- oder Benutzenknopf dreht die Kamera mit. Ohne
+      // das müsste man zum Abbauen der nächsten Blöcke jedes Mal loslassen,
+      // umsehen und neu drücken.
+      else if (k.zieht) {
+        var g = M.game;
+        if (g && g.input) {
+          g.input.dx += dx * M.empfindlichkeit();
+          g.input.dy += dy * M.empfindlichkeit();
+        }
+      }
+      lx = ev.clientX; ly = ev.clientY;
+      ev.preventDefault();
+    }, { passive: false });
+
     function los(ev) {
       if (eigen !== ev.pointerId) return;
       eigen = null;
@@ -178,6 +251,15 @@
     }
     el.addEventListener('pointerup', los, { passive: false });
     el.addEventListener('pointercancel', los, { passive: false });
+  };
+
+  // Einen Platz weiter in der Schnellleiste, mit Umlauf wie beim Mausrad.
+  M.leisteSchieben = function (richtung) {
+    var g = M.game;
+    if (!g || !g.player) return;
+    var inv = g.player.inventory;
+    inv.selected = (inv.selected + richtung + 9) % 9;
+    g.ui.updateHotbar();
   };
 
   // ---------- Blickfläche ----------
@@ -304,7 +386,7 @@
         break;
       case 'inv':   if (!an) M.taste('KeyE'); break;
       case 'chat':  if (!an) M.taste('KeyT'); break;
-      case 'karte': if (!an) M.taste('KeyN'); break;
+      case 'leiste': break;                       // wirkt nur übers Wischen
       case 'debug': if (!an) M.taste('F3'); break;
       case 'menu':  if (!an) M.taste('KeyM'); break;
     }
@@ -318,8 +400,11 @@
     var b = M.wurzel && M.wurzel.querySelector('[data-tb="aktion"]');
     if (!b) return;
     var g = M.game;
-    var neu = g.targetEntity ? '🗡' : (g.target ? '⛏' : '⛏');
-    if (b.textContent !== neu) b.textContent = neu;
+    var neu = g.targetEntity ? 'schwert' : 'hacke';
+    if (b.getAttribute('data-sym') !== neu) {
+      b.setAttribute('data-sym', neu);
+      b.innerHTML = SYM[neu];
+    }
     b.classList.toggle('blass', !g.target && !g.targetEntity);
   };
 
