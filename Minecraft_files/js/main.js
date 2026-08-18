@@ -626,6 +626,14 @@
   Game.prototype.attackEntity = function (e) {
     if (this.mode === 'spectator') return;
     var p = this.player;
+    // Eine Lore wird nicht geschlagen, sie wird zerlegt
+    if (e.type === 'cart') {
+      if (e.reiter) this.absitzen();
+      e.dead = true;
+      if (this.mode !== 'creative') this.spawnItem(e.x, e.y + 0.3, e.z, I.newStack('minecart', 1));
+      this.audio.play('break_tool');
+      return;
+    }
     if (p.attackCd > 0) return;
     p.attackCd = 0.25;
     var st = p.inventory.selectedStack();
@@ -694,6 +702,11 @@
 
     // Was im Bilderrahmen hing, fällt heraus; der Atlasplatz wird frei
     if (MC.Schilder) MC.Schilder.abgebaut(this, x, y, z);
+    // Die Nachbarn einer abgebauten Schiene richten sich neu aus
+    if (b.shape === B.SHAPE_RAIL && MC.Logistik) {
+      var self2 = this;
+      setTimeout(function () { MC.Logistik.railUmgebung(self2.world, x, y, z); }, 0);
+    }
 
     // Truheninhalt ausschütten – bei einer nie geöffneten Dorftruhe wird der
     // Inhalt jetzt erst ausgewürfelt, sonst ginge die Beute verloren
@@ -747,6 +760,11 @@
     // Entity-Interaktion
     if (this.targetEntity && this.targetEntity.mobType === 'villager') {
       this.ui.openScreen('trade', this.targetEntity);
+      return;
+    }
+    // Lore: aufsitzen
+    if (this.targetEntity && this.targetEntity.type === 'cart' && !p.reittier) {
+      this.aufsitzen(this.targetEntity);
       return;
     }
     // Tiere: füttern, satteln, aufsitzen
@@ -846,6 +864,19 @@
     }
 
     if (!it) return;
+
+    // Lore auf eine Schiene setzen
+    if (it.name === 'minecart' && this.target && MC.Logistik) {
+      var rt = this.target;
+      if (w.getBlock(rt.x, rt.y, rt.z) === B.id('rail')) {
+        var lore = new MC.Minecart(w, rt.x + 0.5, rt.y + 0.12, rt.z + 0.5);
+        w.entities.push(lore);
+        if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+        this.audio.play('thud');
+        p.swingTime = 1;
+        return;
+      }
+    }
 
     // Spawn-Ei: setzt die Kreatur auf die angeklickte Fläche
     if (it.name.indexOf('egg_') === 0) {
@@ -1176,6 +1207,7 @@
     // Der Schwamm saugt das Wasser um sich herum weg und wird dabei nass
     if (block.name === 'sponge') this.saugeSchwamm(nx, ny, nz);
     if (block.liquid) w.scheduleFluid(nx, ny, nz, 2);
+    if (block.shape === B.SHAPE_RAIL && MC.Logistik) MC.Logistik.railUmgebung(w, nx, ny, nz);
     this.audio.place(block.sound);
     p.swingTime = 1;
     if (this.mode !== 'creative') p.inventory.consumeSelected(1);

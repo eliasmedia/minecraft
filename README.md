@@ -898,6 +898,27 @@ Braustand, ein zweiter Trichter. Der Ofen bekommt dabei eine Sonderrolle, die
 sich aus seinem Aufbau ergibt — von oben kommt das Rohmaterial hinein, von der
 Seite der Brennstoff, von unten wird das Ergebnis herausgezogen.
 
+**Schienen & Loren** — sechzehn Schienen aus sechs Eisenbarren und einem Stock,
+die Lore aus fünf. Eine Schiene **richtet sich nach ihren Nachbarn**: liegen zwei
+in einer Linie, wird sie gerade; liegen sie über Eck, wird sie zur Kurve. Das
+geschieht beim Setzen und noch einmal bei jeder Änderung ringsum, sonst bliebe
+ein nachträglich angebautes Stück quer liegen. Weichen gibt es nicht — bei drei
+Nachbarn gewinnt die Gerade.
+
+Die Lore fährt nicht frei durch die Gegend, sondern **liest das Gleis unter
+sich**: aus dessen Verlauf kommt die Richtung, und quer dazu wird sie jedes Bild
+auf die Gleismitte gezogen. Sie kann damit gar nicht entgleisen. Von den beiden
+Enden einer Schiene nimmt sie immer das, welches besser zur bisherigen Fahrt
+passt — daraus ergibt sich das Verhalten in der Kurve von selbst.
+
+Gemessen an einer Strecke aus zwölf geraden Schienen mit einer Kurve am Ende: die
+angeschobene Lore fährt die Gerade, nimmt die Kurve und rollt in der neuen
+Richtung weiter aus. Wer aufsitzt, gibt mit `W` Schub und bremst mit `S`;
+Schleichen steigt ab. Es ist dieselbe Reit-Anbindung wie beim Moa — sie war
+genau dafür gebaut.
+
+Steigungen fehlen noch: eine Lore fährt bisher nur in der Ebene.
+
 **Beobachter** — hängt nicht an der Aufladung, sondern an der Veränderung: er
 merkt sich den Block vor sich und gibt nach hinten einen kurzen Impuls ab, sobald
 der wechselt. Damit lässt sich automatisieren, ohne einen Fackeltaktgeber

@@ -39,6 +39,7 @@
   B.SHAPE_PAINTING = 29;     // Gemälde an der Wand
   B.SHAPE_CAULDRON = 30;     // Kessel: Wanne mit Wasserstand in Meta 0..3
   B.SHAPE_HOPPER = 31;       // Trichter: Rand, Trog und Auslauf
+  B.SHAPE_RAIL = 32;         // Schiene: flach auf dem Boden, Meta = Verlauf
 
   // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
   // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
@@ -731,6 +732,25 @@
     return [d[0], 0, d[1]];
   };
 
+  // Schienenverlauf: 0 = in Z, 1 = in X, 2..5 = Kurven. Eine Kurve verbindet
+  // zwei Richtungen; die Tabelle sagt welche, und daran hängt sowohl das Bild
+  // als auch die Fahrt der Lore.
+  B.RAIL_GERADE = [[0, -1], [0, 1]];
+  B.RAIL_ENDEN = [
+    [[0, -1], [0, 1]],      // 0: Nord-Süd
+    [[-1, 0], [1, 0]],      // 1: West-Ost
+    [[0, -1], [1, 0]],      // 2: Nord-Ost
+    [[1, 0], [0, 1]],       // 3: Ost-Süd
+    [[0, 1], [-1, 0]],      // 4: Süd-West
+    [[-1, 0], [0, -1]]      // 5: West-Nord
+  ];
+  B.railKurve = function (meta) { return (meta & 7) >= 2; };
+
+  define('rail', {
+    title: 'Schiene', shape: B.SHAPE_RAIL, opaque: false, collide: false, opacity: 0,
+    hardness: 0.7, tool: 'pickaxe', tex: 'rail', sound: 'stone', group: 'redstone'
+  });
+
   define('hopper', {
     title: 'Trichter', shape: B.SHAPE_HOPPER, opaque: false, hardness: 3, tool: 'pickaxe', level: 1,
     tex: { top: 'hopper_top', side: 'hopper_side', bottom: 'hopper_side' },
@@ -1006,6 +1026,7 @@
         return [B.doorBox(meta)];
       case B.SHAPE_GATE:
         return B.gateOpen(meta) ? null : [B.gateBox(meta)];
+      case B.SHAPE_RAIL:
       case B.SHAPE_SIGN:
       case B.SHAPE_SIGN_WALL:
       case B.SHAPE_FRAME:
@@ -1036,6 +1057,7 @@
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
       case B.SHAPE_STAND: return [0.125, 0, 0.125, 0.875, 0.875, 0.875];
+      case B.SHAPE_RAIL: return [0, 0, 0, 1, 0.125, 1];
       case B.SHAPE_HOPPER:
       case B.SHAPE_CAULDRON: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_PISTON_HEAD: return [0, 0, 0, 1, 1, 1];

@@ -248,7 +248,11 @@
     if (input.key('KeyA')) side -= 1;
     if (input.key('KeyD')) side += 1;
 
-    if (fwd || side) {
+    // Eine Lore lenkt man nicht, man schiebt sie an: sie folgt ihrem Gleis.
+    // Darum bekommt sie nur die Absicht, kein Ziel.
+    if (t.type === 'cart') {
+      this.reitEingabe = { vor: fwd > 0, zurueck: fwd < 0 };
+    } else if (fwd || side) {
       var richtung = Math.atan2(Math.sin(this.yaw) * fwd + Math.cos(this.yaw) * side,
                                 Math.cos(this.yaw) * fwd - Math.sin(this.yaw) * side);
       var eile = input.key('ControlLeft') || input.sprintToggle ? 1.35 : 1;
@@ -259,7 +263,7 @@
     }
     // Der Moa springt höher als alles andere im Spiel — das ist im Aether der
     // ganze Zweck der Übung.
-    if (input.key('Space') && t.onGround) t.vy = t.spec.reitsprung || 9.5;
+    if (input.key('Space') && t.onGround && t.spec) t.vy = t.spec.reitsprung || 9.5;
 
     // Der Reiter sitzt oben und erbt die Lage des Tieres
     this.x = t.x;

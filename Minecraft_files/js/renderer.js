@@ -809,6 +809,7 @@
       else if (e.type === 'arrow') this.drawArrow(e, bl, sl);
       else if (e.type === 'tnt') this.drawTNT(e, bl, sl, game);
       else if (e.type === 'falling') this.drawFalling(e, bl, sl);
+      else if (e.type === 'cart') this.drawCart(e, bl, sl);
       else if (e.type === 'pearl') this.drawSprite(e.x, e.y, e.z, 0.32, T.layer('ender_pearl'), bl, sl, game);
       else if (e.type === 'projectile') {
         this.drawSprite(e.x, e.y, e.z, 0.7,
@@ -1012,6 +1013,39 @@
     var b = B.byId[e.blockId];
     if (!b) return;
     var n = this.boxGeometry(0, [e.x, e.y + 0.49, e.z], 0.98, b, e.meta, 0, bl, sl);
+    this.drawDyn(n);
+  };
+
+  // Die Lore: ein offener Kasten aus fünf Platten. Sie wird nach ihrer
+  // Fahrtrichtung gedreht, damit die lange Seite am Gleis liegt.
+  Renderer.prototype.drawCart = function (e, bl, sl) {
+    var lay = T.layer('hopper_side');
+    var quer = Math.abs(e.dir[0]) > Math.abs(e.dir[1]);
+    var lx = quer ? 0.9 : 0.62, lz = quer ? 0.62 : 0.9;
+    var d = this.dynData, n = 0;
+    this.ensureDyn(5 * 6 * 4 * FPV + 64);
+    d = this.dynData;
+    var kasten = [
+      [-lx / 2, 0, -lz / 2, lx / 2, 0.12, lz / 2],                       // Boden
+      [-lx / 2, 0.12, -lz / 2, lx / 2, 0.55, -lz / 2 + 0.1],             // vier Wände
+      [-lx / 2, 0.12, lz / 2 - 0.1, lx / 2, 0.55, lz / 2],
+      [-lx / 2, 0.12, -lz / 2, -lx / 2 + 0.1, 0.55, lz / 2],
+      [lx / 2 - 0.1, 0.12, -lz / 2, lx / 2, 0.55, lz / 2]
+    ];
+    for (var k = 0; k < kasten.length; k++) {
+      var bx = kasten[k];
+      for (var f = 0; f < 6; f++) {
+        var F = MC.Mesher.FACES[f];
+        for (var i = 0; i < 4; i++) {
+          var v = F.v[i];
+          d[n++] = e.x + bx[0] + v[0] * (bx[3] - bx[0]);
+          d[n++] = e.y + bx[1] + v[1] * (bx[4] - bx[1]);
+          d[n++] = e.z + bx[2] + v[2] * (bx[5] - bx[2]);
+          d[n++] = MC.Mesher.UVS[i][0]; d[n++] = MC.Mesher.UVS[i][1]; d[n++] = lay;
+          d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
+        }
+      }
+    }
     this.drawDyn(n);
   };
 

@@ -281,6 +281,16 @@
               break;
             }
 
+            case B.SHAPE_RAIL: {
+              // Eine flache Fläche knapp über dem Boden. Die Drehung steckt in
+              // den Texturkoordinaten, nicht in der Geometrie — ein Viereck
+              // bleibt ein Viereck, egal wie die Schiene liegt.
+              var rm = meta & 7;
+              var kurve = rm >= 2;
+              emitRail(buf, x, y, z, T.layer(kurve ? 'rail_curve' : 'rail'), gl(x, y, z), rm);
+              break;
+            }
+
             case B.SHAPE_HOPPER: {
               // Rand oben, Trog darunter, Auslauf in Richtung des Metas
               emitBoxCulled(buf, x, y, z, [0, 0.625, 0, 1, 1, 1], block, meta, 0);
@@ -642,6 +652,27 @@
 
     // Quader mit AO/Licht; Flächen an undurchsichtigen Nachbarn werden weggelassen,
     // sofern der Quader diese Blockseite überhaupt berührt. skipMask blendet Flächen fest aus.
+    // Schienenfläche: ein Viereck bei y = 1/16, dessen UV je nach Verlauf
+    // gedreht wird. Gerade in X ist die Textur um 90 Grad gedreht, jede Kurve
+    // um ein Vielfaches davon.
+    var RAIL_DREH = [0, 1, 0, 1, 2, 3];
+    function emitRail(buf, x, y, z, layer, lightRaw, rm) {
+      var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
+      var uv = [[0, 1], [1, 1], [1, 0], [0, 0]];
+      var dreh = RAIL_DREH[rm] || 0;
+      var eck = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      buf.need(4 * 9);
+      var a = buf.a, n = buf.n;
+      for (var i = 0; i < 4; i++) {
+        var e = eck[i];
+        a[n++] = x + e[0]; a[n++] = y + 0.0625; a[n++] = z + e[1];
+        var u = uv[(i + dreh) & 3];
+        a[n++] = u[0]; a[n++] = u[1]; a[n++] = layer;
+        a[n++] = bl; a[n++] = sl; a[n++] = 1;
+      }
+      buf.n = n;
+    }
+
     function emitBoxCulled(buf, x, y, z, box, block, meta, skipMask) {
       var mn = [box[0], box[1], box[2]], mx = [box[3], box[4], box[5]];
       for (var f = 0; f < 6; f++) {

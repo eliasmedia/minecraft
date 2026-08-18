@@ -226,6 +226,146 @@
     }
   };
 
+  // ============================================================
+  //  Schienen
+  // ============================================================
+  // Eine Schiene richtet sich nach ihren Nachbarn: liegen zwei in einer Linie,
+  // wird sie gerade; liegen sie über Eck, wird sie zur Kurve. Das passiert beim
+  // Setzen und noch einmal bei jeder Änderung ringsum — sonst bleibt ein
+  // nachträglich angebautes Stück quer liegen.
+  var NACHBARN = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+  L.railAusrichten = function (world, x, y, z) {
+    if (world.getBlock(x, y, z) !== B.id('rail')) return;
+    var da = [];
+    for (var i = 0; i < 4; i++) {
+      var n = NACHBARN[i];
+      if (world.getBlock(x + n[0], y, z + n[1]) === B.id('rail')) da.push(i);
+    }
+    var meta;
+    if (da.length === 0) meta = 0;
+    else if (da.length === 1) meta = (da[0] % 2 === 0) ? 0 : 1;
+    else {
+      // Zwei gegenüberliegende Nachbarn ergeben eine Gerade, zwei benachbarte
+      // eine Kurve. Bei drei oder vier gewinnt die erste gefundene Gerade —
+      // Weichen gibt es nicht, und eine Kreuzung wäre eine.
+      var a = da[0], b = da[1];
+      if (da.length >= 3) {
+        if (da.indexOf(0) >= 0 && da.indexOf(2) >= 0) { a = 0; b = 2; }
+        else { a = 1; b = 3; }
+      }
+      if ((a + 2) % 4 === b) meta = (a % 2 === 0) ? 0 : 1;
+      else {
+        var paar = [a, b].sort(function (p1, p2) { return p1 - p2; }).join('');
+        meta = { '01': 2, '12': 3, '23': 4, '03': 5 }[paar];
+        if (meta === undefined) meta = 0;
+      }
+    }
+    if ((world.getMeta(x, y, z) & 7) !== meta) world.setMetaOnly(x, y, z, meta);
+  };
+
+  // Nach jeder Änderung an einer Schiene richten sich auch die Nachbarn neu aus
+  L.railUmgebung = function (world, x, y, z) {
+    L.railAusrichten(world, x, y, z);
+    for (var i = 0; i < 4; i++) {
+      var n = NACHBARN[i];
+      L.railAusrichten(world, x + n[0], y, z + n[1]);
+    }
+  };
+
+  // ============================================================
+  //  Lore
+  // ============================================================
+  // Sie fährt nicht frei durch die Gegend, sondern folgt der Schiene unter sich:
+  // aus deren Verlauf kommt die Richtung, und die Lore wird jedes Bild auf die
+  // Mitte des Gleises gezogen. Damit kann sie gar nicht erst entgleisen.
+  function Minecart(world, x, y, z) {
+    MC.Entity.call(this, world, x, y, z);
+    this.width = 0.94; this.height = 0.7;
+    this.type = 'cart';
+    this.speed = 0;                 // Blöcke je Sekunde entlang der Schiene
+    this.dir = [0, 1];              // Fahrtrichtung in der Ebene
+    this.reiter = null;
+    this.gravity = 30;
+  }
+  Minecart.prototype = Object.create(MC.Entity.prototype);
+  Minecart.prototype.constructor = Minecart;
+  MC.Minecart = Minecart;
+  L.Minecart = Minecart;
+
+  Minecart.prototype.railUnter = function () {
+    var w = this.world;
+    var bx = Math.floor(this.x), by = Math.floor(this.y + 0.1), bz = Math.floor(this.z);
+    if (w.getBlock(bx, by, bz) === B.id('rail')) return { x: bx, y: by, z: bz, meta: w.getMeta(bx, by, bz) & 7 };
+    if (w.getBlock(bx, by - 1, bz) === B.id('rail')) return { x: bx, y: by - 1, z: bz, meta: w.getMeta(bx, by - 1, bz) & 7 };
+    return null;
+  };
+
+  Minecart.prototype.update = function (dt, game) {
+    var w = this.world;
+    this.age += dt;
+    var schiene = this.railUnter();
+
+    if (!schiene) {
+      // Ohne Gleis ist sie ein Gegenstand wie jeder andere und fällt
+      this.applyPhysics(dt, 0.98, 0.4);
+      if (this.reiter) this.reiterSetzen();
+      return;
+    }
+
+    var enden = B.RAIL_ENDEN[schiene.meta] || B.RAIL_ENDEN[0];
+    // Von den beiden Enden das nehmen, das besser zur bisherigen Fahrt passt
+    var bestes = enden[0], bestP = -9;
+    for (var i = 0; i < 2; i++) {
+      var pkt = enden[i][0] * this.dir[0] + enden[i][1] * this.dir[1];
+      if (pkt > bestP) { bestP = pkt; bestes = enden[i]; }
+    }
+    this.dir = [bestes[0], bestes[1]];
+
+    // Der Reiter gibt Schub; ohne ihn rollt sie aus
+    if (this.reiter && this.reiter.reitEingabe) {
+      var e = this.reiter.reitEingabe;
+      if (e.vor) this.speed = Math.min(9, this.speed + 9 * dt);
+      if (e.zurueck) this.speed = Math.max(0, this.speed - 12 * dt);
+    }
+    this.speed *= Math.pow(0.62, dt);
+    if (this.speed < 0.05) this.speed = 0;
+
+    // Fahren und dabei auf die Gleismitte ziehen
+    this.x += this.dir[0] * this.speed * dt;
+    this.z += this.dir[1] * this.speed * dt;
+    var mx = schiene.x + 0.5, mz = schiene.z + 0.5;
+    if (this.dir[0] === 0) this.x += (mx - this.x) * Math.min(1, dt * 12);
+    if (this.dir[1] === 0) this.z += (mz - this.z) * Math.min(1, dt * 12);
+    this.y = schiene.y + 0.12;
+    this.vy = 0;
+    this.onGround = true;
+
+    // Gegen eine Wand ist Schluss
+    var vx = Math.floor(this.x + this.dir[0] * 0.6), vz = Math.floor(this.z + this.dir[1] * 0.6);
+    var vor = w.getBlock(vx, schiene.y + 1, vz);
+    if (vor && B.isSolid(vor) && w.getBlock(vx, schiene.y + 1, vz) !== B.id('rail')) {
+      this.speed = 0;
+      this.x = mx; this.z = mz;
+    }
+    if (this.reiter) this.reiterSetzen();
+  };
+
+  Minecart.prototype.reiterSetzen = function () {
+    var r = this.reiter;
+    if (!r || r.reittier !== this) { this.reiter = null; return; }
+    r.x = this.x; r.z = this.z; r.y = this.y + 0.35;
+    r.onGround = true;
+  };
+
+  // Wer dagegenläuft, schiebt sie an
+  Minecart.prototype.anstossen = function (p) {
+    var dx = this.x - p.x, dz = this.z - p.z;
+    var pkt = dx * this.dir[0] + dz * this.dir[1];
+    this.speed = Math.min(9, this.speed + 3.5);
+    if (pkt < 0) this.dir = [-this.dir[0], -this.dir[1]];
+  };
+
   // Beim Abbauen fällt der Inhalt heraus — das erledigt breakBlock über
   // `te.items` bereits; hier steht nur, was darüber hinaus nötig ist.
   L.abgebaut = function (game, x, y, z) { /* nichts Eigenes */ };

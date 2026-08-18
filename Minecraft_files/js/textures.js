@@ -2340,6 +2340,35 @@
     g.rect(6, 6, 4, 4, EISEN[0]);
   });
 
+  // Schiene: zwei Bänder auf Schwellen. Die Kurve ist dieselbe Zeichnung,
+  // einmal um die Ecke gelegt.
+  tex('rail', function (g) {
+    g.fill([0, 0, 0], 0);
+    var h = ramp([104, 72, 44], 0.8).list;
+    for (var y = 1; y < 16; y += 4) g.rect(1, y, 14, 2, h[1]);
+    for (var y2 = 1; y2 < 16; y2 += 4) g.rect(1, y2, 14, 1, h[2]);
+    g.rect(3, 0, 2, 16, EISEN[3]);
+    g.rect(11, 0, 2, 16, EISEN[3]);
+    g.rect(3, 0, 1, 16, EISEN[4]);
+    g.rect(11, 0, 1, 16, EISEN[4]);
+  });
+  tex('rail_curve', function (g) {
+    g.fill([0, 0, 0], 0);
+    var h = ramp([104, 72, 44], 0.8).list;
+    for (var i = 0; i < 16; i++) {
+      var d = Math.sqrt(i * i);
+      if (i % 4 === 1) { g.rect(i, 1, 2, 3, h[1]); g.rect(1, i, 3, 2, h[1]); }
+    }
+    for (var t = 0; t < 16; t++) {
+      var yy = Math.round(Math.sqrt(Math.max(0, 9 - (t - 12) * (t - 12) / 4)));
+      // Zwei Bänder, die von der einen Kante zur anderen schwenken
+      var a = Math.round(3 + 9 * (t / 15) * (t / 15));
+      var b2 = Math.round(11 + 4 * (t / 15) * (t / 15));
+      if (a >= 0 && a < 16) { g.set(t, a, EISEN[4]); g.set(t, a + 1, EISEN[3]); }
+      if (b2 >= 0 && b2 < 16) { g.set(t, Math.min(15, b2), EISEN[4]); }
+    }
+  });
+
   // ============================================================
   //  WETTER
   // ============================================================
@@ -2468,6 +2497,14 @@
     'OMhLLLLLLLLLLhMO', 'OMhhLLLLLLLLhhMO', '.OMhhLLLLLLhhMO.', '..OKKOOOOOOKKO..',
     '..OKKO......OKKO', '...OO........OO.', '................', '................'
   ], itemPal([132, 84, 48]));
+
+  // Die Lore als Item: offener Kasten auf zwei Rädern
+  itemArt('minecart', [
+    '................', '................', '.O............O.', '.OM..........MO.',
+    '.OMO........OMO.', '.OMMO......OMMO.', '.OMMMOOOOOOMMMO.', '.OMMMMMMMMMMMMO.',
+    '.OMMMMMMMMMMMMO.', '..OMMMMMMMMMMO..', '...OOOOOOOOOO...', '....OKO..OKO....',
+    '...OKKKO OKKKO..', '....OKO..OKO....', '................', '................'
+  ], itemPal([128, 132, 140]));
 
   // Das Schild als Item: Brett auf einem Stiel
   itemArt('sign_item', [
