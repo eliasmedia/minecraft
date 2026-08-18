@@ -114,7 +114,12 @@
   // Flag. Das Flag ist ein Rechenergebnis, das ein Zug zwischendurch löschen
   // kann; der Block darunter liegt einfach da.
   P.stehtAuf = function (world, e) {
-    var w = e.width / 2, y = e.y - 0.06;
+    // Der Rand wird um eine Winzigkeit eingezogen. Die Kollision setzt den
+    // Körper exakt an die Blockkante — steht man an einer Wand, ist
+    // e.x + width/2 also genau die Kante der Wandzelle, und ohne das Einziehen
+    // zählt die WAND als Boden unter den Füßen. Genau daran konnte man sich an
+    // einer Mauer endlos hochspringen.
+    var w = e.width / 2 - 1e-3, y = e.y - 0.06;
     var x0 = Math.floor(e.x - w), x1 = Math.floor(e.x + w);
     var z0 = Math.floor(e.z - w), z1 = Math.floor(e.z + w);
     var by = Math.floor(y);

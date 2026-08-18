@@ -585,6 +585,15 @@ Kettenreaktion.
 Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respawn,
 Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.
 
+**Kein Hochspringen an der Wand** — wer an einer Mauer stand und die
+Leertaste hielt, kam bis zu dreizehn Blöcke hoch: gemessen von y 65 auf y 78 in
+zehn Sekunden. Schuld war die Prüfung, ob unter den Füßen fester Boden liegt.
+Sie sucht in einem Kasten von der Breite des Körpers — und die Kollision setzt
+den Körper *exakt* an die Blockkante, wenn er an einer Wand steht. Damit lag die
+Wandzelle genau auf dem Rand des Kastens und zählte als Boden unter den Füßen,
+in jeder Höhe. Der Rand wird jetzt um ein Tausendstel eingezogen; auf einer Kante
+zu stehen, wo der Fuß halb über dem Abgrund hängt, geht weiterhin.
+
 **Drei Spielmodi**, mit `P` der Reihe nach durchzuschalten oder im Pausenmenü zu
 wählen: **Überleben**, **Kreativ** und **Zuschauer**. Der Zuschauer fliegt durch
 jede Wand, nimmt keinen Schaden, baut nichts ab und setzt nichts, hat kein
