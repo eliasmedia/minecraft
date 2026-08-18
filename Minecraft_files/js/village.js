@@ -980,6 +980,69 @@
 
   // Beruf und Angebotsauswahl hängen nur an Dorf-Id und Platznummer. Ein Bewohner,
   // der nach dem Entladen neu erscheint, hat darum wieder dieselben Angebote.
+  // ============================================================
+  //  Dorf-Zustand
+  // ============================================================
+  // Angebote und Berufe kommen deterministisch aus Dorf-Id und Platznummer —
+  // das ist gut, denn ein Bewohner, der nach dem Entladen neu erscheint, bietet
+  // wieder dasselbe an. Was dabei bisher verlorenging, war alles, was der
+  // Spieler getan hat: leergekaufte Angebote füllten sich von selbst wieder auf.
+  //
+  // Darum liegt jetzt neben der Erzeugung ein Zustand in der Welt. Er enthält
+  // nur den Unterschied zur Erzeugung, genau wie die Chunks: verbrauchte
+  // Angebote, der Tag des letzten Nachschubs und der Ruf des Dorfes.
+  V.RUF_MIN = -15;
+  V.RUF_MAX = 15;
+
+  V.zustand = function (world, villageId, anlegen) {
+    if (!world.doerfer) world.doerfer = {};
+    var z = world.doerfer[villageId];
+    if (!z && anlegen) {
+      // Der Nachschubtag ist der heutige, nicht -1: sonst gilt der allererste
+      // Zugriff schon als Tageswechsel und räumt den Verbrauch weg, den er
+      // gerade erst notiert hat.
+      z = world.doerfer[villageId] = { ruf: 0, tag: Math.floor(world.tagZaehler || 0), plaetze: {} };
+    }
+    return z || null;
+  };
+
+  V.platzZustand = function (world, villageId, slot, anlegen) {
+    var z = V.zustand(world, villageId, anlegen);
+    if (!z) return null;
+    var k = String(slot);
+    if (!z.plaetze[k] && anlegen) z.plaetze[k] = { uses: [] };
+    return z.plaetze[k] || null;
+  };
+
+  // Einmal am Tag füllt sich jedes Angebot wieder auf. Im Original arbeitet der
+  // Bewohner dafür an seinem Arbeitsblock; den gibt es hier nicht, also zählt
+  // schlicht der Tageswechsel — sichtbar wird der Unterschied ohnehin erst,
+  // wenn man ein Angebot leergekauft hat.
+  V.nachschub = function (world, villageId) {
+    var z = V.zustand(world, villageId, false);
+    if (!z) return false;
+    var tag = Math.floor(world.tagZaehler || 0);
+    if (z.tag === tag) return false;
+    z.tag = tag;
+    for (var k in z.plaetze) z.plaetze[k].uses = [];
+    return true;
+  };
+
+  // Ruf: handeln hebt ihn, schlagen senkt ihn. Er wirkt auf den Preis — wer
+  // dem Dorf bekannt ist, zahlt einen Smaragd weniger, wer es verprügelt hat,
+  // einen mehr.
+  V.rufAendern = function (world, villageId, delta) {
+    var z = V.zustand(world, villageId, true);
+    z.ruf = Math.max(V.RUF_MIN, Math.min(V.RUF_MAX, z.ruf + delta));
+    return z.ruf;
+  };
+
+  V.rufRabatt = function (ruf) {
+    if (ruf >= 8) return -1;
+    if (ruf <= -8) return 1;
+    return 0;
+  };
+
   V.villagerData = function (villageId, slot) {
     var rnd = U.rng(U.hashString('beruf:' + villageId + ':' + slot));
     var prof = V.PROFESSIONS[(rnd() * V.PROFESSIONS.length) | 0];
@@ -989,7 +1052,12 @@
     for (var i = 0; i < n && pool.length; i++) {
       var k = (rnd() * pool.length) | 0;
       var t = pool.splice(k, 1)[0];
-      var o = { give: t.give, get: t.get, uses: 0, max: t.max };
+      // Die Zutatenliste wird kopiert, nicht geteilt. Sonst zeigt jedes Angebot
+      // auf dieselbe Liste in V.PROFESSIONS, und ein Preisnachlass für einen
+      // Bewohner änderte den Preis für alle — dauerhaft, auch nach Neustart der
+      // Welt, weil die Tabelle im Modul liegt.
+      var o = { give: t.give.map(function (pr) { return [pr[0], pr[1]]; }),
+                get: t.get, uses: 0, max: t.max };
       // Ein Buchangebot bekommt seine Verzauberung fest zugeteilt, damit derselbe
       // Bewohner nach dem Entladen wieder dasselbe Buch anbietet.
       if (t.zauber && MC.Ench) {

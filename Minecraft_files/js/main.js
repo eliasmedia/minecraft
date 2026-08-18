@@ -230,6 +230,8 @@
     if (this.savedDims && this.savedDims[dim]) {
       w.savedChunks = this.savedDims[dim].chunks || {};
       w.tileEntities = this.savedDims[dim].tileEntities || {};
+      w.doerfer = this.savedDims[dim].doerfer || null;
+      w.tagZaehler = this.savedDims[dim].tagZaehler || 0;
       if (this.savedDims[dim].time !== undefined) w.time = this.savedDims[dim].time;
     }
     this.attachWorldHooks(w);
@@ -2046,7 +2048,11 @@
         var c = w.chunkList[i];
         if (c.modified) w.savedChunks[c.cx + ',' + c.cz] = c.modified;
       }
-      dims[d] = { chunks: w.savedChunks, tileEntities: w.tileEntities, time: w.time };
+      dims[d] = { chunks: w.savedChunks, tileEntities: w.tileEntities, time: w.time,
+                  // Dorf-Zustand: was der Spieler gekauft hat und wie er
+                  // angeschrieben ist. Ohne das füllt sich jeder Vorrat beim
+                  // Wiederkommen von selbst auf.
+                  doerfer: w.doerfer || null, tagZaehler: w.tagZaehler || 0 };
     }
     return {
       version: 3,

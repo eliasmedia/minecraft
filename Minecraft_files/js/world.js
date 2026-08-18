@@ -106,6 +106,8 @@
     this.updateSet = {};
 
     this.entities = [];
+    this.tagZaehler = opts.tagZaehler || 0;
+    this.doerfer = opts.doerfer || null;    // Zustand je Dorf (Vorrat, Ruf)
     this.pendingChunks = [];
     this.dirtyChunks = [];
     this.tileEntities = {};   // "x,y,z" -> {type, ...}
@@ -1222,7 +1224,9 @@
     // doDaylightCycle: steht die Regel auf false, bleibt die Zeit stehen
     if (!MC.Cmd || MC.Cmd.regel(MC.game, 'doDaylightCycle')) {
       this.time += dt / this.dayLength;
-      if (this.time >= 1) this.time -= 1;
+      // Ein Tageszähler neben der Tageszeit. Daran hängt der Nachschub im Dorf:
+      // die Tageszeit allein taugt nicht, sie läuft ja immer wieder von vorn.
+      if (this.time >= 1) { this.time -= 1; this.tagZaehler = (this.tagZaehler || 0) + 1; }
     }
 
     this.tickTimer += dt;

@@ -1101,7 +1101,36 @@
     this.professionTitle = d.title;
     this.robe = d.robe;
     this.offers = d.offers;
+
+    // Erzeugung liefert das Angebot, die Welt den Verbrauch. Erst beides
+    // zusammen ergibt den Stand, den der Spieler hinterlassen hat.
+    var V = MC.Village;
+    V.nachschub(this.world, villageId);
+    var pz = V.platzZustand(this.world, villageId, slot, false);
+    var zust = V.zustand(this.world, villageId, false);
+    var rabatt = V.rufRabatt(zust ? zust.ruf : 0);
+    for (var i = 0; i < this.offers.length; i++) {
+      var o = this.offers[i];
+      if (pz && pz.uses[i]) o.uses = Math.min(o.max, pz.uses[i]);
+      // Der Ruf schlägt sich im Preis nieder — aber nie unter einem Smaragd,
+      // und nur dort, wo überhaupt mit Smaragden bezahlt wird.
+      if (rabatt) {
+        for (var q = 0; q < o.give.length; q++) {
+          if (o.give[q][0] !== 'emerald') continue;
+          o.give[q] = [o.give[q][0], Math.max(1, o.give[q][1] + rabatt)];
+        }
+      }
+    }
     return this;
+  };
+
+  // Ein getätigter Handel: der Verbrauch gehört in die Welt, nicht an die
+  // Kreatur — sie verschwindet beim Entladen, die Welt bleibt.
+  Mob.prototype.handelNotieren = function (idx) {
+    if (this.mobType !== 'villager' || !MC.Village || this.villageId === undefined) return;
+    var pz = MC.Village.platzZustand(this.world, this.villageId, this.slot, true);
+    pz.uses[idx] = (pz.uses[idx] || 0) + 1;
+    MC.Village.rufAendern(this.world, this.villageId, 1);
   };
 
   Mob.prototype.update = function (dt, game) {
@@ -1848,6 +1877,11 @@
     if (this.mobType === 'enderman') {
       this.hostile = true;
       if (this.hp > 0 && Math.random() < 0.5) { this.teleportNear(game, 12); return; }
+    }
+    // Wer im Dorf zuschlägt, ist dort bekannt. Der Ruf hängt am Dorf, nicht am
+    // Getroffenen — sonst könnte man sich einen nach dem anderen vornehmen.
+    if (this.mobType === 'villager' && source && source.type === 'player' && MC.Village) {
+      MC.Village.rufAendern(this.world, this.villageId, -4);
     }
     this.panic = this.hostile ? 0 : 4;
     if (source) {

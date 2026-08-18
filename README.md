@@ -379,6 +379,32 @@ denselben Baum benutzen, laufen sie von selbst zusammen; Laternen stehen an den
 Verzweigungen. Ein Dorf auf welligem Gelände zieht sich dadurch den Hang
 entlang, statt ihn wegzuplanieren, und der Wald wächst bis an die Häuser heran.
 
+**Das Dorf merkt sich, was war** — Beruf und Angebote kommen deterministisch aus
+Dorf-Id und Platznummer; das ist gut, denn ein Bewohner, der nach dem Entladen
+neu erscheint, bietet wieder dasselbe an. Verlorengegangen ist dabei bisher
+alles, was der *Spieler* getan hat: ein leergekauftes Angebot füllte sich beim
+Wiederkommen von selbst auf.
+
+Neben der Erzeugung liegt jetzt ein **Zustand in der Welt**, und der enthält nur
+den Unterschied zu ihr — genau wie bei den Chunks: verbrauchte Angebote je
+Platznummer, der Tag des letzten Nachschubs und der Ruf des Dorfes. Er wandert
+mit in den Spielstand.
+
+**Nachschub** gibt es einmal am Tag. Im Original arbeitet der Bewohner dafür an
+seinem Arbeitsblock; den gibt es hier nicht, also zählt schlicht der
+Tageswechsel — dafür führt die Welt jetzt einen Tageszähler neben der Tageszeit,
+die ja immer wieder von vorn läuft.
+
+**Ruf** hat jedes Dorf einen, von −15 bis +15: handeln hebt ihn um eins,
+einen Bewohner schlagen senkt ihn um vier. Er hängt am Dorf und nicht am
+Getroffenen — sonst nähme man sich einen nach dem anderen vor. Ab +8 kostet
+jedes Angebot einen Smaragd weniger, ab −8 einen mehr, nie weniger als einen.
+
+Dabei steckte ein Fehler, den man erst beim Nachrechnen sieht: die Zutatenliste
+eines Angebots zeigte auf **dieselbe Liste in der Berufstabelle**. Ein
+Preisnachlass für einen Bewohner änderte damit den Preis für alle — dauerhaft,
+denn die Tabelle liegt im Modul und nicht in der Welt. Sie wird jetzt kopiert.
+
 **Der Weg nach oben** — die vier Welten bauen aufeinander auf: in der Oberwelt
 sucht man Obsidian für das Netherportal, im Nether die Bastionen, weil nur dort
 Glowstone liegt und Glowstone der Rahmen für das Aetherportal ist. Der Aether
