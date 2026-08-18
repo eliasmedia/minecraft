@@ -1025,6 +1025,99 @@
     };
   };
 
+  // ============================================================
+  //  Wegfindung auf dem Dorfnetz
+  // ============================================================
+  // Das Netz liegt längst da: wegenetz() hat es beim Bauen aus einer
+  // Dijkstra-Suche vom Brunnen gezogen, und v.wege ist die fertige Maske. Wer
+  // darauf läuft, kommt überall hin, wo ein Weg hinführt — auch um eine Mauer
+  // herum. Gesucht wird mit einer Breitensuche über die Maske; sie ist
+  // zusammenhängend, weil alle Wege denselben Baum benutzen, und mit ein paar
+  // tausend Feldern ist sie billiger als jede Suche über echte Blöcke.
+  //
+  // Der Rückweg wird begradigt: aus einer Kette von Feldern werden nur die
+  // Stellen, an denen die Richtung wechselt. Sonst zuckelt ein Bewohner von
+  // Blockmitte zu Blockmitte, statt eine Gerade zu laufen.
+  var WEG_SUCHE = 5;      // so weit darf ein Ziel neben dem Weg liegen
+
+  function naechstesWegfeld(v, wx, wz) {
+    var mw = v.mw;
+    var cx = Math.round(wx) - v.minX, cz = Math.round(wz) - v.minZ;
+    var best = -1, bestD = Infinity;
+    for (var dz = -WEG_SUCHE; dz <= WEG_SUCHE; dz++) {
+      for (var dx = -WEG_SUCHE; dx <= WEG_SUCHE; dx++) {
+        var x = cx + dx, z = cz + dz;
+        if (x < 0 || x >= mw || z < 0 || z >= mw) continue;
+        var i = z * mw + x;
+        if (!v.wege[i]) continue;
+        var d = dx * dx + dz * dz;
+        if (d < bestD) { bestD = d; best = i; }
+      }
+    }
+    return best;
+  }
+
+  V.weg = function (v, vonX, vonZ, zielX, zielZ) {
+    if (!v || !v.wege) return null;
+    var mw = v.mw;
+    var start = naechstesWegfeld(v, vonX, vonZ);
+    var ziel = naechstesWegfeld(v, zielX, zielZ);
+    if (start < 0 || ziel < 0 || start === ziel) return null;
+
+    var vor = new Int32Array(mw * mw); vor.fill(-1);
+    var gesehen = new Uint8Array(mw * mw);
+    var schlange = [start];
+    gesehen[start] = 1;
+    var kopf = 0, gefunden = false;
+    var NB8 = [1, -1, mw, -mw, mw + 1, mw - 1, -mw + 1, -mw - 1];
+    while (kopf < schlange.length) {
+      var u = schlange[kopf++];
+      if (u === ziel) { gefunden = true; break; }
+      var ux = u % mw;
+      for (var n = 0; n < NB8.length; n++) {
+        var w = u + NB8[n];
+        if (w < 0 || w >= mw * mw || gesehen[w] || !v.wege[w]) continue;
+        // Kein Sprung über den Zeilenrand: sonst führt der Weg quer durchs Dorf
+        var wx2 = w % mw;
+        if (Math.abs(wx2 - ux) > 1) continue;
+        gesehen[w] = 1; vor[w] = u; schlange.push(w);
+      }
+    }
+    if (!gefunden) return null;
+
+    var kette = [];
+    for (var q = ziel; q !== -1; q = vor[q]) kette.push(q);
+    kette.reverse();
+
+    // Begradigen: nur die Richtungswechsel bleiben stehen
+    var punkte = [];
+    for (var i = 1; i < kette.length; i++) {
+      var a = kette[i - 1], b = kette[i];
+      var dx1 = (b % mw) - (a % mw), dz1 = ((b / mw) | 0) - ((a / mw) | 0);
+      var weiter = (i + 1 < kette.length);
+      if (weiter) {
+        var c = kette[i + 1];
+        var dx2 = (c % mw) - (b % mw), dz2 = ((c / mw) | 0) - ((b / mw) | 0);
+        if (dx1 === dx2 && dz1 === dz2) continue;
+      }
+      punkte.push([v.minX + (b % mw) + 0.5, v.minZ + ((b / mw) | 0) + 0.5]);
+    }
+    return punkte.length ? punkte : null;
+  };
+
+  // Ein zufälliges Feld auf dem Wegenetz — das Tagesziel eines Bewohners.
+  V.wegpunkt = function (v, rnd) {
+    if (!v || !v.wege) return null;
+    if (!v._wegListe) {
+      var l = [];
+      for (var i = 0; i < v.wege.length; i++) if (v.wege[i]) l.push(i);
+      v._wegListe = l;
+    }
+    if (!v._wegListe.length) return null;
+    var k = v._wegListe[(rnd * v._wegListe.length) | 0];
+    return [v.minX + (k % v.mw) + 0.5, v.minZ + ((k / v.mw) | 0) + 0.5];
+  };
+
   V.spawnSpot = function (v, index) {
     var h = V.homeFor(v, index);
     if (!h) return { x: v.x + 0.5, y: v.y + 1.05, z: v.z + 3.5 };

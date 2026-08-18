@@ -562,6 +562,33 @@ Schale mit Portalfläche, das Drachenei erscheint auf dem Pfeiler, und wer
 hindurchgeht, sieht den Abspann und steht wieder an seinem Spawnpunkt — im Bett,
 falls eines gesetzt ist. Dazu streifen Endermen über die Insel.
 
+**Dorfbewohner finden ihren Weg** — sie liefen bisher geradeaus auf ihr Ziel zu
+und blieben an allem hängen, was dazwischenstand. Dabei liegt das Wegenetz längst
+da: `wegenetz()` zieht es beim Bauen aus einer Dijkstra-Suche vom Brunnen, und
+`v.wege` ist die fertige Maske. Wer darauf läuft, kommt überall hin, wo ein Weg
+hinführt.
+
+Gesucht wird mit einer Breitensuche über diese Maske — sie hängt zusammen, weil
+alle Wege denselben Baum benutzen, und ein paar tausend Felder sind billiger als
+jede Suche über echte Blöcke. Der gefundene Weg wird **begradigt**: übrig bleiben
+nur die Stellen, an denen die Richtung wechselt, sonst zuckelt ein Bewohner von
+Blockmitte zu Blockmitte statt eine Gerade zu laufen.
+
+Zwei Regeln halten den Weg davon ab, mehr zu schaden als zu nützen. **Unter sechs
+Blöcken zum Ziel gilt er nicht** — die Tür liegt neben dem Netz, und wer dort noch
+einen Wegpunkt anläuft, dreht wieder von ihr weg. Und ist das Ziel selbst näher
+als der nächste Wegpunkt, wird der Weg weggeworfen; er hat dann seinen Zweck
+erfüllt. Wer zwei Sekunden lang nicht vorankommt, geht ebenfalls wieder gerade.
+
+Gemessen an einem Dorf mit vierzehn Häusern, alle Bewohner vom Brunnen aus bei
+Einbruch der Nacht: **mit Wegfindung kommen fünf von fünf zu Hause an**
+(4 bis 20 Sekunden), ohne sie nur vier — einer fand sein Haus in zwei Minuten
+nicht. Langsamer wurde dabei keiner.
+
+Weil sie jetzt ankommen, haben sie auch tagsüber etwas davon: alle 15 bis 30
+Sekunden sucht sich jeder ein **Ziel auf dem Wegenetz** und geht hin, statt um
+seine eigene Tür herumzustehen.
+
 **Dorfbewohner & Handel** — fünf Berufe (Bauer, Bibliothekar, Schmied, Metzger,
 Steinmetz) mit eigener Robe und je drei bis vier Angeboten. Rechtsklick öffnet das
 Handelsfenster: Waren gegen Smaragde und umgekehrt, mit begrenztem Vorrat je

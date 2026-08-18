@@ -1089,8 +1089,9 @@
   MC.Mob = Mob;
 
   // Beruf, Roben-Textur und Angebote setzen (Dorf-Id + Platznummer -> immer gleich)
-  Mob.prototype.makeVillager = function (villageId, slot, home, house) {
+  Mob.prototype.makeVillager = function (villageId, slot, home, house, dorf) {
     var d = MC.Village.villagerData(villageId, slot);
+    this.dorf = dorf || null;      // Layout mit dem Wegenetz
     this.villageId = villageId;
     this.slot = slot;
     this.home = home;
@@ -1510,6 +1511,53 @@
   // ---- Dorfbewohner ----
   // Nachts oder wenn ein Monster in der Nähe ist, geht der Bewohner ins Haus.
   // Türen werden beim Durchgehen geöffnet und hinter sich wieder zugemacht.
+  // Läuft ein Ziel über das Dorfnetz an. Gibt es kein Netz, keinen Weg oder ist
+  // das Ziel ohnehin nah, bleibt es beim geraden Zugehen — also beim alten
+  // Verhalten. Der Weg wird alle drei Sekunden neu gesucht und immer dann, wenn
+  // das Ziel gewechselt hat; ein Bewohner, der zwei Sekunden lang nicht
+  // vorankommt, wirft ihn weg und geht wieder gerade.
+  Mob.prototype.gehZu = function (dt, game, zx, zz, tempo) {
+    var zdx = zx - this.x, zdz = zz - this.z;
+    var zielAbstand = zdx * zdx + zdz * zdz;
+    // Auf den letzten Metern führt der Weg nur noch in die Irre: die Tür liegt
+    // neben dem Netz, und wer dort noch einen Wegpunkt anläuft, dreht wieder
+    // von ihr weg. Sechs Blöcke sind die Grenze — darunter geht es gerade zu.
+    if (this.dorf && MC.Village.weg && zielAbstand > 6 * 6) {
+      var neuesZiel = !this.wegZiel ||
+        Math.abs(this.wegZiel[0] - zx) > 1.5 || Math.abs(this.wegZiel[1] - zz) > 1.5;
+      this.wegTimer = (this.wegTimer || 0) - dt;
+      if (neuesZiel || this.wegTimer <= 0) {
+        this.wegZiel = [zx, zz];
+        this.wegTimer = 3;
+        this.weg = MC.Village.weg(this.dorf, this.x, this.z, zx, zz);
+        this.wegIdx = 0;
+        this.wegFest = 0;
+      }
+      if (this.weg && this.wegIdx < this.weg.length) {
+        // Steckengeblieben? Dann taugt der Weg hier nichts.
+        var bewegt = (this.x - (this.wegX || 0)) * (this.x - (this.wegX || 0)) +
+                     (this.z - (this.wegZ || 0)) * (this.z - (this.wegZ || 0));
+        this.wegX = this.x; this.wegZ = this.z;
+        this.wegFest = bewegt < 0.0004 ? (this.wegFest || 0) + dt : 0;
+        if (this.wegFest > 2) { this.weg = null; }
+        else {
+          var pkt = this.weg[this.wegIdx];
+          var pdx = pkt[0] - this.x, pdz = pkt[1] - this.z;
+          var pAbstand = pdx * pdx + pdz * pdz;
+          if (pAbstand < 0.75 * 0.75) this.wegIdx++;
+          // Ist das Ziel selbst näher als der nächste Wegpunkt, hat der Weg
+          // seinen Zweck erfüllt — dann bringt er nichts mehr.
+          else if (pAbstand > zielAbstand) this.weg = null;
+          else {
+            this.moveToward(dt, Math.atan2(pdx, pdz), tempo);
+            return;
+          }
+        }
+      }
+    }
+    this.moveToward(dt, Math.atan2(zx - this.x, zz - this.z), tempo);
+  };
+
   Mob.prototype.villagerTick = function (dt, game) {
     var h = this.house, w = this.world;
     if (!h) return false;
@@ -1538,7 +1586,7 @@
       var pdx = pass[0] - this.x, pdz = pass[1] - this.z;
       var passDist = Math.sqrt(pdx * pdx + pdz * pdz);
       var ziel = passDist > 0.8 ? pass : [h.inX, h.inZ];
-      this.moveToward(dt, Math.atan2(ziel[0] - this.x, ziel[1] - this.z), bedroht ? 1.5 : 1);
+      this.gehZu(dt, game, ziel[0], ziel[1], bedroht ? 1.5 : 1);
       this.headYaw = this.yaw;
       return true;
     }
@@ -1568,6 +1616,25 @@
       this.moveToward(dt, Math.atan2(raus[0] - this.x, raus[1] - this.z), 1);
       this.headYaw = this.yaw;
       return true;
+    }
+    // Tag und keine Gefahr: ein Ziel auf dem Wegenetz, statt bloß um die eigene
+    // Tür herumzustehen. Das ist erst jetzt möglich — ohne Wegfindung endete
+    // jeder Gang am nächsten Zaun.
+    this.tagTimer = (this.tagTimer || 0) - dt;
+    if (this.dorf && (!this.tagZiel || this.tagTimer <= 0)) {
+      this.tagTimer = 15 + Math.random() * 15;
+      this.tagZiel = MC.Village.wegpunkt(this.dorf, Math.random());
+    }
+    if (this.tagZiel) {
+      var tdx = this.tagZiel[0] - this.x, tdz = this.tagZiel[1] - this.z;
+      if (tdx * tdx + tdz * tdz > 1.4 * 1.4) {
+        this.gehZu(dt, game, this.tagZiel[0], this.tagZiel[1], 0.75);
+        this.headYaw = this.yaw;
+        return true;
+      }
+      // Angekommen: einen Augenblick stehenbleiben, dann ein neues Ziel
+      this.tagZiel = null;
+      this.tagTimer = 3 + Math.random() * 6;
     }
     return false;   // draußen bei Tag -> normales Umherwandern
   };
@@ -2170,7 +2237,7 @@
       }
       if (y < 0) continue;
       var m = new Mob(world, 'villager', bx + 0.5, y + 0.05, bz + 0.5);
-      m.makeVillager(v.id, s, { x: v.x, z: v.z }, MC.Village.homeFor(v, s));
+      m.makeVillager(v.id, s, { x: v.x, z: v.z }, MC.Village.homeFor(v, s), v);
       world.entities.push(m);
       return;   // pro Durchlauf höchstens einer
     }
