@@ -72,7 +72,11 @@
       case B.SHAPE_FIRE:
       case B.SHAPE_LEVER:
         // Formen, die kein Würfel sind, zeigen ihr Item-Bild flach
-        flatIcon(ctx, typeof block.tex === 'string' ? block.tex : (block.tex.side || block.tex.top));
+        // Eine Wuchsreihe (block.tex.stage) hat weder side noch top. Ohne den
+        // dritten Zweig landete jede solche Pflanze auf 'white'.
+        flatIcon(ctx, typeof block.tex === 'string' ? block.tex
+                 : (block.tex.side || block.tex.top ||
+                    (block.tex.stage ? block.tex.stage + '3' : 'white')));
         return c;
 
       case B.SHAPE_WIRE:

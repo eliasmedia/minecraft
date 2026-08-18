@@ -765,8 +765,8 @@
     if (blk && FLAT_IN_HAND.indexOf(blk.shape) < 0) {
       n = this.boxGeometry(0, [hx, hy, hz], 0.3, blk, 0, f.yaw, bl, sl);
     } else {
-      var texName = it.tex;
-      if (blk) {
+      var texName = it.iconTex || it.tex;
+      if (blk && !it.iconTex) {
         var bt = blk.tex;
         if (T.has(it.name)) texName = it.name;
         else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);
@@ -1163,7 +1163,8 @@
   // Blockformen, die in der Hand kein Würfel sind
   var FLAT_IN_HAND = [
     B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_TORCH, B.SHAPE_LADDER, B.SHAPE_FIRE,
-    B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_BUTTON, B.SHAPE_PLATE, B.SHAPE_DOOR
+    B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_BUTTON, B.SHAPE_PLATE, B.SHAPE_DOOR,
+    B.SHAPE_SIGN, B.SHAPE_SIGN_WALL, B.SHAPE_FRAME, B.SHAPE_PAINTING
   ];
 
   Renderer.prototype.itemMesh = function (texName) {
@@ -1304,8 +1305,8 @@
       }
     } else if (it) {
       // Item als extrudiertes Pixelmodell – hat Dicke, keine Pappscheibe
-      var texName = it.tex;
-      if (it.block && B.byName[it.block]) {
+      var texName = it.iconTex || it.tex;
+      if (it.block && B.byName[it.block] && !it.iconTex) {
         var bt = B.byName[it.block].tex;
         if (T.has(it.name)) texName = it.name;
         else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);

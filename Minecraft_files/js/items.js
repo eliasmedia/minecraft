@@ -102,8 +102,12 @@
   // Schild, Rahmen und Gemälde sehen als Würfel falsch aus — sie bekommen ihr
   // eigenes Symbol.
   ['sign', 'item_frame', 'painting'].forEach(function (n) {
-    if (I.byName[n]) I.byName[n].iconTex = n;
+    if (I.byName[n]) I.byName[n].iconTex = n + '_item';
   });
+  // Nethergewächs hat eine eigene Item-Grafik. Ohne diesen Zeiger geht das
+  // Symbol über den Block, und dessen Textur steht als Wuchsreihe in tex.stage
+  // statt als tex.side — dabei kam ein weißer Würfel heraus.
+  if (I.byName['nether_wart_item']) I.byName['nether_wart_item'].iconTex = 'nether_wart_item';
   I.byName['redstone'].tex = 'redstone_dust';
   I.byName['redstone'].group = 'redstone';
   if (I.byName['tnt']) I.byName['tnt'].group = 'redstone';

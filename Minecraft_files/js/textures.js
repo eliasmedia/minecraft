@@ -2383,23 +2383,26 @@
   });
 
   // Das Schild als Item: Brett auf einem Stiel
-  itemArt('sign', [
+  itemArt('sign_item', [
     '................', '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvWvvWvvWO..',
     '..OWWWWWWWWWWO..', '..OWvvWvvvWvWO..', '..OWWWWWWWWWWO..', '..OOOOOOOOOOOO..',
     '......OvvO......', '......OvvO......', '......OvvO......', '......OvvO......',
     '......OvvO......', '......OvvO......', '......OOOO......', '................'
   ], itemPal([164, 134, 88]));
 
-  // Der Bilderrahmen als Item
-  itemArt('item_frame', [
+  // Der Bilderrahmen als Item. ACHTUNG: eigener Name — tex() ueberschreibt eine
+  // Textur, die es schon gibt, und 'item_frame' ist die des Blocks. Hiess das
+  // Item genauso, bekaeme der gesetzte Rahmen die durchsichtigen Stellen der
+  // Item-Grafik und man saehe durch ihn hindurch.
+  itemArt('item_frame_item', [
     '................', '.OOOOOOOOOOOOOO.', '.OWWWWWWWWWWWWO.', '.OWOOOOOOOOOOWO.',
-    '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.',
-    '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWOOOOOOOOOOWO.',
+    '.OWO........OWO.', '.OWO........OWO.', '.OWO........OWO.', '.OWO........OWO.',
+    '.OWO........OWO.', '.OWO........OWO.', '.OWO........OWO.', '.OWOOOOOOOOOOWO.',
     '.OWWWWWWWWWWWWO.', '.OOOOOOOOOOOOOO.', '................', '................'
   ], itemPal([164, 134, 88]));
 
   // Das Gemälde als Item: Leinwand mit angedeutetem Motiv
-  itemArt('painting', [
+  itemArt('painting_item', [
     '................', '.OOOOOOOOOOOOOO.', '.OWWWWWWWWWWWWO.', '.OWvvvvvvvvvvWO.',
     '.OWvYYYYvvvvvWO.', '.OWvYYYYvvvvvWO.', '.OWvvvvvvGGvvWO.', '.OWvvvvvGGGGvWO.',
     '.OWvvvvGGGGGGWO.', '.OWvvvGGGGGGGWO.', '.OWvvvvvvvvvvWO.', '.OWWWWWWWWWWWWO.',

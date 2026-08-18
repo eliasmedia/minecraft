@@ -704,14 +704,17 @@
     hardness: 1, tool: 'axe', tex: 'planks_oak', drop: 'sign', item: false,
     sound: 'wood', flammable: true, group: 'bau'
   });
+  // Härte 0: ein Schlag, und Rahmen samt Inhalt fallen zusammen heraus. Mit
+  // einer Abbauzeit brauchte es einen gehaltenen Klick, und ein kurzer Schlag
+  // sah aus, als bräuchte es zwei davon.
   define('item_frame', {
     title: 'Bilderrahmen', shape: B.SHAPE_FRAME, opaque: false, collide: false, opacity: 0,
-    hardness: 0.3, tex: 'item_frame', sound: 'wood', flammable: true, group: 'bau'
+    hardness: 0, tex: 'item_frame', sound: 'wood', flammable: true, group: 'bau'
   });
   define('painting', {
     title: 'Gemälde', shape: B.SHAPE_PAINTING, opaque: false, collide: false, opacity: 0,
-    hardness: 0.3, tex: { all: 'painting_back', side: 'painting_back', top: 'painting_back',
-                          bottom: 'painting_back', front: 'painting_0' },
+    hardness: 0, tex: { all: 'painting_back', side: 'painting_back', top: 'painting_back',
+                        bottom: 'painting_back', front: 'painting_0' },
     sound: 'wood', flammable: true, group: 'bau'
   });
 

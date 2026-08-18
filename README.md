@@ -802,6 +802,18 @@ nebeneinander zeigen also nie dasselbe Bild —, und ein Rechtsklick blättert
 weiter, bis das passende dabei ist. Das Motiv liegt auf der Vorderseite und
 kommt aus dem gewöhnlichen Texturarray; ein Gemälde ändert sich ja nicht.
 
+Vier Dinge waren beim ersten Anlauf falsch und sind es nicht mehr: Die
+Item-Grafik des Rahmens hieß wie die **Blocktextur** des Rahmens, und `tex()`
+überschreibt eine Textur, die es schon gibt — der gesetzte Rahmen bekam damit die
+durchsichtigen Stellen der Item-Grafik, und man sah durch ihn hindurch. Schild,
+Rahmen und Gemälde lagen nicht in der Liste der Dinge, die **in der Hand flach**
+sind, und sahen dort aus wie ein Würfel. Der Schildtext trug einen
+**Schlagschatten** von zwei Bildpunkten — bei acht Punkten Buchstabenbreite ist
+das ein Viertel davon, und der Text las sich doppelt; dunkle Schrift auf hellem
+Holz braucht ihn nicht. Und Rahmen und Gemälde haben jetzt **Härte 0**: ein
+Schlag, und alles fällt zusammen heraus, statt dass ein kurzer Klick nur die
+Hälfte erledigt.
+
 Banner fehlen noch. Sie sind keine Frage der Textur mehr, sondern ein
 Entwurfssystem für sich — sechzehn Farben mal knapp vierzig Mustern, die sich
 übereinanderlegen lassen.

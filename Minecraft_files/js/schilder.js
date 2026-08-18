@@ -63,11 +63,16 @@
         // dem es später an der Wand hängt, sonst zöge es den Text lang.
         var bandH = size * BAND;
         var zh = bandH / S.ZEILEN;
-        D.schrift(ctx, Math.floor(zh * 0.78));
+        D.schrift(ctx, Math.floor(zh * 0.82));
+        // Kein Schlagschatten. Eine Zeile ist hier siebzehn Bildpunkte hoch,
+        // ein Buchstabe also gut acht breit — ein Schatten von zwei Punkten ist
+        // dann ein Viertel des Buchstabens, und der Text las sich doppelt.
+        // Dunkle Schrift auf hellem Holz braucht ihn ohnehin nicht.
+        ctx.fillStyle = '#2a1d10';
         for (var i = 0; i < S.ZEILEN; i++) {
           var t = te.text[i] || '';
           if (!t) continue;
-          D.textMitSchatten(ctx, t, size / 2, zh * (i + 0.5), '#2a1d10');
+          ctx.fillText(t, size / 2, zh * (i + 0.5));
         }
         return;
       }
