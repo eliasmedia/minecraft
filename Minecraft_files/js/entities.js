@@ -1267,7 +1267,8 @@
           this.fuse -= dt;
           if (this.fuse <= 0) {
             this.dead = true;
-            MC.explode(game, this.x, this.y + 0.8, this.z, 3.6, true);
+            // Ein vom Blitz aufgeladener Creeper reißt deutlich weiter
+            MC.explode(game, this.x, this.y + 0.8, this.z, this.geladen ? 6.4 : 3.6, true);
             return;
           }
         } else {

@@ -715,6 +715,45 @@ Erscheinungen, höchstens zwei gleichzeitig.
 Spawn nach Lichtlevel und Tageszeit, Wegfindung mit Hindernissprung, Rückstoß,
 Drops, XP-Kugeln.
 
+**Wetter, das nichts umschreibt** — vier Arten, und welche kommt, entscheidet
+das **Biom, in dem der Spieler steht**, nicht die ganze Welt auf einmal: in der
+Wüste der Sandsturm, in Tundra, Taiga und Bergen der Schneesturm, sonst Regen
+oder — in gut jedem vierten Fall — ein Gewitter. Es zieht über eine halbe Minute
+auf und wieder ab, hält drei bis sieben Minuten und lässt danach sieben bis
+zwanzig Minuten Ruhe. `/weather` schaltet es von Hand.
+
+Die Regel, an der alles hängt: **Wetter ändert Zustände, es platziert nichts.**
+Das ist keine Bequemlichkeit. Was das Wetter setzt, landet im Spielstand und
+bleibt dort für immer — eine Nacht Regen darf nicht die halbe Landschaft
+umschreiben, und ein Haus darf nicht versanden, während man woanders ist.
+Nachgezählt über 2000 Sekunden Sturm: kein einziger Wasser- oder Schneeblock
+kam dazu.
+
+Was es stattdessen tut:
+
+* **Regen füllt den Kessel** (neuer Block, sieben Eisenbarren). Nach gut zwei
+  Minuten im Freien ist er voll; eine Glasflasche zapft eine Füllung ab, ein
+  Eimer die ganze. Das ist Wasser oben am Berg, ohne einen See dafür zu bauen.
+* **Der Blitz** schlägt alle zwanzig bis fünfundsiebzig Sekunden irgendwo im
+  Umkreis von zwölf bis fünfundvierzig Blöcken ein — nie auf den Spieler. Er
+  zündet nur bei jedem fünften Einschlag ein Feuer (gemessen 8 Brände aus 81
+  Einschlägen): bei jedem zweiten stünde nach einer Gewitternacht der halbe Wald
+  in Flammen. Einen Creeper im Umkreis von drei Blöcken lädt er auf; der reißt
+  dann mit Stärke 6,4 statt 3,6. Ein Krater bleibt aus — das wäre wieder eine
+  Landschaft, die sich hinter dem Rücken des Spielers ändert.
+* **Der Sandsturm** nimmt die Sicht auf gut ein Viertel und treibt Sand quer
+  durchs Bild. Die Dünen bleiben, wo sie sind.
+* **Der Schneesturm** macht aus einem Grasblock **beschneites Gras** — ein
+  eigener Block, keine Schneeschicht darüber. Gemessen wurden aus 169 offenen
+  Grasfeldern in fünf Minuten 72 beschneite.
+
+Gezeichnet wird der Niederschlag aus einem festen Vorrat von 320 Tropfen, der
+mit dem Spieler mitwandert: fällt einer unten aus dem Kasten, kommt er oben
+wieder herein. Zwei Kleinigkeiten entscheiden darüber, ob das gut aussieht — ein
+Tropfen **direkt vor der Kamera** wird übersprungen, sonst steht eine blaue Säule
+quer im Bild, und gezeichnet wird nur, wo das Sonnenlicht hinkommt: **unter einem
+Dach regnet es nicht.**
+
 **Physik & Simulation** — fließendes Wasser und Lava mit 8 Fließstufen,
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,
 Grasausbreitung, Blattzerfall, Explosionen mit Blockschaden und Rückstoß.

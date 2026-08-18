@@ -232,6 +232,7 @@
       w.tileEntities = this.savedDims[dim].tileEntities || {};
       w.doerfer = this.savedDims[dim].doerfer || null;
       w.tagZaehler = this.savedDims[dim].tagZaehler || 0;
+      w.wetter = this.savedDims[dim].wetter || null;
       if (this.savedDims[dim].time !== undefined) w.time = this.savedDims[dim].time;
     }
     this.attachWorldHooks(w);
@@ -804,6 +805,10 @@
         et.regale = MC.Ench.regale(w, t.x, t.y, t.z);
         this.ui.openScreen('enchant', et);
         return;
+      }
+      // Kessel: Flasche füllen, Eimer leeren
+      if (b.shape === B.SHAPE_CAULDRON && MC.Wetter && MC.Wetter.kesselBenutzen(this, t.x, t.y, t.z)) {
+        p.swingTime = 1; return;
       }
       // Schild beschriften, Rahmen bestücken, Gemälde weiterblättern
       if (MC.Schilder && MC.Schilder.benutzen(this, t.x, t.y, t.z)) { p.swingTime = 1; return; }
@@ -2101,7 +2106,8 @@
                   // Dorf-Zustand: was der Spieler gekauft hat und wie er
                   // angeschrieben ist. Ohne das füllt sich jeder Vorrat beim
                   // Wiederkommen von selbst auf.
-                  doerfer: w.doerfer || null, tagZaehler: w.tagZaehler || 0 };
+                  doerfer: w.doerfer || null, tagZaehler: w.tagZaehler || 0,
+                  wetter: w.wetter || null };
     }
     return {
       version: 3,
@@ -2308,6 +2314,7 @@
       if (MC.Caves) { MC.Caves.tick(this, dt); MC.Caves.waechter(this, dt); }
       if (MC.Cmd) MC.Cmd.Block.tick(this, dt);
       if (MC.Herobrine) MC.Herobrine.tick(this, dt);
+      if (MC.Wetter) MC.Wetter.tick(this, dt);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }

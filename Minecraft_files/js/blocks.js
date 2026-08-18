@@ -37,6 +37,7 @@
   B.SHAPE_SIGN_WALL = 27;    // Schild an der Wand
   B.SHAPE_FRAME = 28;        // Bilderrahmen an der Wand
   B.SHAPE_PAINTING = 29;     // Gemälde an der Wand
+  B.SHAPE_CAULDRON = 30;     // Kessel: Wanne mit Wasserstand in Meta 0..3
 
   // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
   // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
@@ -719,6 +720,21 @@
   });
 
 
+  // ---------- Wetter ----------
+  // Beschneites Gras ist ein eigener Block, keine Schneeschicht darüber: das
+  // Wetter soll Zustände ändern und nichts platzieren. Abgebaut fällt Erde,
+  // genau wie beim gewöhnlichen Gras.
+  define('grass_snow', {
+    title: 'Beschneites Gras', hardness: 0.6, tool: 'shovel', drop: 'dirt', sound: 'grass',
+    tex: { top: 'grass_snow_top', side: 'grass_snow_side', bottom: 'dirt' }, group: 'natur'
+  });
+  // Der Kessel fängt Regen auf. Meta 0..3 ist der Füllstand.
+  define('cauldron', {
+    title: 'Kessel', shape: B.SHAPE_CAULDRON, opaque: false, hardness: 2, tool: 'pickaxe', level: 1,
+    tex: { top: 'cauldron_top', side: 'cauldron_side', bottom: 'cauldron_side' },
+    sound: 'stone', group: 'werkzeug'
+  });
+
   // ---------- Helfer ----------
   B.get = function (id) { return B.byId[id] || B.byId[0]; };
   B.id = function (name) { var b = B.byName[name]; return b ? b.id : 0; };
@@ -945,6 +961,11 @@
         return [[0.125, 0, 0.0625, 0.875, 1, 0.9375]];
       case B.SHAPE_STAND:
         return [[0.125, 0, 0.125, 0.875, 0.875, 0.875]];
+      case B.SHAPE_CAULDRON:
+        // Boden und vier Wände — man steht im Kessel, nicht auf ihm
+        return [[0, 0, 0, 1, 0.25, 1],
+                [0, 0.25, 0, 0.125, 1, 1], [0.875, 0.25, 0, 1, 1, 1],
+                [0.125, 0.25, 0, 0.875, 1, 0.125], [0.125, 0.25, 0.875, 0.875, 1, 1]];
       case B.SHAPE_PISTON_HEAD:
         return B.PISTON_HEAD_BOXES[meta & 7] || B.PISTON_HEAD_BOXES[0];
       case B.SHAPE_PLATE:
@@ -988,6 +1009,7 @@
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
       case B.SHAPE_STAND: return [0.125, 0, 0.125, 0.875, 0.875, 0.875];
+      case B.SHAPE_CAULDRON: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_PISTON_HEAD: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_LIQUID: return null;
       case B.SHAPE_STAIRS: return [0, 0, 0, 1, 1, 1];

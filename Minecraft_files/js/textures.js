@@ -2308,6 +2308,41 @@
   ], itemPal([188, 190, 198]));
 
   // ============================================================
+  //  WETTER
+  // ============================================================
+  // Beschneites Gras: dieselbe Grasnarbe, nur unter einer Schneedecke. Die
+  // Seite zeigt den Schnee als Rand oben, sonst sähe die Kante aus wie Erde.
+  tex('grass_snow_top', function (g) { g.qn(P.snow, [18, 52, 30]); });
+  tex('grass_snow_side', function (g) {
+    g.copyFrom(data('dirt'));
+    for (var x = 0; x < 16; x++) {
+      var h = 3 + ((MC.U.hashString('schnee' + x) >>> 0) % 2);
+      // P.snow hat drei Töne — der Index muss darin bleiben
+      for (var y = 0; y < h; y++) g.set(x, y, P.snow[1 + ((x + y) % 2)]);
+    }
+  });
+
+  // Der Kessel: dickes Eisen mit dunklem Inneren
+  tex('cauldron_side', function (g) {
+    var e = P.iron || greys([88, 92, 98, 118, 140]);
+    g.fill(e[2]);
+    g.qn([e[1], e[2], e[3]], 0.6);
+    g.rect(0, 0, 16, 2, e[4]);
+    g.rect(0, 14, 16, 2, e[1]);
+    g.frame(0, 0, 16, 16, e[0]);
+  });
+  tex('cauldron_top', function (g) {
+    var e = P.iron || greys([88, 92, 98, 118, 140]);
+    g.fill(e[3]);
+    g.qn([e[2], e[3], e[4]], 0.5);
+    g.rect(2, 2, 12, 12, [24, 24, 28]);
+    g.frame(2, 2, 12, 12, e[1]);
+  });
+  tex('cauldron_wasser', function (g) {
+    g.copyFrom(data('water'));
+  });
+
+  // ============================================================
   //  SCHILD, RAHMEN, GEMÄLDE
   // ============================================================
   // Der Rahmen ist ein Holzrand mit heller Rückwand — was darin hängt, kommt

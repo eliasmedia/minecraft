@@ -465,12 +465,36 @@
     var fogColor = underwater ? [0.10, 0.28, 0.52] : sc.horizon;
     if (p.headInLava) fogColor = [0.6, 0.16, 0.02];
 
+    // ---- Wetter ----
+    // Es färbt den Dunst grau, holt ihn näher und nimmt dem Tag sein Licht.
+    // Der Blitz macht das Gegenteil, für zwei Bilder.
+    var wDunkel = 0, wSicht = 1;
+    if (MC.Wetter && !underwater && !p.headInLava) {
+      wDunkel = MC.Wetter.dunkel(world);
+      wSicht = MC.Wetter.sicht(world);
+      if (wDunkel > 0) {
+        daylight *= (1 - wDunkel * 0.55);
+        var grau = [0.44, 0.46, 0.5];
+        fogColor = [fogColor[0] + (grau[0] - fogColor[0]) * wDunkel,
+                    fogColor[1] + (grau[1] - fogColor[1]) * wDunkel,
+                    fogColor[2] + (grau[2] - fogColor[2]) * wDunkel];
+      }
+      if (game.blitzFlash > 0) {
+        game.blitzFlash -= dt * 3.5;
+        var f = Math.max(0, game.blitzFlash);
+        daylight = Math.min(1, daylight + f * 0.8);
+        fogColor = [Math.min(1, fogColor[0] + f * 0.6), Math.min(1, fogColor[1] + f * 0.6),
+                    Math.min(1, fogColor[2] + f * 0.6)];
+      }
+    }
+
     var fogNear, fogFar;
     if (underwater) { fogNear = 0.5; fogFar = 16; }
     else if (p.headInLava) { fogNear = 0.1; fogFar = 2.2; }
     else if (world.dim === 'nether') { fogNear = this.renderDistance * CS * 0.22; fogFar = this.renderDistance * CS * 0.85; }
     else if (world.dim === 'the_end') { fogNear = this.renderDistance * CS * 0.45; fogFar = this.renderDistance * CS * 1.05; }
     else { fogNear = this.renderDistance * CS * 0.55; fogFar = this.renderDistance * CS * 0.97; }
+    if (wSicht < 1) { fogNear *= wSicht * wSicht; fogFar *= wSicht; }
 
     gl.clearColor(fogColor[0], fogColor[1], fogColor[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -577,9 +601,93 @@
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
 
+    // ---- Niederschlag ----
+    if (MC.Wetter && !game.panorama) this.renderNiederschlag(game, dt, daylight);
+
     // ---- Hand / gehaltenes Item ----
     // Im Startbildschirm sieht man die Welt, nicht die Hand des Spielers
     if (game.mode !== 'spectator' && !game.hideHand && !game.panorama && !sicht) this.renderHand(game, daylight);
+  };
+
+  // ---------- Niederschlag ----------
+  // Ein fester Vorrat an Tropfen, der mit dem Spieler mitwandert: fällt einer
+  // unten aus dem Kasten, kommt er oben wieder herein. Das ist billiger als
+  // ständig neue Teilchen zu erzeugen, und der Kasten ist ohnehin alles, was
+  // man sieht.
+  //
+  // Gezeichnet wird nur, wo der Himmel offen ist. Unter einem Dach regnet es
+  // nicht — das prüft dieselbe Sonnenlichtzahl, die auch der Regen am Boden
+  // benutzt.
+  var TROPFEN = 320, KASTEN = 15;
+
+  Renderer.prototype.renderNiederschlag = function (game, dt, daylight) {
+    var world = game.world, p = game.player;
+    var z = MC.Wetter.zustand(world);
+    if (!z || z.staerke < 0.02) return;
+
+    if (!this.tropfen) {
+      this.tropfen = [];
+      for (var i = 0; i < TROPFEN; i++) {
+        this.tropfen.push([(Math.random() - 0.5) * 2 * KASTEN,
+                           Math.random() * 22 - 6,
+                           (Math.random() - 0.5) * 2 * KASTEN]);
+      }
+    }
+
+    var schnee = z.art === 'schneesturm', sand = z.art === 'sandsturm';
+    var fallen = schnee ? 3.2 : (sand ? 1.5 : 26);
+    var drift = sand ? 14 : (schnee ? 1.4 : 0);
+    var hoch = schnee ? 0.16 : (sand ? 0.13 : 0.6);
+    var breit = schnee ? 0.07 : (sand ? 0.07 : 0.025);
+    var tint = schnee ? [1.5, 1.55, 1.6] : (sand ? [1.25, 1.02, 0.62] : [0.62, 0.78, 1.25]);
+
+    var anzahl = Math.floor(TROPFEN * Math.min(1, z.staerke));
+    var r = this.camRight(), u = this.camUp();
+    var d = this.dynData, n = 0;
+    this.ensureDyn(anzahl * 4 * FPV + 64);
+    d = this.dynData;
+
+    var wx = Math.floor(p.x), wz = Math.floor(p.z);
+    for (var t = 0; t < anzahl; t++) {
+      var o = this.tropfen[t];
+      o[1] -= fallen * dt;
+      o[0] += drift * dt;
+      if (o[1] < -8) { o[1] += 24; o[0] = (Math.random() - 0.5) * 2 * KASTEN; o[2] = (Math.random() - 0.5) * 2 * KASTEN; }
+      if (o[0] > KASTEN) o[0] -= 2 * KASTEN;
+
+      var px = p.x + o[0], py = p.y + o[1], pz = p.z + o[2];
+      // Zu nah an der Kamera wird aus einem Tropfen eine Säule quer übers
+      // Bild — ein halber Meter Abstand kostet nichts und behebt das.
+      var nx = px - this.camPos[0], nz = pz - this.camPos[2];
+      if (nx * nx + nz * nz < 1.6) continue;
+      // Unter Dach fällt nichts
+      if (world.getSky(Math.floor(px), Math.floor(py), Math.floor(pz)) < 8) continue;
+
+      for (var i2 = 0; i2 < 4; i2++) {
+        var cx = (i2 === 1 || i2 === 2) ? 1 : -1;
+        var cy = (i2 >= 2) ? 1 : -1;
+        d[n++] = px + r[0] * cx * breit + u[0] * cy * hoch;
+        d[n++] = py + r[1] * cx * breit + u[1] * cy * hoch;
+        d[n++] = pz + r[2] * cx * breit + u[2] * cy * hoch;
+        d[n++] = MC.Mesher.UVS[i2][0]; d[n++] = MC.Mesher.UVS[i2][1]; d[n++] = T.layer('white');
+        d[n++] = 0; d[n++] = 1; d[n++] = 1;
+      }
+    }
+    if (!n) return;
+    var gl = this.gl, mp = this.progMain;
+    gl.useProgram(mp.prog);
+    gl.uniform4f(mp.u.uTint, tint[0], tint[1], tint[2], 0.55 + z.staerke * 0.35);
+    gl.uniform1f(mp.u.uAlphaTest, 0.02);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.disable(gl.CULL_FACE);
+    this.drawDyn(n);
+    gl.enable(gl.CULL_FACE);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+    gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
+    gl.uniform1f(mp.u.uAlphaTest, 0.5);
   };
 
   // ---------- Wolken ----------

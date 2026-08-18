@@ -271,6 +271,21 @@
               break;
             }
 
+            case B.SHAPE_CAULDRON: {
+              // Boden, vier Wände und, wenn Wasser drin steht, dessen Fläche
+              emitBoxCulled(buf, x, y, z, [0, 0, 0, 1, 0.25, 1], block, meta, 0);
+              emitBoxCulled(buf, x, y, z, [0, 0.25, 0, 0.125, 1, 1], block, meta, 0);
+              emitBoxCulled(buf, x, y, z, [0.875, 0.25, 0, 1, 1, 1], block, meta, 0);
+              emitBoxCulled(buf, x, y, z, [0.125, 0.25, 0, 0.875, 1, 0.125], block, meta, 0);
+              emitBoxCulled(buf, x, y, z, [0.125, 0.25, 0.875, 0.875, 1, 1], block, meta, 0);
+              if ((meta & 3) > 0) {
+                var wh = 0.25 + (meta & 3) * 0.23;
+                emitBox(buf, x, y, z, [0.125, wh - 0.02, 0.125], [0.875, wh, 0.875],
+                        T.layer('cauldron_wasser'), gl(x, y, z), false);
+              }
+              break;
+            }
+
             case B.SHAPE_TORCH: {
               emitTorch(buf, x, y, z, meta, gl(x, y, z), block);
               break;

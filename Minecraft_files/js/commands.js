@@ -336,6 +336,31 @@
     });
   BEFEHLE.teleport = BEFEHLE.tp;
 
+  befehl('weather', '<klar|regen|gewitter|sandsturm|schneesturm> [dauer]',
+    'Setzt das Wetter. Ohne Dauer gilt die übliche Länge.',
+    function (l, k) {
+      if (!MC.Wetter) throw new Fehler('Wetter gibt es hier nicht', l.pos);
+      var stelle = l.pos;
+      var w = l.wort('eine Wetterart').toLowerCase();
+      var karte = { klar: 'klar', clear: 'klar', regen: 'regen', rain: 'regen',
+                    gewitter: 'gewitter', thunder: 'gewitter',
+                    sandsturm: 'sandsturm', sand: 'sandsturm',
+                    schneesturm: 'schneesturm', schnee: 'schneesturm', snow: 'schneesturm' };
+      var art = karte[w];
+      if (!art) throw new Fehler('"' + w + '" ist keine Wetterart', stelle);
+      if (k.game.world.dim !== 'overworld') throw new Fehler('Hier gibt es kein Wetter', stelle);
+      var z = MC.Wetter.zustand(k.game.world);
+      z.art = art;
+      z.ziel = art === 'klar' ? 0 : 1;
+      z.staerke = z.ziel;      // der Befehl schaltet sofort, nicht über eine halbe Minute
+      var dauer = l.optional();
+      z.rest = dauer !== null && isFinite(parseFloat(dauer)) ? parseFloat(dauer)
+                                                            : (art === 'klar' ? 600 : 300);
+      z.blitzCd = 3;
+      return 'Wetter: ' + art;
+    },
+    { vervollstaendigen: function () { return ['klar', 'regen', 'gewitter', 'sandsturm', 'schneesturm']; } });
+
   befehl('time', 'set <tag|mittag|abend|nacht|mitternacht|zahl> | add <zahl> | query',
     'Ändert oder zeigt die Tageszeit.',
     function (l, k) {
