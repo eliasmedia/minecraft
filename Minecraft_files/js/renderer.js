@@ -623,6 +623,7 @@
       else if (e.type === 'xp') this.drawSprite(e.x, e.y + 0.15, e.z, 0.28, T.layer('p_yellow'), bl, sl, game);
       else if (e.type === 'arrow') this.drawArrow(e, bl, sl);
       else if (e.type === 'tnt') this.drawTNT(e, bl, sl, game);
+      else if (e.type === 'falling') this.drawFalling(e, bl, sl);
       else if (e.type === 'pearl') this.drawSprite(e.x, e.y, e.z, 0.32, T.layer('ender_pearl'), bl, sl, game);
       else if (e.type === 'projectile') {
         this.drawSprite(e.x, e.y, e.z, 0.7,
@@ -751,6 +752,16 @@
     var n = this.boxGeometry(0, [e.x, e.y + 0.49, e.z], 0.98, B.byName['tnt'], 0, 0, bl, sl);
     this.drawDyn(n);
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
+  };
+
+  // Ein Block auf Reisen. Er hängt eine Winzigkeit unter der vollen Größe,
+  // damit er nicht mit dem Boden um dieselben Bildpunkte streitet, während er
+  // aufsetzt.
+  Renderer.prototype.drawFalling = function (e, bl, sl) {
+    var b = B.byId[e.blockId];
+    if (!b) return;
+    var n = this.boxGeometry(0, [e.x, e.y + 0.49, e.z], 0.98, b, e.meta, 0, bl, sl);
+    this.drawDyn(n);
   };
 
   // Würfelgeometrie für ein Block-Item (zentriert)

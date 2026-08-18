@@ -639,24 +639,22 @@
       }
     }
 
-    // Schwerkraft
-    if (b.gravity) {
-      var below = this.getBlock(x, y - 1, z);
-      if (below === 0 || B.isReplaceable(below)) {
-        var m = this.getMeta(x, y, z);
-        this.setBlock(x, y, z, 0, 0);
-        this.setBlock(x, y - 1, z, id, m);
-        return;
-      }
-    }
-    // Gravitit fällt nicht, es steigt
-    if (b.gravityUp) {
-      var above = this.getBlock(x, y + 1, z);
-      if (y + 1 < WH && (above === 0 || B.isReplaceable(above))) {
-        var mu = this.getMeta(x, y, z);
-        this.setBlock(x, y, z, 0, 0);
-        this.setBlock(x, y + 1, z, id, mu);
-        return;
+    // Schwerkraft — nach unten (Sand, Kies, Amboss) wie nach oben (Gravitit).
+    // Der Block verlässt die Welt und fliegt als Entität weiter; nur wenn
+    // gerade zu viele unterwegs sind, springt er wie früher ein Feld weit.
+    if (b.gravity || b.gravityUp) {
+      var dir = b.gravityUp ? 1 : -1;
+      var ny = y + dir;
+      if (ny >= 0 && ny < WH) {
+        var nb = this.getBlock(x, ny, z);
+        if (nb === 0 || B.isReplaceable(nb)) {
+          var m = this.getMeta(x, y, z);
+          if (!MC.FallingBlock || !MC.FallingBlock.starte(this, x, y, z, id, m)) {
+            this.setBlock(x, y, z, 0, 0);
+            this.setBlock(x, ny, z, id, m);
+          }
+          return;
+        }
       }
     }
     // Portalfläche zerfällt ohne Rahmen

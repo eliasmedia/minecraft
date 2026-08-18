@@ -430,6 +430,155 @@
   };
 
   // ============================================================
+  //  Fallender Block
+  // ============================================================
+  // Sand, Kies, Amboss und Gravitit sprangen bisher Feld um Feld: ein setBlock
+  // löschte oben, ein zweites setzte unten. Für die Dauer des Falls sind sie
+  // jetzt eine Entität mit Flugbahn. Daran hängt alles, was einen Fall
+  // interessant macht — eine Explosion schleudert sie fort, sie fliegen an
+  // einer Fackel vorbei statt sie zu schlucken, und wo kein Platz mehr ist,
+  // landen sie als Gegenstand statt als Block.
+  //
+  // Der Deckel ist Absicht, kein Notnagel: eine einstürzende Sandwand darf
+  // nicht tausend Entitäten auf einmal erzeugen. Ist er erreicht, springt der
+  // Rest wie früher — sichtbar wird das kaum, denn dann fällt ohnehin alles
+  // gleichzeitig.
+  var MAX_FALLENDE = 96;
+
+  function FallingBlock(world, x, y, z, id, meta) {
+    Entity.call(this, world, x, y, z);
+    this.width = 0.98; this.height = 0.98;
+    this.type = 'falling';
+    this.blockId = id;
+    this.meta = meta || 0;
+    var b = B.byId[id];
+    this.up = !!(b && b.gravityUp);     // Gravitit steigt, statt zu fallen
+    this.startY = y;
+    this.getroffen = [];                // wen der Amboss unterwegs erwischt hat
+  }
+  FallingBlock.prototype = Object.create(Entity.prototype);
+  FallingBlock.prototype.constructor = FallingBlock;
+  MC.FallingBlock = FallingBlock;
+
+  // Löst den Block aus der Welt und schickt ihn auf die Reise. Liefert false,
+  // wenn gerade zu viele unterwegs sind; dann bleibt es beim alten Sprung.
+  FallingBlock.starte = function (world, x, y, z, id, meta) {
+    var n = 0;
+    for (var i = 0; i < world.entities.length; i++) {
+      var e = world.entities[i];
+      if (e.type === 'falling' && !e.dead) n++;
+    }
+    if (n >= MAX_FALLENDE) return false;
+    world.setBlock(x, y, z, 0, 0);
+    world.entities.push(new FallingBlock(world, x + 0.5, y, z + 0.5, id, meta));
+    return true;
+  };
+
+  FallingBlock.prototype.update = function (dt, game) {
+    var w = this.world;
+    this.age += dt;
+    var dir = this.up ? 1 : -1;
+    this.vy += dir * this.gravity * dt;
+    if (this.vy > 60) this.vy = 60;
+    if (this.vy < -60) this.vy = -60;
+    if (P.inLiquid(w, this, 'water')) { this.vy *= 0.62; this.vx *= 0.82; this.vz *= 0.82; }
+
+    var vorher = this.y, wollte = this.vy * dt;
+    P.move(w, this, this.vx * dt, wollte, this.vz * dt);
+    var k = Math.pow(0.96, dt * 20);
+    this.vx *= k; this.vz *= k;
+
+    if (B.byId[this.blockId].shape === B.SHAPE_ANVIL) this.zerquetschen(game);
+
+    if (this.y < -4 || this.y > WH + 8 || this.age > 60) { this.dead = true; return; }
+
+    // Angekommen ist er, sobald ihn etwas aufgehalten hat: er ist weniger weit
+    // gekommen, als er wollte. Das gilt nach oben wie nach unten und braucht
+    // damit keine zweite Landeprüfung für den Gravititfall.
+    if (Math.abs(this.y - vorher) < Math.abs(wollte) - 1e-6) this.absetzen(game);
+  };
+
+  // Ein fallender Amboss tut weh, und zwar nach Fallhöhe. Jeder wird nur
+  // einmal getroffen — sonst zählt bei 60 Bildern je Sekunde jedes einzelne.
+  FallingBlock.prototype.zerquetschen = function (game) {
+    if (this.vy > -7) return;
+    var ziele = this.world.entities;
+    for (var i = 0; i <= ziele.length; i++) {
+      var e = (i === ziele.length) ? game.player : ziele[i];
+      if (!e || e.dead || e === this || !e.hurt) continue;
+      if (this.getroffen.indexOf(e) >= 0) continue;
+      if (Math.abs(e.x - this.x) > 0.85 || Math.abs(e.z - this.z) > 0.85) continue;
+      if (e.y > this.y + 0.95 || e.y + (e.height || 1.8) < this.y) continue;
+      this.getroffen.push(e);
+      e.hurt(Math.min(40, Math.round(Math.max(0, this.startY - this.y) * 2)), null, game);
+      game.audio.play('thud');
+    }
+  };
+
+  // Wo der Block zur Ruhe kommt. Gesucht wird von der eigenen Zelle aus, denn
+  // beim Landen steht er ohnehin schon richtig — die Suche fängt nur die
+  // Sonderfälle ab: der Fall durchs Wasser, das Absetzen vor dem Speichern.
+  FallingBlock.prototype.ruhepunkt = function () {
+    var w = this.world, d = this.up ? 1 : -1;
+    var bx = Math.floor(this.x), bz = Math.floor(this.z);
+    var by = Math.floor(this.y + this.height * 0.5);
+    for (var i = 0; i < WH; i++) {
+      var ny = by + d;
+      if (ny < 0 || ny >= WH) break;
+      if (!this.freiFuer(w.getBlock(bx, ny, bz))) break;
+      by = ny;
+    }
+    return by;
+  };
+
+  // Luft, Wasser und Gewächs geben nach; eine Fackel, eine Treppe oder eine
+  // Truhe nicht. Genau daran hängt der alte Trick, einen Sandfall mit einer
+  // Fackel aufzuhalten: der Sand kommt nicht unter, also fällt er als Item.
+  FallingBlock.prototype.freiFuer = function (id) {
+    if (id === 0 || B.isReplaceable(id)) return true;
+    var b = B.byId[id];
+    return !!(b && b.shape === B.SHAPE_CROSS);
+  };
+
+  FallingBlock.prototype.absetzen = function (game) {
+    if (this.dead) return;
+    this.dead = true;
+    var w = this.world;
+    var bx = Math.floor(this.x), bz = Math.floor(this.z);
+    var by = this.ruhepunkt();
+    var da = by >= 0 && by < WH ? w.getBlock(bx, by, bz) : 1;
+    if (by >= 0 && by < WH && this.freiFuer(da)) {
+      if (da !== 0 && !B.isReplaceable(da)) game.dropBlock(bx, by, bz, da, w.getMeta(bx, by, bz), null);
+      // setBlock verweigert den Dienst in einem nicht geladenen Chunk. Dann
+      // fällt der Block lieber als Gegenstand an, als lautlos zu verschwinden.
+      if (!w.setBlock(bx, by, bz, this.blockId, this.meta)) { this.alsItem(game); return; }
+      game.particles.blockBreak(bx + 0.5, by + (this.up ? 0.15 : 0.85), bz + 0.5, this.blockId, this.meta, 5);
+      game.audio.play('thud', 0.45);
+    } else {
+      this.alsItem(game);
+    }
+  };
+
+  FallingBlock.prototype.alsItem = function (game) {
+    var b = B.byId[this.blockId];
+    if (!b) return;
+    if (MC.Cmd && !MC.Cmd.regel(game, 'doTileDrops')) return;
+    var name = (typeof b.drop === 'string' && b.drop) ? b.drop : b.name;
+    if (!I.get(name)) name = b.name;
+    if (!I.get(name)) return;
+    game.spawnItem(this.x, this.y + 0.2, this.z, { id: name, count: 1 });
+  };
+
+  // Vor dem Speichern gehört zurück in die Welt, was noch in der Luft hängt:
+  // Entitäten wandern nicht in den Spielstand, der Block wäre sonst weg.
+  FallingBlock.alleAbsetzen = function (game) {
+    var ents = game.world.entities;
+    for (var i = 0; i < ents.length; i++) {
+      if (ents[i].type === 'falling' && !ents[i].dead) ents[i].absetzen(game);
+    }
+  };
+
+  // ============================================================
   //  Explosion
   // ============================================================
   MC.explode = function (game, x, y, z, power, vonMob) {

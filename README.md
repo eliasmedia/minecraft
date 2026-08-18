@@ -601,6 +601,32 @@ Drops, XP-Kugeln.
 Lava + Wasser → Obsidian/Bruchstein, fallender Sand und Kies, Pflanzenwachstum,
 Grasausbreitung, Blattzerfall, Explosionen mit Blockschaden und Rückstoß.
 
+**Fallende Blöcke sind Entitäten** — Sand, Kies, Amboss und Gravitit sprangen
+bisher Feld um Feld: ein `setBlock` löschte oben, ein zweites setzte unten. Für
+die Dauer des Falls sind sie jetzt eine **eigene Entität mit Flugbahn**, und
+daran hängt alles, was einen Fall überhaupt interessant macht. Eine Explosion
+schleudert den fallenden Block fort — gemessen drei Blöcke weit bei einer
+Ladung fünf Felder daneben. Ein fallender Amboss trifft, was unter ihm steht,
+und zwar nach Fallhöhe.
+
+Und der alte Trick funktioniert wieder: **eine Fackel hält einen Sandfall auf**.
+Der Sand kommt dort nicht unter, also landet er als Gegenstand statt als Block,
+und die Fackel steht noch. Entscheidend dafür ist, was als Landeplatz durchgeht:
+Luft, Wasser und Gewächs geben nach, eine Fackel, eine Treppe oder eine Truhe
+nicht. Gewächs wird dabei zerdrückt und fällt ordentlich als Beute an.
+
+Gravitit steigt weiterhin auf, benutzt aber **dieselbe Klasse mit umgedrehtem
+Vorzeichen**. Angekommen ist ein Block, sobald er weniger weit gekommen ist, als
+er wollte — das gilt nach oben wie nach unten und spart die zweite
+Landeprüfung.
+
+Ein Deckel von 96 gleichzeitig fliegenden Blöcken hält eine einstürzende
+Sandwand davon ab, tausend Entitäten auf einmal zu erzeugen; darüber hinaus
+springt der Rest wie früher. Geprüft mit 256 auf einmal ausgelösten
+Sandblöcken: höchstens 96 gleichzeitig unterwegs, danach liegen alle 256 in der
+Welt — es geht keiner verloren. Und was beim Speichern noch in der Luft hängt,
+wird vorher abgesetzt, denn Entitäten wandern nicht in den Spielstand.
+
 **Unendliches Wasser** — liegen zwei Quellblöcke mit einem Feld Abstand, wird das
 Feld dazwischen selbst zur Quelle. Damit lässt sich ein Becken bauen, aus dem man
 beliebig oft schöpfen kann. Für Lava gilt das wie im Original *nicht*.

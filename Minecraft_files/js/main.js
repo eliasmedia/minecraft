@@ -1996,6 +1996,8 @@
 
   // ---------- Speichern ----------
   Game.prototype.collectSave = function () {
+    // Was gerade fällt, gehört vor dem Speichern zurück in die Welt.
+    if (MC.FallingBlock) MC.FallingBlock.alleAbsetzen(this);
     var dims = {};
     for (var d in this.worlds) {
       var w = this.worlds[d];
