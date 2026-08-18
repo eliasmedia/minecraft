@@ -70,6 +70,10 @@
     this.a = b;
   };
 
+  // Wie viele Gemäldemotive es gibt. Steht hier, damit ein Meta jenseits der
+  // Motivzahl (aus einem älteren Spielstand) nicht auf Weiß fällt.
+  var MOTIVE = 6;
+
   // Texturebene für eine Blockfläche
   function faceLayer(block, face, meta) {
     var tex = block.tex;
@@ -83,6 +87,11 @@
     }
     // Tür: obere/untere Hälfte bestimmt die Textur, nicht die Fläche
     if (block.shape === B.SHAPE_DOOR) return T.layer((meta & 1) ? tex.top : tex.bottom);
+    // Gemälde: das Motiv liegt auf der Vorderseite, alles andere ist Rahmenholz
+    if (block.shape === B.SHAPE_PAINTING) {
+      if (face !== B.SIDE_FACE[meta & 3]) return T.layer(tex.all);
+      return T.layer('painting_' + ((meta >> 2) % MOTIVE));
+    }
     // Endportalrahmen: Meta-Bit 0 = Enderauge eingesetzt
     if (block.name === 'end_portal_frame' && face === 2 && (meta & 1)) return T.layer('end_portal_frame_eye');
     // Stämme mit Achse
@@ -248,6 +257,17 @@
               var reihe = (typeof block.tex === 'string') ? block.tex : (block.tex.stage || 'wheat_stage');
               var lay2 = T.layer(reihe + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
               emitCross(buf, x, y, z, lay2, gl(x, y, z), 0.95);
+              break;
+            }
+
+            case B.SHAPE_SIGN:
+            case B.SHAPE_SIGN_WALL:
+            case B.SHAPE_FRAME:
+            case B.SHAPE_PAINTING: {
+              var sbx = B.schildBoxen(block.shape, meta);
+              for (var sbi = 0; sbi < sbx.length; sbi++) {
+                emitBoxCulled(buf, x, y, z, sbx[sbi], block, meta, 0);
+              }
               break;
             }
 

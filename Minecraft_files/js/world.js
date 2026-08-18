@@ -629,6 +629,16 @@
     if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_REPEATER) {
       if (!B.isSolid(this.getBlock(x, y - 1, z))) { this.breakBlockNatural(x, y, z); return; }
     }
+    // Schild, Rahmen und Gemälde fallen mit ihrer Wand oder ihrem Boden
+    if (b.shape === B.SHAPE_SIGN || b.shape === B.SHAPE_SIGN_WALL ||
+        b.shape === B.SHAPE_FRAME || b.shape === B.SHAPE_PAINTING) {
+      var self = this;
+      if (!B.schildHaelt(function (gx, gy, gz) { return self.getBlock(gx, gy, gz); },
+                         b.shape, x, y, z, this.getMeta(x, y, z))) {
+        this.breakBlockNatural(x, y, z);
+        return;
+      }
+    }
     if (b.shape === B.SHAPE_LEVER || b.shape === B.SHAPE_BUTTON) {
       var m = this.getMeta(x, y, z);
       if (m & 4) {

@@ -77,7 +77,7 @@
       if (game.ui.isOpen() || game.paused || !game.started || !game.player || game.player.dead) return;
       // Chatzeile und Befehlsblockfenster geben den Zeiger absichtlich frei –
       // das darf das Spiel nicht ins Pausenmenü werfen.
-      if ((MC.Cmd && MC.Cmd.Chat.offen) || game.cbOffen) { game.showClickHint(false); return; }
+      if ((MC.Cmd && MC.Cmd.Chat.offen) || game.cbOffen || game.schildOffen) { game.showClickHint(false); return; }
       // Haben wir selbst gerade entsperrt (Fenster geöffnet/geschlossen)? Dann nicht pausieren.
       if (performance.now() < (game.suppressPauseUntil || 0)) { game.showClickHint(true); return; }
       game.pause(true);
@@ -150,6 +150,9 @@
     var self = this;
     this.stopPanorama();
     if (MC.Herobrine) MC.Herobrine.zuruecksetzen();
+    // Der Atlas kennt Schilder und Karten nur am Inhalt, nicht an der Welt —
+    // beim Wechsel muss er darum geleert werden.
+    if (MC.DynTex) MC.DynTex.leeren();
     // Jede Welt bekommt eine eigene Kennung und einen Namen – vorher hat eine
     // neue Welt die alte schlicht überschrieben.
     this.weltId = MC.Welten.neueId();
@@ -686,6 +689,9 @@
     this.audio.breakBlock(b.sound);
     this.dropBlock(x, y, z, id, meta, toolName, st);
 
+    // Was im Bilderrahmen hing, fällt heraus; der Atlasplatz wird frei
+    if (MC.Schilder) MC.Schilder.abgebaut(this, x, y, z);
+
     // Truheninhalt ausschütten – bei einer nie geöffneten Dorftruhe wird der
     // Inhalt jetzt erst ausgewürfelt, sonst ginge die Beute verloren
     if (b.name === 'chest') this.chestTile(x, y, z);
@@ -792,6 +798,8 @@
         this.ui.openScreen('enchant', et);
         return;
       }
+      // Schild beschriften, Rahmen bestücken, Gemälde weiterblättern
+      if (MC.Schilder && MC.Schilder.benutzen(this, t.x, t.y, t.z)) { p.swingTime = 1; return; }
       if (b.shape === B.SHAPE_BED) { this.trySleep(t); return; }
       if (b.shape === B.SHAPE_DOOR) {
         if (b.name === 'door_iron') { this.ui.toast('Die Eisentür lässt sich nicht von Hand öffnen.'); return; }
@@ -1039,6 +1047,9 @@
     if (B.needsSupport(block.id) && !B.validGround(block.id, w.getBlock(nx, ny - 1, nz))) return;
 
     var meta = 0;
+    // Welcher Block am Ende gesetzt wird. Ein Schild wird je nach Fläche zum
+    // stehenden oder zum Wandschild, der Gegenstand ist derselbe.
+    var setzId = block.id;
     if (block.shape === B.SHAPE_TORCH) {
       // Seitliche Fläche angeklickt -> Wandfackel, sonst Standfackel
       var wm = LADDER_META[t.face];
@@ -1099,6 +1110,29 @@
       // Der Beobachter ist umgekehrt herum: er schaut in Blickrichtung, damit
       // er den Block im Auge hat, den man gerade ansieht.
       if (block.name === 'observer') meta = meta < 4 ? ((meta + 2) & 3) : (meta === 4 ? 5 : 4);
+    } else if (block.shape === B.SHAPE_SIGN) {
+      // Auf den Boden gesetzt steht das Schild, an eine Wand geklebt hängt es.
+      // Beides ist derselbe Gegenstand — das ist im Original genauso.
+      var sm = LADDER_META[t.face];
+      if (sm !== undefined) {
+        var sg = B.SIDE_DIRS[sm];
+        if (!B.isOpaque(w.getBlock(nx + sg[0], ny, nz + sg[1]))) return;
+        setzId = B.id('wall_sign');
+        meta = (sm + 2) & 3;                 // blickt von der Wand weg
+      } else if (t.face === 2 && B.isSolid(w.getBlock(nx, ny - 1, nz))) {
+        meta = this.facingFromYaw();             // blickt den Setzenden an
+      } else return;
+    } else if (block.shape === B.SHAPE_FRAME || block.shape === B.SHAPE_PAINTING) {
+      var fm = LADDER_META[t.face];
+      if (fm === undefined) return;
+      var fg = B.SIDE_DIRS[fm];
+      if (!B.isOpaque(w.getBlock(nx + fg[0], ny, nz + fg[1]))) return;
+      meta = (fm + 2) & 3;
+      // Das Gemälde bekommt sein Motiv aus dem Ort — zwei nebeneinander
+      // zeigen dann nicht dasselbe Bild, und ein Rechtsklick blättert weiter.
+      if (block.shape === B.SHAPE_PAINTING) {
+        meta |= (U.hashString('bild:' + nx + ':' + ny + ':' + nz) % 6) << 2;
+      }
     } else if (block.name.indexOf('log_') === 0) {
       meta = (t.face === 2 || t.face === 3) ? 0 : ((t.face === 0 || t.face === 1) ? 1 : 2);
     } else if (typeof block.tex === 'object' && block.tex.front) {
@@ -1112,7 +1146,7 @@
       var stand = (davor === B.id('water')) || w.istFluessig(nx, ny, nz, B.id('water'));
       if (stand) meta |= B.NASS_BIT;
     }
-    w.setBlock(nx, ny, nz, block.id, meta);
+    w.setBlock(nx, ny, nz, setzId, meta);
     if (B.kannFluten(block.id)) w.scheduleFluid(nx, ny, nz, 2);
     // Der Schwamm saugt das Wasser um sich herum weg und wird dabei nass
     if (block.name === 'sponge') this.saugeSchwamm(nx, ny, nz);
@@ -2055,6 +2089,7 @@
     MC.Welten.laden(id, function (data) {
       if (!data) { self.ui.toast('Diese Welt lässt sich nicht lesen'); return; }
       self.stopPanorama();
+      if (MC.DynTex) MC.DynTex.leeren();
       self.weltId = id;
       self.weltName = (e && e.name) || data.weltName || 'Welt';
       self.applySave(data);
@@ -2163,7 +2198,7 @@
     var p = this.player;
 
     // Maus
-    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead && !(MC.Cmd && MC.Cmd.Chat.offen) && !this.cbOffen) {
+    if (input.locked && !this.ui.isOpen() && !this.paused && !p.dead && !(MC.Cmd && MC.Cmd.Chat.offen) && !this.cbOffen && !this.schildOffen) {
       p.yaw -= input.dx * this.sensitivity;
       p.pitch += input.dy * this.sensitivity;
       p.pitch = U.clamp(p.pitch, -Math.PI / 2 + 0.001, Math.PI / 2 - 0.001);
@@ -2184,7 +2219,7 @@
     // Ofen, Redstone. Jetzt läuft die Welt weiter, und lediglich die Eingabe
     // wird abgeklemmt.
     var chatOffen = !!(MC.Cmd && MC.Cmd.Chat.offen);
-    var fensterAuf = this.ui.isOpen() || chatOffen || this.cbOffen;
+    var fensterAuf = this.ui.isOpen() || chatOffen || this.cbOffen || this.schildOffen;
     if (!this.paused) {
       this.tickCount++;
       p.update(dt, fensterAuf ? LEER_EINGABE : input, this);

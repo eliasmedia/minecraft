@@ -570,7 +570,7 @@ nach dem Entladen neu erscheint, bietet wieder dasselbe an. Bei Einbruch der
 Nacht oder wenn ein Monster in die Nähe kommt, geht jeder in sein Haus und macht
 die Tür hinter sich zu; Zombies haben es auf sie abgesehen.
 
-**Blöcke & Items** — rund 210 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
+**Blöcke & Items** — rund 220 Blöcke inklusive Treppen, Stufen, Zäunen, Zauntoren,
 Türen, Leitern, Fackeln (auch an Wänden), Glas, 16 Wollfarben, Werkbank, Ofen,
 Truhe, Bett, TNT, Ackerboden, Zaubertisch, Amboss, Braustand, Kolben und
 Beobachter. Rund 370 Items: Werkzeuge und Waffen in 8 Materialstufen, Rüstung in
@@ -751,6 +751,52 @@ weil es Glitzermelone, Magmacreme und goldene Karotte bei uns nicht gibt — daf
 haben wir Ambrosium, Magmablöcke und Blaubeeren, die dasselbe erzählen. Die
 Ghastträne für die Regeneration lässt der Ghast fallen.
 
+**Eine Textur, die sich ändert** — alle Blocktexturen liegen in einem
+Texturarray aus 16×16-Kacheln. Das ist genau richtig für einen Block, der immer
+gleich aussieht, und genau falsch für alles, was erst im Spiel entsteht: eine
+Karte hat 128×128 Bildpunkte, und ein Schild trägt Text, den es beim Erzeugen
+der Texturen noch gar nicht gab. Genau daran ist der Bilderrahmen bisher
+gescheitert.
+
+Deshalb liegt jetzt ein **zweiter Atlas** daneben: 8×8 Kacheln zu je 128×128
+Bildpunkten als eigene 2D-Textur, gezeichnet mit dem gewöhnlichen
+Canvas-Werkzeugkasten, hochgeladen wird immer nur die eine geänderte Kachel.
+Umgeschaltet wird im Shader über eine Uniform statt über ein zweites Programm —
+Nebel, Licht und Alphatest sind dieselben, es kommt kein zweiter Rechenweg
+dazu.
+
+Die 64 Plätze reichen, weil ein Platz **keinem Schild gehört, sondern einem
+Inhalt**: vergeben wird über einen Schlüssel aus dem Text selbst, verdrängt wird
+der am längsten unbenutzte. Hundert Schilder mit demselben Text teilen sich eine
+Kachel, und ein Schild am anderen Ende der Welt hält keine besetzt.
+
+**Schilder** — sechs Bretter und ein Stock ergeben drei Stück. Auf den Boden
+gesetzt stehen sie auf einem Pfosten und blicken den an, der sie hinstellt; an
+eine Wand geklebt hängen sie. Rechtsklick öffnet vier Zeilen zu je fünfzehn
+Zeichen. Nimmt man ihnen den Boden oder die Wand weg, fallen sie als Gegenstand.
+
+Der Text steht nicht im Chunkmesh, sondern liegt als einzelnes Viereck knapp
+davor — eine Ebene, die der Mesher gar nicht kennen muss. Der Text selbst wandert
+in die Blockentität an dieser Stelle, und die geht ohnehin schon in den
+Spielstand; es kommt kein neues Speicherformat dazu.
+
+**Bilderrahmen** — acht Stöcke um ein Leder. Rechtsklick hängt hinein, was man in
+der Hand hält, ein zweiter nimmt es wieder heraus; beim Abbauen fällt es zurück.
+Drin liegt ein ganz gewöhnlicher Gegenstand — **auch eine Karte**, und dann zeigt
+der Rahmen sie in voller Auflösung an der Wand, mit dem erkundeten Teil und dem
+Dunkel drumherum. Das ist der Grund, warum es den Atlas gibt.
+
+**Gemälde** — acht Stöcke um eine Wolle. Sechs Motive, die aus der eigenen Welt
+stammen statt aus dem Original: Sonnenuntergang, Bergsee, Creeper, Fackel im
+Stollen, Portal und Weizenfeld. Welches man bekommt, hängt am Ort — zwei
+nebeneinander zeigen also nie dasselbe Bild —, und ein Rechtsklick blättert
+weiter, bis das passende dabei ist. Das Motiv liegt auf der Vorderseite und
+kommt aus dem gewöhnlichen Texturarray; ein Gemälde ändert sich ja nicht.
+
+Banner fehlen noch. Sie sind keine Frage der Textur mehr, sondern ein
+Entwurfssystem für sich — sechzehn Farben mal knapp vierzig Mustern, die sich
+übereinanderlegen lassen.
+
 **Karte** — Papier um einen Kompass. Der Ausschnitt wird beim ersten Tragen
 festgelegt und rastet auf ein Vielfaches von 128 Blöcken ein; zwei Karten aus
 derselben Gegend zeigen also denselben Ausschnitt. Erkundet wird, worüber man
@@ -778,10 +824,11 @@ Same-Origin-Policy ES-Module, `fetch`, Web-Worker und externe Bibliotheken. Desh
 
 ## Noch offen
 
-**Als Nächstes:** die zweite Runde aus `docs/MOB-PLAN.md` — Schwebhase,
-Wolkenwal, Walküre — und die Händler. Dazu der Bilderrahmen zur Karte. Er bräuchte eine Textur, die sich
-zur Laufzeit ändert, und dafür eine eigene Ebene im Texturarray — das ist ein
-Umbau am Renderer, kein Nachmittag.
+**Als Nächstes:** Runde B — Dorfbewohner mit echter Wegfindung, Dorf-Zustand im
+Spielstand, Tierzucht und Reiten, Wetter ohne Welteingriff. Danach Runde C mit
+Trichtern, Loren, farbigem Licht, Fern-LOD, Bauwerkzeugen, Schild und
+Klangkulisse. Dazu die zweite Runde aus `docs/MOB-PLAN.md` — Schwebhase,
+Wolkenwal, Walküre — und die Händler.
 
 Loren, Werfer und Trichter, Wurftränke, Tierzucht, Angeln, Mehrspieler. Im Ende
 fehlen die äußeren Inseln und das Wiederbeleben des Drachen. Im Aether fehlen die

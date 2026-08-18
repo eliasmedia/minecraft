@@ -2308,6 +2308,105 @@
   ], itemPal([188, 190, 198]));
 
   // ============================================================
+  //  SCHILD, RAHMEN, GEMÄLDE
+  // ============================================================
+  // Der Rahmen ist ein Holzrand mit heller Rückwand — was darin hängt, kommt
+  // aus dem Atlas und wird darübergelegt.
+  tex('item_frame', function (g) {
+    g.fill([0, 0, 0], 0);
+    var holz = P.planks;
+    g.rect(0, 0, 16, 16, holz[2]);
+    g.qn([holz[1], holz[2], holz[3]], 0.5);
+    g.rect(2, 2, 12, 12, [214, 200, 172]);
+    g.frame(2, 2, 12, 12, mul([214, 200, 172], 0.72));
+    g.frame(0, 0, 16, 16, mul(holz[1], 0.72));
+  });
+
+  // Rückseite und Rand eines Gemäldes: eine Leinwand auf Keilrahmen
+  tex('painting_back', function (g) {
+    g.fill([0, 0, 0], 0);
+    var holz = P.planks;
+    g.rect(0, 0, 16, 16, holz[1]);
+    g.qn([holz[0], holz[1], holz[2]], 0.45);
+    g.frame(0, 0, 16, 16, mul(holz[0], 0.8));
+  });
+
+  // Sechs Motive. Gemalt wird mit demselben ASCII-Werkzeug wie die Items —
+  // ein Bild aus 256 Feldern, kein Kunstwerk, aber unverwechselbar.
+  var GEMAELDE = [
+    { name: 'Sonnenuntergang', pal: { O: [40, 28, 34], A: [252, 196, 92], B: [232, 128, 72],
+        C: [148, 74, 96], D: [72, 44, 74], E: [30, 24, 40], F: [26, 60, 48] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'ODDDDDDDDDDDDDDO', 'ODDDDDDCCDDDDDDO', 'ODDDCCCCCCCCDDDO',
+        'ODCCCCCCCCCCCCDO', 'OCCCCBBBBCCCCCCO', 'OCCCBBBBBBBBCCCO', 'OCCBBBAAAABBBCCO',
+        'OCBBBAAAAAAABBCO', 'OBBBAAAAAAAAABBO', 'OBBAAAAAAAAAABBO', 'OFFFFFFFFFFFFFFO',
+        'OFFFEFFFFFFEFFFO', 'OFFFFFFEFFFFFFFO', 'OFFFFFFFFFFFFFFO', 'OOOOOOOOOOOOOOOO'] },
+    { name: 'Der Bergsee', pal: { O: [40, 28, 34], S: [140, 190, 232], W: [244, 248, 252],
+        G: [96, 108, 120], D: [58, 68, 82], B: [52, 120, 176], H: [82, 130, 66] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'OSSSSSSSSSSSSSSO', 'OSSSSSSWWSSSSSSO', 'OSSSSSWWWWSSSSSO',
+        'OSSSSWWGGWWSSSSO', 'OSSSWWGGGGWWSSSO', 'OSSWWGGDDGGWWSSO', 'OSWWGGDDDDGGWWSO',
+        'OHHHHHHHHHHHHHHO', 'OBBBBBBBBBBBBBBO', 'OBBWBBBBBBBWBBBO', 'OBBBBBBWBBBBBBBO',
+        'OBBBBWBBBBBBWBBO', 'OBBBBBBBBBBBBBBO', 'OBBBBBBBBBBBBBBO', 'OOOOOOOOOOOOOOOO'] },
+    { name: 'Der Creeper', pal: { O: [40, 28, 34], G: [88, 168, 74], D: [64, 128, 56],
+        K: [24, 26, 24], H: [120, 196, 96] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'OGGGGGGGGGGGGGGO', 'OGHGGDGGGDGGHGGO', 'OGGGGGGGGGGGGGGO',
+        'OGGKKKGGGGKKKGGO', 'OGGKKKGGGGKKKGGO', 'OGGKKKGGGGKKKGGO', 'OGGGGGKKKKGGGGGO',
+        'OGGGGKKKKKKGGGGO', 'OGGGGKKKKKKGGGGO', 'OGGGGKKGGKKGGGGO', 'OGGGGKKGGKKGGGGO',
+        'OGGGGGGGGGGGGGGO', 'OGDGGGGGGGGGGDGO', 'OGGGGGGGGGGGGGGO', 'OOOOOOOOOOOOOOOO'] },
+    { name: 'Fackel im Stollen', pal: { O: [40, 28, 34], K: [26, 24, 26], S: [72, 72, 78],
+        H: [122, 122, 130], B: [154, 108, 62], F: [252, 208, 76], R: [232, 128, 48] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'OKKKKKKKKKKKKKKO', 'OKKKSSSSSSSSKKKO', 'OKKSSHHHHHHSSKKO',
+        'OKKSHHHHHHHHSKKO', 'OKKSHHHFFHHHSKKO', 'OKKSHHHFFHHHSKKO', 'OKKSHHRFFRHHSKKO',
+        'OKKSHHHBBHHHSKKO', 'OKKSHHHBBHHHSKKO', 'OKKSHHHBBHHHSKKO', 'OKKSSHHHHHHSSKKO',
+        'OKKKSSSSSSSSKKKO', 'OKKKKKKKKKKKKKKO', 'OKKKKKKKKKKKKKKO', 'OOOOOOOOOOOOOOOO'] },
+    { name: 'Das Portal', pal: { O: [40, 28, 34], K: [22, 20, 26], P: [140, 72, 200],
+        V: [96, 44, 152], H: [186, 128, 232], S: [46, 42, 52] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'OKKKKKKKKKKKKKKO', 'OKSSSSSSSSSSSSKO', 'OKSVVVVVVVVVVSKO',
+        'OKSVPPPPPPPPVSKO', 'OKSVPPHPPHPPPVSO', 'OKSVPPPPPPPPVSKO', 'OKSVPHPPPPHPVSKO',
+        'OKSVPPPPPPPPVSKO', 'OKSVPPHPPPPPVSKO', 'OKSVPPPPPHPPVSKO', 'OKSVVVVVVVVVVSKO',
+        'OKSSSSSSSSSSSSKO', 'OKKKKKKKKKKKKKKO', 'OKKKKKKKKKKKKKKO', 'OOOOOOOOOOOOOOOO'] },
+    { name: 'Weizenfeld', pal: { O: [40, 28, 34], S: [140, 190, 232], W: [244, 248, 252],
+        G: [214, 186, 92], D: [176, 148, 64], H: [92, 148, 62], E: [110, 78, 48] },
+      rows: [
+        'OOOOOOOOOOOOOOOO', 'OSSSSSSSSSSSSSSO', 'OSSSWSSSSSSWSSSO', 'OSSSSSSSSSSSSSSO',
+        'OHHHHHHHHHHHHHHO', 'OGGDGGGDGGGDGGGO', 'OGGGGDGGGDGGGDGO', 'ODGGGGGDGGGGDGGO',
+        'OGGDGGGGGGDGGGGO', 'OGDGGGDGGGGGDGGO', 'OGGGGGGGDGGGGGGO', 'OEEEEEEEEEEEEEEO',
+        'OEEDEEEEEEEEDEEO', 'OEEEEEEDEEEEEEEO', 'OEEEEEEEEEEEEEEO', 'OOOOOOOOOOOOOOOO'] }
+  ];
+  T.GEMAELDE = GEMAELDE;
+  GEMAELDE.forEach(function (m, i) {
+    tex('painting_' + i, function (g) { g.fill([0, 0, 0], 0); g.art(m.rows, m.pal); });
+  });
+
+  // Das Schild als Item: Brett auf einem Stiel
+  itemArt('sign', [
+    '................', '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvWvvWvvWO..',
+    '..OWWWWWWWWWWO..', '..OWvvWvvvWvWO..', '..OWWWWWWWWWWO..', '..OOOOOOOOOOOO..',
+    '......OvvO......', '......OvvO......', '......OvvO......', '......OvvO......',
+    '......OvvO......', '......OvvO......', '......OOOO......', '................'
+  ], itemPal([164, 134, 88]));
+
+  // Der Bilderrahmen als Item
+  itemArt('item_frame', [
+    '................', '.OOOOOOOOOOOOOO.', '.OWWWWWWWWWWWWO.', '.OWOOOOOOOOOOWO.',
+    '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.',
+    '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWONNNNNNNNOWO.', '.OWOOOOOOOOOOWO.',
+    '.OWWWWWWWWWWWWO.', '.OOOOOOOOOOOOOO.', '................', '................'
+  ], itemPal([164, 134, 88]));
+
+  // Das Gemälde als Item: Leinwand mit angedeutetem Motiv
+  itemArt('painting', [
+    '................', '.OOOOOOOOOOOOOO.', '.OWWWWWWWWWWWWO.', '.OWvvvvvvvvvvWO.',
+    '.OWvYYYYvvvvvWO.', '.OWvYYYYvvvvvWO.', '.OWvvvvvvGGvvWO.', '.OWvvvvvGGGGvWO.',
+    '.OWvvvvGGGGGGWO.', '.OWvvvGGGGGGGWO.', '.OWvvvvvvvvvvWO.', '.OWWWWWWWWWWWWO.',
+    '.OOOOOOOOOOOOOO.', '................', '................', '................'
+  ], itemPal([164, 134, 88]));
+
+  // ============================================================
   //  ZUGRIFF
   // ============================================================
   T.names = names;

@@ -99,6 +99,11 @@
   // Es gibt keine Textur namens "redstone" – der Staub heißt redstone_dust.
   // Ohne das war das Item im Inventar wie am Boden ein weißer Fleck.
   I.byName['redstone'].iconTex = 'redstone_dust';
+  // Schild, Rahmen und Gemälde sehen als Würfel falsch aus — sie bekommen ihr
+  // eigenes Symbol.
+  ['sign', 'item_frame', 'painting'].forEach(function (n) {
+    if (I.byName[n]) I.byName[n].iconTex = n;
+  });
   I.byName['redstone'].tex = 'redstone_dust';
   I.byName['redstone'].group = 'redstone';
   if (I.byName['tnt']) I.byName['tnt'].group = 'redstone';

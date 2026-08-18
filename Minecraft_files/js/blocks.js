@@ -33,6 +33,10 @@
   B.SHAPE_REPEATER = 22; // Verstärker
   B.SHAPE_ANVIL = 23;    // gestapelte Quader: Fuß, Taille, Hals, Bahn
   B.SHAPE_PISTON_HEAD = 25;  // Schubplatte plus Stange, gedreht nach Blickrichtung
+  B.SHAPE_SIGN = 26;         // stehendes Schild: Pfosten und Brett
+  B.SHAPE_SIGN_WALL = 27;    // Schild an der Wand
+  B.SHAPE_FRAME = 28;        // Bilderrahmen an der Wand
+  B.SHAPE_PAINTING = 29;     // Gemälde an der Wand
 
   // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
   // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
@@ -684,6 +688,34 @@
     tex: { top: 'bed_top', bottom: 'planks_oak', side: 'bed_side' }, item: false, group: 'werkzeug'
   });
 
+  // ---------- Schilder, Rahmen, Gemälde ----------
+  // ACHTUNG: neue Blöcke gehören ans ENDE der Liste. Ein Spielstand speichert
+  // die Blocknummer, nicht den Namen — ein Block in der Mitte verschiebt alle
+  // dahinter und macht jede alte Welt unbrauchbar.
+  // Alle drei tragen ihren Inhalt nicht in der Blockdefinition, sondern in
+  // einer Blockentität — den Text eines Schildes, das Item im Rahmen. Gezeigt
+  // wird er über den Atlas aus dyntex.js.
+  define('sign', {
+    title: 'Schild', shape: B.SHAPE_SIGN, opaque: false, collide: false, opacity: 0,
+    hardness: 1, tool: 'axe', tex: 'planks_oak', sound: 'wood', flammable: true, group: 'bau'
+  });
+  define('wall_sign', {
+    title: 'Wandschild', shape: B.SHAPE_SIGN_WALL, opaque: false, collide: false, opacity: 0,
+    hardness: 1, tool: 'axe', tex: 'planks_oak', drop: 'sign', item: false,
+    sound: 'wood', flammable: true, group: 'bau'
+  });
+  define('item_frame', {
+    title: 'Bilderrahmen', shape: B.SHAPE_FRAME, opaque: false, collide: false, opacity: 0,
+    hardness: 0.3, tex: 'item_frame', sound: 'wood', flammable: true, group: 'bau'
+  });
+  define('painting', {
+    title: 'Gemälde', shape: B.SHAPE_PAINTING, opaque: false, collide: false, opacity: 0,
+    hardness: 0.3, tex: { all: 'painting_back', side: 'painting_back', top: 'painting_back',
+                          bottom: 'painting_back', front: 'painting_0' },
+    sound: 'wood', flammable: true, group: 'bau'
+  });
+
+
   // ---------- Helfer ----------
   B.get = function (id) { return B.byId[id] || B.byId[0]; };
   B.id = function (name) { var b = B.byName[name]; return b ? b.id : 0; };
@@ -735,6 +767,72 @@
 
   // Waagerechte Nachbarrichtungen, Reihenfolge = Meta 0..3 bei Leiter und Fackel
   B.SIDE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+  // Meta einer Wandrichtung -> Flächennummer im Mesher (0=+X 1=-X 2=+Y 3=-Y 4=+Z 5=-Z)
+  B.SIDE_FACE = [5, 0, 4, 1];
+
+  // ============================================================
+  //  Schild, Rahmen, Gemälde
+  // ============================================================
+  // Für alle drei gilt dasselbe: meta & 3 ist die Richtung, in die das Ding
+  // BLICKT — ein Wandstück hängt also an der Wand gegenüber. Die Geometrie
+  // steht ausgeschrieben statt gedreht gerechnet; vier Zeilen liest man nach,
+  // eine Rotationsmatrix nicht.
+  //
+  // Blickrichtung nach SIDE_DIRS: 0 = -Z, 1 = +X, 2 = +Z, 3 = -X.
+  // r ist "rechts" aus Sicht dessen, der davorsteht und liest.
+  B.SCHILD_N = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0]];
+  B.SCHILD_R = [[-1, 0, 0], [0, 0, -1], [1, 0, 0], [0, 0, 1]];
+
+  B.schildBoxen = function (shape, meta) {
+    var m = meta & 3;
+    var laengs = (m === 1 || m === 3);   // Brett verläuft in Z statt in X
+    if (shape === B.SHAPE_SIGN) {
+      return [
+        [0.45, 0, 0.45, 0.55, 0.52, 0.55],
+        laengs ? [0.44, 0.5, 0.06, 0.56, 1, 0.94] : [0.06, 0.5, 0.44, 0.94, 1, 0.56]
+      ];
+    }
+    var d = shape === B.SHAPE_SIGN_WALL ? 0.12 : 0.0625;
+    var y0 = shape === B.SHAPE_SIGN_WALL ? 0.28 : 0.03;
+    var y1 = shape === B.SHAPE_SIGN_WALL ? 0.9 : 0.97;
+    var q0 = shape === B.SHAPE_SIGN_WALL ? 0.06 : 0.03;
+    var q1 = shape === B.SHAPE_SIGN_WALL ? 0.94 : 0.97;
+    // Das Brett liegt an der Wand, also gegenüber der Blickrichtung
+    if (m === 0) return [[q0, y0, 1 - d, q1, y1, 1]];
+    if (m === 1) return [[0, y0, q0, d, y1, q1]];
+    if (m === 2) return [[q0, y0, 0, q1, y1, d]];
+    return [[1 - d, y0, q0, 1, y1, q1]];
+  };
+
+  // Die beschriftbare Fläche: Ursprung oben links, u nach rechts, v nach
+  // unten, alles relativ zur Blockzelle. Damit zeichnet der Renderer ein
+  // Viereck, ohne die Formen noch einmal zu kennen.
+  B.schildFlaeche = function (shape, meta) {
+    var m = meta & 3;
+    var n = B.SCHILD_N[m], r = B.SCHILD_R[m];
+    var breite, hoch, cy, vor;
+    if (shape === B.SHAPE_SIGN) { breite = 0.86; hoch = 0.46; cy = 0.75; vor = 0.065; }
+    else if (shape === B.SHAPE_SIGN_WALL) { breite = 0.86; hoch = 0.58; cy = 0.59; vor = -0.375; }
+    // Der Rahmen ist nur ein Sechzehntel dick: sein Bild muss knapp VOR der
+    // Vorderkante liegen, sonst verschluckt ihn das eigene Brett.
+    else if (shape === B.SHAPE_FRAME) { breite = 0.7; hoch = 0.7; cy = 0.5; vor = -0.4315; }
+    else { breite = 0.94; hoch = 0.94; cy = 0.5; vor = -0.44; }
+    var o = [0.5 + n[0] * vor, cy, 0.5 + n[2] * vor];
+    return {
+      o: [o[0] - r[0] * breite / 2, o[1] + hoch / 2, o[2] - r[2] * breite / 2],
+      u: [r[0] * breite, 0, r[2] * breite],
+      v: [0, -hoch, 0]
+    };
+  };
+
+  // Hängt das Ding noch? Ein Wandstück braucht seine Wand, ein stehendes
+  // Schild seinen Boden.
+  B.schildHaelt = function (getBlock, shape, x, y, z, meta) {
+    if (shape === B.SHAPE_SIGN) return B.isSolid(getBlock(x, y - 1, z));
+    var g = B.SIDE_DIRS[((meta & 3) + 2) & 3];
+    return B.isOpaque(getBlock(x + g[0], y, z + g[1]));
+  };
 
   // Fackel-Meta: 0 = auf dem Boden, 1..4 = an der Wand in Richtung SIDE_DIRS[meta-1].
   // Liefert die Richtung zur tragenden Wand oder null für eine Standfackel.
@@ -857,6 +955,10 @@
         return [B.doorBox(meta)];
       case B.SHAPE_GATE:
         return B.gateOpen(meta) ? null : [B.gateBox(meta)];
+      case B.SHAPE_SIGN:
+      case B.SHAPE_SIGN_WALL:
+      case B.SHAPE_FRAME:
+      case B.SHAPE_PAINTING:
       case B.SHAPE_LADDER:
       case B.SHAPE_FIRE:
       case B.SHAPE_PORTAL:
@@ -897,6 +999,10 @@
       case B.SHAPE_WIRE: return [0, 0, 0, 1, 0.0625, 1];
       case B.SHAPE_PLATE: return [0, 0, 0, 1, 0.0625, 1];
       case B.SHAPE_REPEATER: return [0, 0, 0, 1, 0.125, 1];
+      case B.SHAPE_SIGN: return (meta & 1) ? [0.4, 0, 0.05, 0.6, 1, 0.95] : [0.05, 0, 0.4, 0.95, 1, 0.6];
+      case B.SHAPE_SIGN_WALL:
+      case B.SHAPE_FRAME:
+      case B.SHAPE_PAINTING: return B.schildBoxen(b.shape, meta)[0];
       case B.SHAPE_BUTTON: return B.buttonBox(meta);
       case B.SHAPE_LEVER: return B.leverBox(meta);
       default: return [0, 0, 0, 1, 1, 1];

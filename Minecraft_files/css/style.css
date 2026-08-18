@@ -912,3 +912,32 @@ canvas#gl {
   border: 2px solid; border-color: #c6c6c6 #2b2b2b #2b2b2b #c6c6c6;
   text-shadow: 1px 1px 0 #2a2a2a;
 }
+
+/* ---------- Schild beschriften ---------- */
+/* Vier Zeilen, sonst nichts. Das Fenster soll aussehen wie das Brett, das man
+   gerade beschriftet, darum die helle Holzfarbe hinter den Zeilen. */
+#schildfenster {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 380px; max-width: 94vw; z-index: 45; pointer-events: auto;
+  background: rgba(12,12,12,.94); border: 2px solid;
+  border-color: #c6c6c6 #2b2b2b #2b2b2b #c6c6c6;
+  padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  font-size: 12px; color: #ddd; text-shadow: 1px 1px 0 #000;
+}
+.schildkopf { font-size: 14px; color: #fff; margin-bottom: 4px; }
+.schildzeile {
+  background: #b79b6b; border: 2px solid;
+  border-color: #8a7247 #d8c197 #d8c197 #8a7247;
+  color: #2a1d10; font-family: inherit; font-size: 13px; padding: 6px;
+  outline: none; text-align: center; text-shadow: none;
+}
+.schildzeile:focus { background: #c9ab77; }
+.schildreihe { display: flex; gap: 8px; margin-top: 4px; }
+.schildreihe button {
+  flex: 1; padding: 8px; font-family: inherit; font-size: 12px; color: #ddd;
+  background: linear-gradient(#8b8b8b, #6d6d6d); cursor: pointer;
+  border: 2px solid; border-color: #c6c6c6 #2b2b2b #2b2b2b #c6c6c6;
+  text-shadow: 1px 1px 0 #2a2a2a;
+}
+.schildreihe button:hover { background: linear-gradient(#a3b18a, #7e9160); color: #fff; }
+.schildhilfe { font-size: 11px; opacity: .55; }

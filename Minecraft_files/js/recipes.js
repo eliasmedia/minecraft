@@ -75,6 +75,10 @@
   shaped(['PP', 'PP', 'PP'], { P: '#planks' }, 'door_oak', 3);
   shaped(['II', 'II', 'II'], { I: 'iron_ingot' }, 'door_iron', 3);
   shaped(['S S', 'SSS', 'S S'], { S: 'stick' }, 'ladder', 3);
+  // Schild, Rahmen, Gemälde — die drei Wanddinge
+  shaped(['PPP', 'PPP', ' S '], { P: '#planks', S: 'stick' }, 'sign', 3);
+  shaped(['SSS', 'SLS', 'SSS'], { S: 'stick', L: 'leather' }, 'item_frame', 1);
+  shaped(['SSS', 'SWS', 'SSS'], { S: 'stick', W: '#wool' }, 'painting', 1);
   woods.forEach(function (wd) {
     shaped(['PSP', 'PSP'], { P: 'planks_' + wd, S: 'stick' }, 'fence_' + wd, 3);
     shaped(['SPS', 'SPS'], { P: 'planks_' + wd, S: 'stick' }, 'gate_' + wd, 1);

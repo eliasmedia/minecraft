@@ -49,12 +49,16 @@
     'precision highp float; precision highp sampler2DArray;',
     'in vec3 vUVW; in float vLight; in float vFog; in float vShade;',
     'uniform sampler2DArray uTex; uniform vec3 uFogColor; uniform vec4 uTint; uniform float uAlphaTest;',
+    // Der zweite Weg zur Textur: der Atlas für alles, was sich zur Laufzeit
+    // ändert (Schildtext, Karte im Rahmen). Eine Uniform statt eines zweiten
+    // Programms - Nebel, Licht und Alphatest sind dieselben.
+    'uniform sampler2D uDyn; uniform float uUseDyn;',
     'out vec4 outColor;',
     'void main(){',
     // Leichte LOD-Verschiebung: waehlt die schaerfere Mipmapstufe,
     // solange sie noch vertretbar ist. Zusammen mit TEXTURE_MAX_LOD
     // und voller Anisotropie ist das der Schaerfegewinn in der Ferne.
-    '  vec4 c = texture(uTex, vUVW, -0.5);',
+    '  vec4 c = uUseDyn > 0.5 ? texture(uDyn, vUVW.xy) : texture(uTex, vUVW, -0.5);',
     '  if (c.a < uAlphaTest) discard;',
     '  c.rgb *= vLight * vShade;',
     '  c *= uTint;',
@@ -220,6 +224,33 @@
     // Schaerfegewinn kommt ohnehin aus TEXTURE_MAX_LOD und der
     // LOD-Verschiebung im Shader, nicht aus der Anisotropie.
     this.texArray = tex;
+    this.buildDynTexture();
+  };
+
+  // Der Atlas für zur Laufzeit gezeichnete Kacheln. Er liegt dauerhaft auf
+  // Einheit 1, damit kein Umbinden nötig ist: das Umschalten macht uUseDyn.
+  Renderer.prototype.buildDynTexture = function () {
+    var gl = this.gl, D = MC.DynTex;
+    var t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, D.SIZE, D.SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0);
+    this.dynTex = t;
+
+    var self = this;
+    D.hoch = function (platz, canvas) {
+      var p = D.pos(platz);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, self.dynTex);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, p[0], p[1], gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      gl.activeTexture(gl.TEXTURE0);
+    };
   };
 
   Renderer.prototype.buildIndexBuffer = function (quads) {
@@ -473,6 +504,11 @@
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texArray);
     gl.uniform1i(mp.u.uTex, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.dynTex);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(mp.u.uDyn, 1);
+    gl.uniform1f(mp.u.uUseDyn, 0);
     gl.uniformMatrix4fv(mp.u.uMVP, false, this.vp);
     gl.uniform3f(mp.u.uCam, camX, camY, camZ);
     gl.uniform1f(mp.u.uDaylight, daylight);
@@ -673,6 +709,8 @@
     }
     // In der Außenansicht sieht man sich selbst
     if (game.camMode && !game.panorama && game.mode !== 'spectator') this.drawSpieler(game);
+    // Schildtext, Karte im Rahmen: alles, was aus dem Atlas kommt
+    if (MC.Schilder) MC.Schilder.zeichnen(this, game);
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
   };
 
