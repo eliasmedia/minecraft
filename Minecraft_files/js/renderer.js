@@ -397,9 +397,29 @@
     this.resize();
 
     var eyeY = p.eyeY() + (game.camBob || 0);
+
+    // ---- Kamera ----
+    // Die Außenansicht versetzt ausschließlich die Kamera. Gezielt, geschlagen
+    // und gesetzt wird weiterhin vom Auge aus — jeder Raycast im Spiel geht von
+    // p.eyeY() aus, keiner von hier. Genau deshalb ändert die Ansicht am Spiel
+    // selbst gar nichts.
+    var sicht = game.panorama ? 0 : (game.camMode || 0);
+    var camX = p.x, camY = eyeY, camZ = p.z, camYaw = p.yaw, camPitch = p.pitch;
+    if (sicht) {
+      var vor = U.dirFromAngles(p.yaw, p.pitch);
+      var vz = sicht === 2 ? 1 : -1;            // 2 = von vorne, 1 = von hinten
+      var ab = this.camAbstand(world, p.x, eyeY, p.z, vor.x * vz, vor.y * vz, vor.z * vz, 4);
+      camX = p.x + vor.x * vz * ab;
+      camY = eyeY + vor.y * vz * ab;
+      camZ = p.z + vor.z * vz * ab;
+      if (sicht === 2) { camYaw = p.yaw + Math.PI; camPitch = -p.pitch; }
+    }
+    this.camPos = this.camPos || [0, 0, 0];
+    this.camPos[0] = camX; this.camPos[1] = camY; this.camPos[2] = camZ;
+
     var near = 0.08, far = Math.max(64, this.renderDistance * CS * 1.9);
     M4.perspective(this.proj, (this.fov + (p.sprinting ? 6 : 0)) * Math.PI / 180, this.aspect, near, far);
-    M4.fpsView(this.view, p.x, eyeY, p.z, p.yaw, p.pitch);
+    M4.fpsView(this.view, camX, camY, camZ, camYaw, camPitch);
     if (game.camShake > 0) {
       M4.rotateZ(this.view, this.view, (Math.random() - 0.5) * game.camShake * 0.08);
     }
@@ -432,7 +452,7 @@
       var sd = this.sunDir(world);
       var l = Math.sqrt(sd[0] * sd[0] + sd[1] * sd[1] + sd[2] * sd[2]);
       gl.uniformMatrix4fv(this.progSky.u.uInvVP, false, this.invVP);
-      gl.uniform3f(this.progSky.u.uCamPos, p.x, eyeY, p.z);
+      gl.uniform3f(this.progSky.u.uCamPos, camX, camY, camZ);
       gl.uniform3fv(this.progSky.u.uZenith, new Float32Array(sc.zenith));
       gl.uniform3fv(this.progSky.u.uHorizon, new Float32Array(sc.horizon));
       gl.uniform3f(this.progSky.u.uSunDir, sd[0] / l, sd[1] / l, sd[2] / l);
@@ -454,7 +474,7 @@
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texArray);
     gl.uniform1i(mp.u.uTex, 0);
     gl.uniformMatrix4fv(mp.u.uMVP, false, this.vp);
-    gl.uniform3f(mp.u.uCam, p.x, eyeY, p.z);
+    gl.uniform3f(mp.u.uCam, camX, camY, camZ);
     gl.uniform1f(mp.u.uDaylight, daylight);
     gl.uniform1f(mp.u.uAmbient, this.ambient(world));
     gl.uniform1f(mp.u.uFogNear, fogNear);
@@ -523,10 +543,25 @@
 
     // ---- Hand / gehaltenes Item ----
     // Im Startbildschirm sieht man die Welt, nicht die Hand des Spielers
-    if (game.mode !== 'spectator' && !game.hideHand && !game.panorama) this.renderHand(game, daylight);
+    if (game.mode !== 'spectator' && !game.hideHand && !game.panorama && !sicht) this.renderHand(game, daylight);
   };
 
   // ---------- Wolken ----------
+  // Wie weit die Kamera zurückweichen darf, ohne in der Wand zu stecken.
+  // Abgetastet statt geraycastet: die Kamera ist ein Punkt, und ein halber
+  // Block Sicherheitsabstand vor dem Treffer reicht, damit die Nahebene nicht
+  // durch die Mauer schaut.
+  Renderer.prototype.camAbstand = function (world, x, y, z, dx, dy, dz, max) {
+    for (var t = 0.15; t <= max; t += 0.12) {
+      var by = Math.floor(y + dy * t);
+      if (by < 0 || by >= WH) break;
+      if (B.isOpaque(world.getBlock(Math.floor(x + dx * t), by, Math.floor(z + dz * t)))) {
+        return Math.max(0.35, t - 0.35);
+      }
+    }
+    return max;
+  };
+
   Renderer.prototype.renderClouds = function (game, daylight, fogColor, fogNear, fogFar) {
     var gl = this.gl, p = game.player, mp = this.progMain;
     // Im Nether ist eine Decke aus Grundgestein, im Aether liegen die Wolken tief
@@ -636,7 +671,71 @@
         if (p.gravHelm && e.maxHp && !e.noHealthBar && dx * dx + dz * dz < 32 * 32) this.drawHealthBar(e);
       }
     }
+    // In der Außenansicht sieht man sich selbst
+    if (game.camMode && !game.panorama && game.mode !== 'spectator') this.drawSpieler(game);
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
+  };
+
+  // Die eigene Figur. Sie ist keine Entität in der Welt, sondern wird aus dem
+  // Spielerzustand zusammengesetzt — dasselbe Modell und dieselbe Animation,
+  // die auch jede Kreatur benutzt.
+  Renderer.prototype.drawSpieler = function (game) {
+    var p = game.player, world = game.world;
+    var lr = world.getLightRaw(Math.floor(p.x), Math.floor(p.y + 1), Math.floor(p.z));
+    var bl = (lr & 15) / 15, sl = ((lr >> 4) & 15) / 15;
+    var f = this._figur;
+    if (!f) f = this._figur = { mobType: 'player', model: MC.MODELS.player };
+    f.x = p.x; f.y = p.y - (p.sneaking ? 0.14 : 0); f.z = p.z;
+    f.yaw = p.yaw;
+    f.headYaw = p.yaw;
+    // Der Blick nach unten ist ein positiver Pitch, positives r.x kippt die
+    // Modellvorderseite aber nach oben — darum das umgedrehte Vorzeichen.
+    f.headPitch = -p.pitch;
+    f.walkTime = p.walkTime;
+    f.moving = (p.vx * p.vx + p.vz * p.vz) > 0.6;
+    f.hurtTime = p.hurtTime;
+    f.swing = p.swingTime;
+    f.age = game.time;
+    this.drawMob(f, bl, sl, game);
+    this.drawHeldItem(game, f, bl, sl);
+  };
+
+  // Das gehaltene Ding in der rechten Hand der Figur. Der Griffpunkt wird mit
+  // derselben Rechnung wie im Modell bestimmt: um den Drehpunkt des Arms
+  // kippen, skalieren, mit dem Körper drehen.
+  Renderer.prototype.drawHeldItem = function (game, f, bl, sl) {
+    var p = game.player;
+    var stack = p.inventory.selectedStack ? p.inventory.selectedStack() : null;
+    if (!stack) return;
+    var it = MC.Items.get(stack.id);
+    if (!it) return;
+
+    var armX = f.swing > 0 ? -Math.sin((1 - f.swing) * Math.PI) * 1.9
+                           : Math.sin(f.walkTime) * (f.moving ? 0.85 : 0) * 0.7;
+    var s = (MC.MODELS.player.scale || 1) / 16;
+    var pv = [-6, 23, 0];
+    var lx = -6 - pv[0], ly = 11.5 - pv[1], lz = -1.5 - pv[2];
+    var c = Math.cos(armX), si = Math.sin(armX);
+    var ry = ly * c - lz * si, rz = ly * si + lz * c;
+    lx += pv[0]; ry += pv[1]; rz += pv[2];
+    var yaw = f.yaw + Math.PI, cy = Math.cos(yaw), sy = Math.sin(yaw);
+    var wx = lx * s, wy = ry * s, wz = rz * s;
+    var hx = f.x + wx * cy + wz * sy, hy = f.y + wy, hz = f.z - wx * sy + wz * cy;
+
+    var n;
+    var blk = it.block && B.byName[it.block];
+    if (blk && FLAT_IN_HAND.indexOf(blk.shape) < 0) {
+      n = this.boxGeometry(0, [hx, hy, hz], 0.3, blk, 0, f.yaw, bl, sl);
+    } else {
+      var texName = it.tex;
+      if (blk) {
+        var bt = blk.tex;
+        if (T.has(it.name)) texName = it.name;
+        else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);
+      }
+      n = this.putItemMeshAt(this.itemMesh(texName), 0.4, bl, sl, hx, hy, hz, yaw, armX + 0.6);
+    }
+    this.drawDyn(n);
   };
 
   // Schwebender Lebensbalken über einer Kreatur, immer zur Kamera gedreht
@@ -893,6 +992,13 @@
         r.x = (mob.mobType === 'zombie' || mob.mobType === 'skeleton' || mob.mobType === 'villager_zombie')
           ? 1.45 + Math.sin(walk) * 0.12 : Math.sin(walk) * amp * 0.7;
         break;
+      // Der rechte Arm des Spielers: im Gehen pendelt er, beim Schlag holt er
+      // aus. Nur die Außenansicht sieht das — in der Ich-Ansicht macht das
+      // die Hand vor der Kamera.
+      case 'armSwingR':
+        r.x = mob.swing > 0 ? -Math.sin((1 - mob.swing) * Math.PI) * 1.9
+                            : Math.sin(walk) * amp * 0.7;
+        break;
       // Dorfbewohner halten die Arme vor dem Bauch verschränkt
       case 'armCross': r.x = 1.52; break;
       // Ghast und Zephyr lassen ihre Tentakel im Schweben pendeln
@@ -1086,6 +1192,22 @@
       d[i + 6] = bl;
       d[i + 7] = sl;
       d[i + 8] = mesh[i + 8];
+    }
+    return mesh.length;
+  };
+
+  // Wie putItemMesh, aber irgendwo in der Welt statt vor der Kamera.
+  Renderer.prototype.putItemMeshAt = function (mesh, scale, bl, sl, x, y, z, yaw, tilt) {
+    this.ensureDyn(mesh.length + 64);
+    var d = this.dynData;
+    var cy = Math.cos(yaw), sy = Math.sin(yaw), ct = Math.cos(tilt), st = Math.sin(tilt);
+    for (var i = 0; i < mesh.length; i += FPV) {
+      var px = mesh[i] * scale, py = mesh[i + 1] * scale, pz = mesh[i + 2] * scale;
+      var y1 = py * ct - pz * st, z1 = py * st + pz * ct;
+      var x2 = px * cy + z1 * sy, z2 = -px * sy + z1 * cy;
+      d[i] = x + x2; d[i + 1] = y + y1; d[i + 2] = z + z2;
+      d[i + 3] = mesh[i + 3]; d[i + 4] = mesh[i + 4]; d[i + 5] = mesh[i + 5];
+      d[i + 6] = bl; d[i + 7] = sl; d[i + 8] = mesh[i + 8];
     }
     return mesh.length;
   };

@@ -36,7 +36,8 @@ Minecraft_files/
 | | | `J` | Musik an/aus |
 | `Doppel-Leertaste` | Fliegen (Kreativ/Zuschauer) | `R` | Speichern |
 | `T` | Chat / Befehlszeile | `/` | Befehlszeile mit Schrägstrich |
-| `N` | Karte groß/klein | | |
+| `N` | Karte groß/klein | `F5` | Ansicht: Ich / hinten / vorne |
+| | | `F1` | Hand ein- und ausblenden |
 | `M` / `Esc` | Pause / Menü | | |
 
 `Esc` fängt der Browser oft selbst ab — es gibt den Mauszeiger frei und verlässt
@@ -118,6 +119,32 @@ jedem Aufruf aus zwei Dutzend wechselt und im Takt wippt. Die Knöpfe haben den
 hellen Rand oben links und den dunklen unten rechts, unten stehen in den beiden
 Ecken Fassung und Hinweis. Hotbar, Lebensbalken und Fadenkreuz sind auf dem
 Startbildschirm ausgeblendet.
+
+**Außenansicht** — `F5` schaltet der Reihe nach auf **Ich**, **hinter dir** und
+**von vorne**; am Handy sitzt der Knopf dafür oben links neben Menü und Chat.
+
+Das Bemerkenswerte daran ist, wie wenig sich dafür ändern musste: **es wandert
+nur die Kamera**. Gezielt, geschlagen und gesetzt wird weiterhin vom Auge aus —
+jeder Raycast im Spiel geht von `p.eyeY()` aus, keiner von der Kamera. Ein
+Block bricht also genau dort, wo er in der Ich-Ansicht auch gebrochen wäre.
+
+Die Kamera weicht bis zu vier Blöcke zurück und wird dabei **an Wänden
+gekürzt**: sie tastet den Weg nach hinten ab und bleibt einen guten Drittelblock
+vor dem ersten undurchsichtigen Block stehen — gemessen 4,0 im Freien und 0,35
+mit einer Wand direkt daneben. Ohne das schaut die Nahebene durch die Mauer, und
+man sieht das Innere des Berges.
+
+Die Figur ist **keine Entität in der Welt**, sondern wird jedes Bild aus dem
+Spielerzustand zusammengesetzt: dasselbe Modell und dieselbe Animationsmaschine,
+die jede Kreatur benutzt. Der Kopf dreht und neigt sich getrennt vom Körper, die
+Beine schwingen beim Laufen, der rechte Arm holt beim Schlag aus, geduckt sinkt
+die Figur ab. Das gehaltene Werkzeug hängt dabei wirklich in der rechten Hand —
+sein Griffpunkt kommt aus derselben Rechnung wie das Armmodell, also kippt es
+beim Ausholen mit. Rüstung trägt die Figur noch nicht; dafür bräuchte jedes Teil
+eine eigene Textur.
+
+In der Ich-Ansicht ändert sich nichts, in der Außenansicht bleibt die Hand vor
+der Kamera weg. `F1` blendet sie unabhängig davon aus — das lag vorher auf `F5`.
 
 **Herobrine** — die alte Legende, die auf die Anfangszeit von Minecraft
 zurückgeht: ein Screenshot, ein Forenbeitrag, eine Geschichte, die nie stimmte

@@ -179,7 +179,9 @@
     // Hotbar blättern: zwei Pfeile um eine Reihe Felder
     blaettern: svg('<path d="M5 8.5L1.5 12 5 15.5" /><path d="M19 8.5L22.5 12 19 15.5" />' +
                    '<rect x="7.5" y="8.5" width="4" height="7" /><rect x="12.5" y="8.5" width="4" height="7" />'),
-    info: svg('<circle cx="12" cy="12" r="8.5" /><path d="M12 11v5" /><path d="M12 7.6v.9" />')
+    info: svg('<circle cx="12" cy="12" r="8.5" /><path d="M12 11v5" /><path d="M12 7.6v.9" />'),
+    // Ansicht: eine Kamera — Gehäuse, Sucher, Linse
+    kamera: svg('<path d="M3.5 7.5h4l1.5-2h6l1.5 2h4v11h-17z" /><circle cx="12" cy="13" r="3.2" />')
   };
 
   // `zieht: true` heißt: der Finger darf vom Knopf wegwandern und dreht dabei
@@ -188,6 +190,7 @@
   var KNOEPFE = [
     { id: 'menu',   ecke: 'ol', sym: 'balken',    titel: 'Menü' },
     { id: 'chat',   ecke: 'ol', sym: 'blase',     titel: 'Chat und Befehle' },
+    { id: 'sicht',  ecke: 'ol', sym: 'kamera',    titel: 'Ansicht wechseln' },
     { id: 'leiste', ecke: 'or', sym: 'blaettern', titel: 'Halten und wischen: Schnellleiste', wischt: true },
     { id: 'debug',  ecke: 'or', sym: 'info',      titel: 'Debug' },
     { id: 'aktion', ecke: 'ur', sym: 'hacke',     titel: 'Abbauen und Angreifen', halt: true, gross: true, zieht: true },
@@ -484,6 +487,7 @@
       case 'chat':  if (!an) M.taste('KeyT'); break;
       case 'leiste': break;                       // wirkt nur übers Wischen
       case 'debug': if (!an) M.taste('F3'); break;
+      case 'sicht': if (!an) M.taste('F5'); break;
       case 'menu':  if (!an) M.taste('KeyM'); break;
     }
   };

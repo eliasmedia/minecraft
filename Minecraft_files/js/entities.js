@@ -966,7 +966,7 @@
       parts: [
         part('head', { all: 'player_skin', front: 'player_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
         part('body', 'player_skin', -4, 12, -2, 8, 12, 4),
-        part('armR', 'mob_player_arm', -8, 12, -2, 4, 12, 4, 'armZ', [-6, 23, 0]),
+        part('armR', 'mob_player_arm', -8, 12, -2, 4, 12, 4, 'armSwingR', [-6, 23, 0]),
         part('armL', 'mob_player_arm', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
         part('legR', 'player_skin', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
         part('legL', 'player_skin', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])

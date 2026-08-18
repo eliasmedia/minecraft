@@ -23,7 +23,7 @@
     this.sprintToggle = false;
 
     window.addEventListener('keydown', function (e) {
-      if (e.code === 'F3' || e.code === 'Tab') e.preventDefault();
+      if (e.code === 'F3' || e.code === 'F1' || e.code === 'F5' || e.code === 'Tab') e.preventDefault();
       // Die Leertaste scrollt sonst die Seite oder drückt einen Knopf, der noch
       // den Fokus hat – der Sprung geht dann verloren. Dasselbe gilt für die
       // Pfeiltasten. Nur solange gespielt wird, damit Eingabefelder frei bleiben.
@@ -117,6 +117,8 @@
     this.damageFlash = 0;
     this.camShake = 0;
     this.camBob = 0;
+    // Ansicht: 0 = Ich, 1 = hinter dem Spieler, 2 = von vorne
+    this.camMode = 0;
     this.target = null;
     this.mining = null;
     this.sensitivity = 0.0022;
@@ -1397,7 +1399,11 @@
         this.setMode(MC.MODI[(MC.MODI.indexOf(this.mode) + 1) % MC.MODI.length]);
         this.ui.toast('Modus: ' + MC.MODUS_NAME[this.mode]);
         break;
-      case 'F5': this.hideHand = !this.hideHand; break;
+      case 'F5':
+        this.camMode = (this.camMode + 1) % 3;
+        this.ui.toast('Ansicht: ' + ['Ich', 'Hinter dir', 'Von vorne'][this.camMode]);
+        break;
+      case 'F1': this.hideHand = !this.hideHand; break;
       case 'Space':
         var now = performance.now();
         if (this.mode === 'creative' && now - (this.input.lastSpace || 0) < 320) {
