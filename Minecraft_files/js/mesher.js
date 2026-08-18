@@ -281,6 +281,23 @@
               break;
             }
 
+            case B.SHAPE_HOPPER: {
+              // Rand oben, Trog darunter, Auslauf in Richtung des Metas
+              emitBoxCulled(buf, x, y, z, [0, 0.625, 0, 1, 1, 1], block, meta, 0);
+              emitBoxCulled(buf, x, y, z, [0.25, 0.25, 0.25, 0.75, 0.625, 0.75], block, meta, 0);
+              var hd = B.hopperDir(meta);
+              if (hd[1] < 0) {
+                emitBoxCulled(buf, x, y, z, [0.375, 0, 0.375, 0.625, 0.25, 0.625], block, meta, 0);
+              } else {
+                var a0 = 0.375 + hd[0] * 0.3125, b0 = 0.375 + hd[2] * 0.3125;
+                emitBoxCulled(buf, x, y, z,
+                  [Math.min(0.375, a0), 0.25, Math.min(0.375, b0),
+                   Math.max(0.625, a0 + 0.25), 0.5, Math.max(0.625, b0 + 0.25)],
+                  block, meta, 0);
+              }
+              break;
+            }
+
             case B.SHAPE_CAULDRON: {
               // Boden, vier Wände und, wenn Wasser drin steht, dessen Fläche
               emitBoxCulled(buf, x, y, z, [0, 0, 0, 1, 0.25, 1], block, meta, 0);

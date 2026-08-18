@@ -1394,12 +1394,17 @@
     this.slotList = [];
     this.chest = te;
     var win = el('div', 'window', this.screen);
-    var head = el('div', 'wtitle', win); head.textContent = 'Truhe';
+    var TITEL = { chest: 'Truhe', hopper: 'Trichter', dropper: 'Werfer' };
+    var head = el('div', 'wtitle', win);
+    head.textContent = TITEL[te.type] || 'Truhe';
     var close = el('div', 'wclose', head); close.textContent = '✕';
     close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
 
+    // Die Fachzahl steht am Behälter, nicht im Fenster — ein Trichter hat
+    // fünf, ein Werfer neun, eine Truhe siebenundzwanzig.
     var grid = el('div', 'invgrid', win);
-    for (var i = 0; i < 27; i++) {
+    if (te.items.length <= 9) grid.classList.add('klein');
+    for (var i = 0; i < te.items.length; i++) {
       (function (ci) {
         self.makeSlot(grid, function () { return te.items[ci]; }, function (v) { te.items[ci] = v; }, { area: 'ext' });
       })(i);

@@ -2308,6 +2308,39 @@
   ], itemPal([188, 190, 198]));
 
   // ============================================================
+  //  LOGISTIK
+  // ============================================================
+  // Trichter und Werfer sind Eisenzeug: dunkler als Stein, mit einer Kante,
+  // die man auch aus drei Blöcken Entfernung noch sieht.
+  var EISEN = greys([62, 78, 96, 118, 142]);
+  tex('hopper_side', function (g) {
+    g.fill(EISEN[2]);
+    g.qn([EISEN[1], EISEN[2], EISEN[3]], 0.55);
+    g.rect(0, 0, 16, 1, EISEN[4]);
+    g.rect(0, 5, 16, 1, EISEN[0]);
+    g.rect(5, 6, 6, 10, EISEN[1]);
+    g.frame(5, 6, 6, 10, EISEN[0]);
+  });
+  tex('hopper_top', function (g) {
+    g.fill(EISEN[3]);
+    g.qn([EISEN[2], EISEN[3], EISEN[4]], 0.5);
+    g.rect(2, 2, 12, 12, [22, 24, 28]);
+    g.frame(2, 2, 12, 12, EISEN[1]);
+  });
+  tex('hopper_inner', function (g) { g.fill(EISEN[1]); g.qn([EISEN[0], EISEN[1], EISEN[2]], 0.5); });
+
+  tex('dropper_side', function (g) {
+    g.copyFrom(data('cobblestone'));
+    g.rect(0, 0, 16, 1, P.cobble[4]);
+  });
+  tex('dropper_front', function (g) {
+    g.copyFrom(data('cobblestone'));
+    g.rect(4, 4, 8, 8, [26, 26, 30]);
+    g.frame(4, 4, 8, 8, EISEN[1]);
+    g.rect(6, 6, 4, 4, EISEN[0]);
+  });
+
+  // ============================================================
   //  WETTER
   // ============================================================
   // Beschneites Gras: dieselbe Grasnarbe, nur unter einer Schneedecke. Die

@@ -941,3 +941,7 @@ canvas#gl {
 }
 .schildreihe button:hover { background: linear-gradient(#a3b18a, #7e9160); color: #fff; }
 .schildhilfe { font-size: 11px; opacity: .55; }
+
+/* Ein Trichter hat fünf Fächer, ein Werfer neun — das Gitter darf dafür
+   nicht auf neun Spalten aufgezogen bleiben wie bei der Truhe. */
+.invgrid.klein { grid-template-columns: repeat(5, auto); }

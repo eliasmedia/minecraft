@@ -75,6 +75,9 @@
   shaped(['PP', 'PP', 'PP'], { P: '#planks' }, 'door_oak', 3);
   shaped(['II', 'II', 'II'], { I: 'iron_ingot' }, 'door_iron', 3);
   shaped(['S S', 'SSS', 'S S'], { S: 'stick' }, 'ladder', 3);
+  // Logistik: Trichter und Werfer
+  shaped(['I I', 'ICI', ' I '], { I: 'iron_ingot', C: 'chest' }, 'hopper', 1);
+  shaped(['CCC', 'C C', 'CRC'], { C: 'cobblestone', R: 'redstone' }, 'dropper', 1);
   // Sattel: drei Leder und zwei Eisenbarren als Bügel
   shaped(['LLL', 'I I'], { L: 'leather', I: 'iron_ingot' }, 'saddle', 1);
   // Schild, Rahmen, Gemälde — die drei Wanddinge

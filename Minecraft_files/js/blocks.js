@@ -38,6 +38,7 @@
   B.SHAPE_FRAME = 28;        // Bilderrahmen an der Wand
   B.SHAPE_PAINTING = 29;     // Gemälde an der Wand
   B.SHAPE_CAULDRON = 30;     // Kessel: Wanne mit Wasserstand in Meta 0..3
+  B.SHAPE_HOPPER = 31;       // Trichter: Rand, Trog und Auslauf
 
   // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
   // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
@@ -720,6 +721,27 @@
   });
 
 
+  // ---------- Logistik ----------
+  // Der Auslauf des Trichters: Meta 0 zeigt nach unten, 1..4 zur Seite in
+  // Richtung SIDE_DIRS[meta-1]. Dieselbe Zählweise wie bei der Wandfackel.
+  B.hopperDir = function (meta) {
+    var m = meta & 7;
+    if (!m) return [0, -1, 0];
+    var d = B.SIDE_DIRS[(m - 1) & 3];
+    return [d[0], 0, d[1]];
+  };
+
+  define('hopper', {
+    title: 'Trichter', shape: B.SHAPE_HOPPER, opaque: false, hardness: 3, tool: 'pickaxe', level: 1,
+    tex: { top: 'hopper_top', side: 'hopper_side', bottom: 'hopper_side' },
+    sound: 'stone', group: 'redstone'
+  });
+  define('dropper', {
+    title: 'Werfer', hardness: 3.5, tool: 'pickaxe', level: 1, piston6: true,
+    tex: { top: 'dropper_side', side: 'dropper_side', bottom: 'dropper_side', front: 'dropper_front' },
+    sound: 'stone', group: 'redstone'
+  });
+
   // ---------- Wetter ----------
   // Beschneites Gras ist ein eigener Block, keine Schneeschicht darüber: das
   // Wetter soll Zustände ändern und nichts platzieren. Abgebaut fällt Erde,
@@ -961,6 +983,11 @@
         return [[0.125, 0, 0.0625, 0.875, 1, 0.9375]];
       case B.SHAPE_STAND:
         return [[0.125, 0, 0.125, 0.875, 0.875, 0.875]];
+      case B.SHAPE_HOPPER:
+        // Rand und Trog: man steht auf ihm, aber die Mitte ist offen
+        return [[0, 0, 0, 1, 0.625, 1],
+                [0, 0.625, 0, 1, 1, 0.125], [0, 0.625, 0.875, 1, 1, 1],
+                [0, 0.625, 0.125, 0.125, 1, 0.875], [0.875, 0.625, 0.125, 1, 1, 0.875]];
       case B.SHAPE_CAULDRON:
         // Boden und vier Wände — man steht im Kessel, nicht auf ihm
         return [[0, 0, 0, 1, 0.25, 1],
@@ -1009,6 +1036,7 @@
       case B.SHAPE_FARMLAND: return [0, 0, 0, 1, 0.9375, 1];
       case B.SHAPE_ANVIL: return [0.125, 0, 0.0625, 0.875, 1, 0.9375];
       case B.SHAPE_STAND: return [0.125, 0, 0.125, 0.875, 0.875, 0.875];
+      case B.SHAPE_HOPPER:
       case B.SHAPE_CAULDRON: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_PISTON_HEAD: return [0, 0, 0, 1, 1, 1];
       case B.SHAPE_LIQUID: return null;

@@ -875,6 +875,29 @@ Schleimball vom Magmawürfel. Die Bewegung selbst läuft ohne Zwischenbild — d
 Original schiebt sichtbar in zwei Ticks hinaus, dafür bräuchte jeder Block eine
 eigene Entität.
 
+**Trichter & Werfer** — Redstone konnte bisher schalten, aber nichts *bewegen*.
+Ohne Trichter bleibt jede Farm Handarbeit, und der Beobachter hatte gar keinen
+Abnehmer: er meldet eine Änderung, und niemand tat etwas damit.
+
+Der **Trichter** (fünf Eisenbarren um eine Truhe) zieht von oben, sammelt auf,
+was über seinem Rand liegt, und gibt nach unten oder zur Seite weiter — wohin,
+zeigt sein Auslauf, und der richtet sich beim Setzen nach der angeklickten
+Fläche. Ein Redstonesignal hält ihn an, wie im Original.
+
+Die Reihenfolge im Takt ist nicht beliebig: **erst hinausgeben, dann ziehen,
+dann aufsammeln.** Andersherum liefe ein Gegenstand in einem einzigen Takt
+durch, und der Trichter wäre kein Zwischenlager mehr, sondern ein Rohr.
+
+Der **Werfer** (acht Bruchsteine um ein Redstone) wirft auf die **steigende
+Flanke** eines Signals einen Gegenstand aus — nicht solange Strom anliegt, sonst
+wäre er in einem Takt leer.
+
+Beide hängen an derselben Blockentität wie die Truhe, `{ items: [...] }`. Genau
+darum arbeiten sie mit allem zusammen, was es schon gibt: Truhe, Ofen,
+Braustand, ein zweiter Trichter. Der Ofen bekommt dabei eine Sonderrolle, die
+sich aus seinem Aufbau ergibt — von oben kommt das Rohmaterial hinein, von der
+Seite der Brennstoff, von unten wird das Ergebnis herausgezogen.
+
 **Beobachter** — hängt nicht an der Aufladung, sondern an der Veränderung: er
 merkt sich den Block vor sich und gibt nach hinten einen kurzen Impuls ab, sobald
 der wechselt. Damit lässt sich automatisieren, ohne einen Fackeltaktgeber

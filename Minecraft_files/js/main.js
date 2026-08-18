@@ -779,6 +779,14 @@
         this.ui.openScreen('chest', this.chestTile(t.x, t.y, t.z));
         return;
       }
+      if (b.name === 'hopper' && MC.Logistik) {
+        this.ui.openScreen('chest', MC.Logistik.trichterDaten(w, t.x, t.y, t.z));
+        return;
+      }
+      if (b.name === 'dropper' && MC.Logistik) {
+        this.ui.openScreen('chest', MC.Logistik.werferDaten(w, t.x, t.y, t.z));
+        return;
+      }
       if (b.shape === B.SHAPE_ANVIL) {
         // Der Amboss merkt sich nichts: was drin liegt, kommt beim Schließen
         // zurück ins Inventar. Nur die Position braucht er, um sich abzunutzen.
@@ -1122,6 +1130,11 @@
       // Der Beobachter ist umgekehrt herum: er schaut in Blickrichtung, damit
       // er den Block im Auge hat, den man gerade ansieht.
       if (block.name === 'observer') meta = meta < 4 ? ((meta + 2) & 3) : (meta === 4 ? 5 : 4);
+    } else if (block.shape === B.SHAPE_HOPPER) {
+      // Der Auslauf zeigt dorthin, wohin man geklickt hat: auf die Oberseite
+      // eines Blocks gesetzt läuft er nach unten, an eine Wand zur Seite.
+      var hm = LADDER_META[t.face];
+      meta = (hm === undefined) ? 0 : ((hm + 2) & 3) + 1;
     } else if (block.shape === B.SHAPE_SIGN) {
       // Auf den Boden gesetzt steht das Schild, an eine Wand geklebt hängt es.
       // Beides ist derselbe Gegenstand — das ist im Original genauso.
@@ -2315,6 +2328,7 @@
       if (MC.Cmd) MC.Cmd.Block.tick(this, dt);
       if (MC.Herobrine) MC.Herobrine.tick(this, dt);
       if (MC.Wetter) MC.Wetter.tick(this, dt);
+      if (MC.Logistik) MC.Logistik.tick(this, dt);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }
