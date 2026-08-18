@@ -667,6 +667,35 @@ zerplatzt der **Aschenwicht** beim Tod in eine Aschewolke. Über den
 aber auf alles in neun Blöcken — ihre **Aechorschote** ist die Heiltrankzutat, mit
 der man den Aether nicht mehr verlassen muss.
 
+**Tiere gehören dir** — Schwein, Kuh, Schaf, Huhn, Moa, Phyg und Sheepuff haben
+jetzt ein **Futter**, das zu ihnen passt: Weizen für Kuh, Schaf und Sheepuff,
+Samen fürs Huhn, Äpfel für Schwein und Phyg, Blaubeeren für den Moa.
+
+Wer es in der Hand hält, wird **verfolgt**. Gemessen über je sechs Durchgänge aus
+acht Blöcken Abstand: mit Futter in der Hand steht das Tier nach fünf Sekunden im
+Mittel 1,5 Blöcke entfernt, ohne Futter 8,6 — es läuft dann einfach weiter
+umher. Damit lässt sich eine Herde ohne Zaun umsiedeln.
+
+**Zwei gefütterte Tiere derselben Art paaren sich.** Sie suchen einander, und wer
+in der Entitätenliste vorne steht, legt das Junge an — sonst kämen zwei heraus.
+Danach sind beide für anderthalb Minuten gesperrt. Ein **Junges ist halb so
+groß**, und zwar wirklich: Breite und Höhe sind die Trefferbox, es passt also
+durch niedrigere Lücken als seine Eltern. Nach fünf Minuten ist es erwachsen,
+Füttern verkürzt das. Es bleibt in der Nähe eines Erwachsenen seiner Art, und
+seine Wollfarbe würfelt es aus denen der Eltern.
+
+**Reiten** — der Moa im Aether. Er lässt sich nicht einfach besteigen: erst
+dreimal Blaubeeren, dann nimmt er den **Sattel** (drei Leder, zwei Eisenbarren),
+dann sitzt man auf. Gelenkt wird mit `W A S D` in Blickrichtung, `Leertaste`
+springt — und ein Moa springt 13,5 hoch statt 8,85, was im Aether der ganze
+Zweck der Übung ist. Schleichen steigt ab.
+
+Die Anbindung ist mit Absicht schlicht: **zwei Zeiger**, das Tier kennt seinen
+Reiter und der Reiter sein Tier. Wichtig ist nur, wer wen setzt — der Reiter wird
+vom Tier gesetzt, und zwar *nach* dessen Physik. Andersherum hinge die Kamera ein
+Bild hinterher und das Reiten ruckelte. Genau diese Anbindung brauchen später die
+Loren.
+
 **Mobs** — Schwein, Kuh, Schaf (16 Wollfarben, scherbar), Huhn, Zombie, Skelett
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
 Piglin, Ghast, Magmawürfel und die Lohe an den Bastionen, im Aether Moa, Phyg,

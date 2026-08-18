@@ -748,6 +748,11 @@
       this.ui.openScreen('trade', this.targetEntity);
       return;
     }
+    // Tiere: füttern, satteln, aufsitzen
+    if (this.targetEntity && this.targetEntity.isMob && this.tierBenutzen(this.targetEntity)) {
+      p.swingTime = 1;
+      return;
+    }
     if (this.targetEntity && it && it.name === 'shears' && this.targetEntity.mobType === 'sheep') {
       this.attackEntity(this.targetEntity);
       return;
@@ -1217,6 +1222,50 @@
     MC.Achievements.grant(this, 'bett');
     this.ui.toast('Gute Nacht. Spawnpunkt gesetzt.');
     this.audio.play('levelup');
+  };
+
+  // Rechtsklick auf ein Tier. Die Reihenfolge ist die, die man erwartet: was
+  // man in der Hand hält, entscheidet — Futter füttert, ein Sattel sattelt,
+  // und mit leerer Hand steigt man auf ein gesatteltes Tier.
+  Game.prototype.tierBenutzen = function (e) {
+    var p = this.player;
+    var st = p.inventory.selectedStack();
+
+    if (e.fuettern && e.fuettern(this)) return true;
+
+    if (st && st.id === 'saddle' && e.spec.reitbar && !e.gesattelt && !e.baby) {
+      if (e.zahm < 3) { this.ui.toast('Zu scheu — füttere es erst mit ' + I.get(e.spec.futter).title); return true; }
+      e.gesattelt = true;
+      if (this.mode !== 'creative') p.inventory.consumeSelected(1);
+      this.audio.play('cloth');
+      this.ui.toast('Gesattelt');
+      return true;
+    }
+
+    if (e.gesattelt && !p.reittier) { this.aufsitzen(e); return true; }
+    return false;
+  };
+
+  // Auf- und Absitzen. Beides läuft über dieselben zwei Zeiger — das Tier
+  // kennt seinen Reiter, der Reiter sein Tier —, damit später eine Lore
+  // dieselbe Anbindung benutzen kann.
+  Game.prototype.aufsitzen = function (e) {
+    var p = this.player;
+    if (p.reittier) this.absitzen();
+    p.reittier = e;
+    e.reiter = p;
+    p.vx = p.vy = p.vz = 0;
+    this.audio.play('cloth');
+    this.ui.toast('Schleichen zum Absteigen');
+  };
+
+  Game.prototype.absitzen = function () {
+    var p = this.player;
+    if (!p.reittier) return;
+    if (p.reittier.reiter === p) p.reittier.reiter = null;
+    p.reittier = null;
+    p.y += 0.4;
+    p.vy = 2.4;
   };
 
   Game.prototype.useBucket = function (it) {

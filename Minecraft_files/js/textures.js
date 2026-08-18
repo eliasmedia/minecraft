@@ -2382,6 +2382,14 @@
     tex('painting_' + i, function (g) { g.fill([0, 0, 0], 0); g.art(m.rows, m.pal); });
   });
 
+  // Der Sattel: Ledersitz mit Bügel
+  itemArt('saddle', [
+    '................', '................', '....OOOOOOOO....', '..OOMMMMMMMMOO..',
+    '.OMMMhhhhhhMMMO.', 'OMMhhLLLLLLhhMMO', 'OMhhLLLLLLLLhhMO', 'OMhLLLLLLLLLLhMO',
+    'OMhLLLLLLLLLLhMO', 'OMhhLLLLLLLLhhMO', '.OMhhLLLLLLhhMO.', '..OKKOOOOOOKKO..',
+    '..OKKO......OKKO', '...OO........OO.', '................', '................'
+  ], itemPal([132, 84, 48]));
+
   // Das Schild als Item: Brett auf einem Stiel
   itemArt('sign_item', [
     '................', '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvWvvWvvWO..',

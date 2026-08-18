@@ -984,10 +984,10 @@
   //  Mob
   // ============================================================
   var MOB_TYPES = {
-    pig: { hp: 10, hostile: false, speed: 2.1, drops: [{ id: 'porkchop_raw', min: 1, max: 3 }], xp: 2, sound: 'pig' },
-    cow: { hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'beef_raw', min: 1, max: 3 }, { id: 'leather', min: 0, max: 2 }], xp: 2, sound: 'cow' },
-    sheep: { hp: 8, hostile: false, speed: 2.0, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
-    chicken: { hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
+    pig: { futter: 'apple', hp: 10, hostile: false, speed: 2.1, drops: [{ id: 'porkchop_raw', min: 1, max: 3 }], xp: 2, sound: 'pig' },
+    cow: { futter: 'wheat_item', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'beef_raw', min: 1, max: 3 }, { id: 'leather', min: 0, max: 2 }], xp: 2, sound: 'cow' },
+    sheep: { futter: 'wheat_item', hp: 8, hostile: false, speed: 2.0, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
+    chicken: { futter: 'seeds', hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
     // Er greift nicht an, er nimmt keinen Schaden, er bewegt sich nicht von
     // selbst. Alles, was er tut, steuert herobrine.js.
     herobrine: { hp: 1, hostile: false, speed: 0, steht: true, starr: true, damage: 0, drops: [], xp: 0, unsterblich: true },
@@ -1038,9 +1038,9 @@
     // hier zu zäh, weil deutlich weniger Endermen unterwegs sind
     enderman: { hp: 40, hostile: false, speed: 3.4, damage: 7, drops: [{ id: 'ender_pearl', min: 0, max: 2 }], xp: 5, sound: 'enderman' },
     // ---- Aether ----
-    moa: { hp: 14, hostile: false, speed: 2.2, drops: [{ id: 'feather', min: 1, max: 3 }], xp: 3, sound: 'chicken' },
-    phyg: { hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
-    sheepuff: { hp: 8, hostile: false, speed: 1.9, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
+    moa: { reitbar: true, reitsprung: 13.5, futter: 'blueberries', hp: 14, hostile: false, speed: 2.2, drops: [{ id: 'feather', min: 1, max: 3 }], xp: 3, sound: 'chicken' },
+    phyg: { futter: 'apple', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
+    sheepuff: { futter: 'wheat_item', hp: 8, hostile: false, speed: 1.9, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
     zephyr: { hp: 8, hostile: true, speed: 1.5, damage: 0, ranged: true, flying: true, drops: [{ id: 'aercloud', min: 0, max: 2 }], xp: 4, sound: 'ghast' },
     cockatrice: { hp: 14, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'feather', min: 0, max: 2 }], xp: 5, sound: 'chicken' }
   };
@@ -1073,6 +1073,14 @@
     this.burning = 0;
     this.woolColor = null;
     this.sheared = false;
+    // ---- Tiere: Zucht, Nachwuchs, Reiten ----
+    this.baby = false;
+    this.liebe = 0;        // Restzeit der Paarungsbereitschaft
+    this.zuchtCd = 0;      // Sperre nach einem Wurf
+    this.wachstum = 0;     // Restzeit, bis ein Junges erwachsen ist
+    this.zahm = 0;         // wie oft gefüttert (Reittiere)
+    this.gesattelt = false;
+    this.reiter = null;
     this.panic = 0;
     if (type === 'sheep') {
       var cols = B.WOOL_COLORS;
@@ -1143,6 +1151,10 @@
 
     var world = this.world, p = game.player;
     var dist = p && !p.dead ? this.distTo(p) : 9999;
+
+    // Tiere: Zucht, Nachwuchs, Locken, Reiten. Steht hier vorn, weil ein
+    // getragenes oder verliebtes Tier keine eigene Wanderlust mehr braucht.
+    if (this.tierTick(dt, game, p, dist)) return;
 
     // Was die Kreatur scheut, hält sie auf Abstand. Beim Hoglin ist das
     // Nethergewächs – damit lässt sich ein Gehöft im Karmesinwald einzäunen.
@@ -1587,6 +1599,170 @@
     this.moveToward(dt, Math.atan2(zx - this.x, zz - this.z), tempo);
   };
 
+  // ============================================================
+  //  Tiere: Zucht, Nachwuchs, Locken, Reiten
+  // ============================================================
+  // Liefert true, wenn dieser Durchgang schon alles erledigt hat — dann läuft
+  // die gewöhnliche KI nicht mehr.
+  Mob.prototype.tierTick = function (dt, game, p, dist) {
+    if (this.liebe > 0) this.liebe -= dt;
+    if (this.zuchtCd > 0) this.zuchtCd -= dt;
+
+    // ---- Ein Junges wird groß ----
+    if (this.baby) {
+      this.wachstum -= dt;
+      if (this.wachstum <= 0) this.erwachsen();
+    }
+
+    // ---- Getragen ----
+    // Das Reittier hat keine eigene Meinung mehr: es geht, wohin der Reiter
+    // schaut. Gesteuert wird es in player.js, hier steht nur die Folge davon.
+    if (this.reiter) {
+      if (this.reiter.dead || this.reiter.reittier !== this) { this.reiter = null; }
+      else {
+        this.moving = Math.abs(this.vx) + Math.abs(this.vz) > 0.2;
+        this.walkTime += dt * 9 * (this.moving ? 1 : 0);
+        this.headYaw = this.yaw;
+        this.applyMobPhysics(dt);
+        // Der Reiter wird vom Tier gesetzt, nicht umgekehrt — und zwar NACH
+        // dessen Physik. Setzte er sich selbst, hinge die Kamera ein Bild
+        // hinterher und das Reiten ruckelte.
+        var r = this.reiter;
+        r.x = this.x; r.z = this.z; r.y = this.y + this.height * 0.72;
+        r.onGround = this.onGround;
+        r.walkTime = this.walkTime;
+        return true;
+      }
+    }
+
+    var futter = this.spec.futter;
+    if (!futter) return false;
+
+    // ---- Verliebt: Partner suchen ----
+    if (this.liebe > 0 && !this.baby) {
+      if ((game.tickCount % 4) === 0) game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+      var partner = null, best = 64;
+      var ents = this.world.entities;
+      for (var i = 0; i < ents.length; i++) {
+        var o = ents[i];
+        if (o === this || o.dead || o.mobType !== this.mobType) continue;
+        if (!(o.liebe > 0) || o.baby) continue;
+        var d2 = (o.x - this.x) * (o.x - this.x) + (o.z - this.z) * (o.z - this.z);
+        if (d2 < best) { best = d2; partner = o; }
+      }
+      if (partner) {
+        if (best < 1.8 * 1.8) {
+          // Nur einer der beiden legt das Junge an, sonst kämen zwei heraus.
+          // Entschieden wird über die Stelle in der Liste — das ist stabil und
+          // braucht keine zusätzliche Marke.
+          if (ents.indexOf(this) < ents.indexOf(partner)) this.nachwuchs(game, partner);
+        } else {
+          this.moveToward(dt, Math.atan2(partner.x - this.x, partner.z - this.z), 1);
+          this.headYaw = this.yaw;
+          this.applyMobPhysics(dt);
+          return true;
+        }
+      }
+    }
+
+    // ---- Gelockt: wer das richtige Futter in der Hand hält, wird verfolgt ----
+    if (p && !p.dead && dist < 9 && this.locktMich(p, futter)) {
+      if (dist > 2.2) {
+        this.moveToward(dt, Math.atan2(p.x - this.x, p.z - this.z), 1);
+        this.headYaw = this.yaw;
+        this.applyMobPhysics(dt);
+        return true;
+      }
+      this.headYaw = Math.atan2(p.x - this.x, p.z - this.z);
+    }
+
+    // ---- Ein Junges bleibt bei einem Erwachsenen ----
+    if (this.baby) {
+      var mutter = null, mb = 144;
+      var es2 = this.world.entities;
+      for (var k = 0; k < es2.length; k++) {
+        var m = es2[k];
+        if (m === this || m.dead || m.baby || m.mobType !== this.mobType) continue;
+        var md = (m.x - this.x) * (m.x - this.x) + (m.z - this.z) * (m.z - this.z);
+        if (md < mb) { mb = md; mutter = m; }
+      }
+      if (mutter && mb > 2.5 * 2.5) {
+        this.moveToward(dt, Math.atan2(mutter.x - this.x, mutter.z - this.z), 1.15);
+        this.headYaw = this.yaw;
+        this.applyMobPhysics(dt);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  Mob.prototype.locktMich = function (p, futter) {
+    var st = p.inventory.selectedStack();
+    return !!(st && st.id === futter);
+  };
+
+  // Füttern: ein Junges wächst schneller, ein Erwachsener verliebt sich, ein
+  // Reittier wird zutraulicher. Liefert true, wenn das Futter verbraucht ist.
+  Mob.prototype.fuettern = function (game) {
+    var futter = this.spec.futter;
+    if (!futter) return false;
+    var p = game.player;
+    var st = p.inventory.selectedStack();
+    if (!st || st.id !== futter) return false;
+
+    if (this.baby) {
+      this.wachstum = Math.max(0, this.wachstum - 30);
+      game.particles.crit(this.x, this.y + this.height * 0.8, this.z);
+    } else if (this.spec.reitbar && this.zahm < 3) {
+      // Reittiere werden erst zutraulich, bevor sie sich satteln lassen
+      this.zahm++;
+      game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+      game.ui.toast(this.zahm >= 3 ? 'Das Tier vertraut dir jetzt' : 'Das Tier gewöhnt sich an dich');
+    } else if (this.zuchtCd <= 0 && this.liebe <= 0) {
+      this.liebe = 20;
+      game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+    } else {
+      return false;
+    }
+    game.audio.play('eat');
+    if (game.mode !== 'creative') p.inventory.consumeSelected(1);
+    return true;
+  };
+
+  Mob.prototype.nachwuchs = function (game, partner) {
+    this.liebe = 0; partner.liebe = 0;
+    this.zuchtCd = 90; partner.zuchtCd = 90;
+    var kind = new Mob(this.world, this.mobType, (this.x + partner.x) / 2,
+                       this.y + 0.1, (this.z + partner.z) / 2);
+    kind.zumBaby();
+    if (this.woolColor) kind.woolColor = Math.random() < 0.5 ? this.woolColor : partner.woolColor;
+    if (this.moaColor) kind.moaColor = Math.random() < 0.5 ? this.moaColor : partner.moaColor;
+    this.world.entities.push(kind);
+    game.particles.crit(kind.x, kind.y + 0.5, kind.z);
+    game.audio.play('pop');
+    if (game.player && game.player.addXP) game.player.addXP(1 + ((Math.random() * 6) | 0));
+  };
+
+  // Ein Junges ist halb so groß — und weil Breite und Höhe die Trefferbox
+  // sind, ist es das auch wirklich und passt durch niedrigere Lücken.
+  Mob.prototype.zumBaby = function () {
+    this.baby = true;
+    this.wachstum = 300;
+    this.width = this.model.width * 0.5;
+    this.height = this.model.height * 0.5;
+    this.hp = Math.max(1, Math.round(this.spec.hp / 2));
+    this.maxHp = this.hp;
+  };
+
+  Mob.prototype.erwachsen = function () {
+    this.baby = false;
+    this.wachstum = 0;
+    this.width = this.model.width;
+    this.height = this.model.height;
+    this.hp = this.spec.hp;
+    this.maxHp = this.spec.hp;
+  };
+
   Mob.prototype.villagerTick = function (dt, game) {
     var h = this.house, w = this.world;
     if (!h) return false;
@@ -1817,6 +1993,21 @@
       if (B.isOpaque(w.getBlock(Math.floor(ox + dx * f), Math.floor(oy + dy * f), Math.floor(oz + dz * f)))) return false;
     }
     return true;
+  };
+
+  // Dieselbe Physik wie am Ende von Mob.update — für die Fälle, in denen der
+  // Tierteil den Durchgang vorzeitig beendet.
+  Mob.prototype.applyMobPhysics = function (dt) {
+    var world = this.world;
+    this.vy -= 30 * dt;
+    if (this.vy < -55) this.vy = -55;
+    P.moveWithStep(world, this, this.vx * dt, this.vz * dt, 0.6);
+    P.move(world, this, 0, this.vy * dt, 0);
+    if (this.onGround) this.vy = 0;
+    var fr = Math.pow(this.onGround ? 0.02 : 0.75, dt);
+    this.vx *= fr; this.vz *= fr;
+    if (this.moving) this.walkTime += dt * 9;
+    if (this.y < -10) this.dead = true;
   };
 
   Mob.prototype.moveToward = function (dt, yaw, mult) {

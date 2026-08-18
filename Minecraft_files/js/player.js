@@ -234,6 +234,48 @@
   MC.Player = Player;
   Player.detektorSuche = detektorSuche;   // für Tests und die Anzeige greifbar
 
+  // Lenken statt laufen. Das Tier bekommt die Blickrichtung des Reiters und
+  // eine Vorwärtsabsicht; die Beine macht es selbst.
+  Player.prototype.reitUpdate = function (dt, input, game) {
+    var t = this.reittier;
+
+    // Absteigen beim Schleichen
+    if (input.key('ShiftLeft') || input.key('ShiftRight')) { game.absitzen(); return; }
+
+    var fwd = 0, side = 0;
+    if (input.key('KeyW')) fwd += 1;
+    if (input.key('KeyS')) fwd -= 1;
+    if (input.key('KeyA')) side -= 1;
+    if (input.key('KeyD')) side += 1;
+
+    if (fwd || side) {
+      var richtung = Math.atan2(Math.sin(this.yaw) * fwd + Math.cos(this.yaw) * side,
+                                Math.cos(this.yaw) * fwd - Math.sin(this.yaw) * side);
+      var eile = input.key('ControlLeft') || input.sprintToggle ? 1.35 : 1;
+      t.moveToward(dt, richtung, eile);
+    } else {
+      t.moving = false;
+      t.vx *= 0.2; t.vz *= 0.2;
+    }
+    // Der Moa springt höher als alles andere im Spiel — das ist im Aether der
+    // ganze Zweck der Übung.
+    if (input.key('Space') && t.onGround) t.vy = t.spec.reitsprung || 9.5;
+
+    // Der Reiter sitzt oben und erbt die Lage des Tieres
+    this.x = t.x;
+    this.y = t.y + t.height * 0.72;
+    this.z = t.z;
+    this.vx = this.vy = this.vz = 0;
+    this.onGround = t.onGround;
+    this.fallStart = null;
+    this.sneaking = false;
+    this.sprinting = false;
+    this.walkTime = t.walkTime;
+
+    // Statuseffekte laufen weiter — reiten schützt nicht vor ihnen
+    if (MC.Effekte) MC.Effekte.tick(this, game, dt);
+  };
+
   Player.prototype.eyeY = function () {
     return this.y + (this.sneaking ? this.eyeHeight - 0.18 : this.eyeHeight);
   };
@@ -250,6 +292,15 @@
     if (this.pearlCd > 0) this.pearlCd -= dt;
 
     if (this.dead) { this.vx = this.vz = 0; return; }
+
+    // ---- Auf einem Reittier ----
+    // Der Spieler bewegt sich dann nicht selbst: er sitzt oben und lenkt. Die
+    // Anbindung ist bewusst schlicht — zwei Zeiger, sonst nichts —, damit
+    // später eine Lore dieselbe benutzen kann.
+    if (this.reittier) {
+      if (this.reittier.dead || this.reittier.reiter !== this) { this.reittier = null; }
+      else { this.reitUpdate(dt, input, game); return; }
+    }
 
     var world = this.world;
     this.inWater = P.inLiquid(world, this, 'water');

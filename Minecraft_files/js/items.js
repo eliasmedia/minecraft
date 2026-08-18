@@ -98,6 +98,8 @@
   I.byName['redstone'].block = 'redstone_wire';
   // Es gibt keine Textur namens "redstone" – der Staub heißt redstone_dust.
   // Ohne das war das Item im Inventar wie am Boden ein weißer Fleck.
+  define('saddle', { title: 'Sattel', stack: 1, tex: 'saddle', group: 'werkzeug' });
+
   I.byName['redstone'].iconTex = 'redstone_dust';
   // Schild, Rahmen und Gemälde sehen als Würfel falsch aus — sie bekommen ihr
   // eigenes Symbol.

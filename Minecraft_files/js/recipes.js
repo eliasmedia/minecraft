@@ -75,6 +75,8 @@
   shaped(['PP', 'PP', 'PP'], { P: '#planks' }, 'door_oak', 3);
   shaped(['II', 'II', 'II'], { I: 'iron_ingot' }, 'door_iron', 3);
   shaped(['S S', 'SSS', 'S S'], { S: 'stick' }, 'ladder', 3);
+  // Sattel: drei Leder und zwei Eisenbarren als Bügel
+  shaped(['LLL', 'I I'], { L: 'leather', I: 'iron_ingot' }, 'saddle', 1);
   // Schild, Rahmen, Gemälde — die drei Wanddinge
   shaped(['PPP', 'PPP', ' S '], { P: '#planks', S: 'stick' }, 'sign', 3);
   shaped(['SSS', 'SLS', 'SSS'], { S: 'stick', L: 'leather' }, 'item_frame', 1);
