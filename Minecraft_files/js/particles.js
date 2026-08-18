@@ -14,6 +14,71 @@
     T.add(p[0], function (g) { g.fill(p[1]); g.noise(0.12); });
   });
 
+  // ============================================================
+  //  Geformte Partikel
+  // ============================================================
+  // Ein farbiges Quadrat sieht als Herz, als Funke und als Aschenflocke gleich
+  // aus — und genau das war das Problem: gezähmte Tiere, geworfene Enderperlen
+  // und der Nether hatten denselben Effekt. Diese hier haben eine Form, und
+  // damit erkennt man auf einen Blick, was gerade passiert.
+  //
+  // Gezeichnet wird wie bei den Item-Symbolen als Bild aus Zeichen; der Punkt
+  // bleibt durchsichtig, und der Alphatest im Partikeldurchgang schneidet ihn
+  // sauber weg.
+  function formPartikel(name, rows, pal) {
+    if (T.has(name)) return;
+    T.add(name, function (g) { g.fill([0, 0, 0], 0); g.art(rows, pal); });
+  }
+
+  formPartikel('p_herz', [
+    '................', '................', '..RRR....RRR....', '.RHHHRR.RHHHRR..',
+    'RHHHHHHRHHHHHHR.', 'RHHHHHHHHHHHHHR.', 'RHHHHHHHHHHHHHR.', 'RDHHHHHHHHHHHDR.',
+    '.RDHHHHHHHHHDR..', '..RDHHHHHHHDR...', '...RDHHHHHDR....', '....RDHHHDR.....',
+    '.....RDHDR......', '......RDR.......', '.......R........', '................'
+  ], { R: [168, 24, 44], H: [246, 92, 112], D: [214, 48, 72] });
+
+  formPartikel('p_stern', [
+    '................', '.......W........', '.......W........', '......WGW.......',
+    '......WGW.......', '.....WGGGW......', '..WWWWGGGWWWW...', '.WGGGGGGGGGGGW..',
+    '..WWWWGGGWWWW...', '.....WGGGW......', '......WGW.......', '......WGW.......',
+    '.......W........', '.......W........', '................', '................'
+  ], { W: [255, 255, 240], G: [255, 226, 128] });
+
+  formPartikel('p_portal', [
+    '................', '.....VVVV.......', '...VVPPPPVV.....', '..VPPPPPPPPV....',
+    '..VPPHHHHPPV....', '.VPPHHHHHHPPV...', '.VPPHHWWHHPPV...', '.VPPHHWWHHPPV...',
+    '.VPPHHHHHHPPV...', '..VPPHHHHPPV....', '..VPPPPPPPPV....', '...VVPPPPVV.....',
+    '.....VVVV.......', '................', '................', '................'
+  ], { V: [64, 20, 96], P: [126, 54, 186], H: [176, 108, 226], W: [232, 208, 250] });
+
+  formPartikel('p_asche', [
+    '................', '................', '....DD..D.......', '...DGGD.DD......',
+    '..DGGGGDDGD.....', '..DGGHGGGGGD....', '...DGGGHGGGD....', '....DGGGGGDD....',
+    '.....DDGGGD.....', '......DGGD......', '.......DD.......', '................',
+    '................', '................', '................', '................'
+  ], { D: [42, 40, 42], G: [92, 88, 88], H: [138, 132, 128] });
+
+  formPartikel('p_funke', [
+    '................', '................', '.......C........', '......CWC.......',
+    '.....CW.WC......', '....CW...WC.....', '...CW.....WC....', '..CW.......WC...',
+    '...WC.....CW....', '....WC...CW.....', '.....WC.CW......', '......WCW.......',
+    '.......C........', '................', '................', '................'
+  ], { C: [96, 190, 255], W: [236, 250, 255] });
+
+  formPartikel('p_wut', [
+    '................', '.....DDDD.......', '...DDKKKKDD.....', '..DKKKKKKKKD....',
+    '..DKKKKKKKKD....', '.DKKKKKKKKKKD...', '.DKKKKKKKKKKD...', '..DKKKKKKKKD....',
+    '...DDKKKKDD.....', '.....DDDD.......', '................', '................',
+    '................', '................', '................', '................'
+  ], { D: [26, 22, 30], K: [58, 50, 64] });
+
+  formPartikel('p_note', [
+    '................', '.........NNNN...', '.........NNNNN..', '.........N...N..',
+    '.........N......', '.........N......', '.........N......', '.........N......',
+    '......NNNN......', '.....NNNNNN.....', '....NNNNNNN.....', '....NNNNNNN.....',
+    '.....NNNNNN.....', '......NNNN......', '................', '................'
+  ], { N: [92, 208, 132] });
+
   function Particles(world) {
     this.world = world;
     this.list = [];
@@ -134,11 +199,100 @@
     }
   };
 
+  // ---- Geformte Effekte ----
+  // Herzen: Zuneigung. Sie steigen langsam und werden nicht von der Schwerkraft
+  // geholt, damit sie über dem Tier stehen bleiben, statt hineinzufallen.
+  Particles.prototype.herzen = function (x, y, z, n) {
+    for (var i = 0; i < (n || 5); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.7, y + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.7,
+        (Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 0.5, (Math.random() - 0.5) * 0.5,
+        T.layer('p_herz'), 0.22 + Math.random() * 0.08, 1.1 + Math.random() * 0.5, -1);
+    }
+  };
+
+  // Der violette Wirbel des Endes: Perle, Enderman, Portal
+  Particles.prototype.portal = function (x, y, z, n) {
+    for (var i = 0; i < (n || 8); i++) {
+      var a = Math.random() * 6.283, r = 0.3 + Math.random() * 0.5;
+      this.spawn(x + Math.cos(a) * r, y + (Math.random() - 0.3) * 1.2, z + Math.sin(a) * r,
+        -Math.cos(a) * 1.4, (Math.random() - 0.4) * 1.2, -Math.sin(a) * 1.4,
+        T.layer('p_portal'), 0.12 + Math.random() * 0.08, 0.7 + Math.random() * 0.6, 0);
+    }
+  };
+
+  // Funken: Blitz, aufgeladener Creeper, Amboss
+  Particles.prototype.funken = function (x, y, z, n) {
+    for (var i = 0; i < (n || 10); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.5, y + (Math.random() - 0.5) * 0.5, z + (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 5, Math.random() * 4, (Math.random() - 0.5) * 5,
+        T.layer('p_funke'), 0.14, 0.3 + Math.random() * 0.3, 12);
+    }
+  };
+
+  // Asche: fällt langsam und ohne Eile, wie Flocken im Basaltdelta
+  Particles.prototype.asche = function (x, y, z, n) {
+    for (var i = 0; i < (n || 1); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.6, y, z + (Math.random() - 0.5) * 0.6,
+        (Math.random() - 0.5) * 0.4, -0.3 - Math.random() * 0.3, (Math.random() - 0.5) * 0.4,
+        T.layer('p_asche'), 0.13 + Math.random() * 0.07, 2.4 + Math.random() * 2, 0.12);
+    }
+  };
+
+  // Ärger über dem Kopf: der Enderman, kurz bevor er nachsetzt
+  Particles.prototype.wut = function (x, y, z, n) {
+    for (var i = 0; i < (n || 3); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.5, y + Math.random() * 0.2, z + (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.7, 0.8 + Math.random() * 0.4, (Math.random() - 0.5) * 0.7,
+        T.layer('p_wut'), 0.16, 0.7 + Math.random() * 0.4, -0.8);
+    }
+  };
+
+  // Zufriedenheit: ein geglückter Handel, ein Erfolg
+  Particles.prototype.noten = function (x, y, z, n) {
+    for (var i = 0; i < (n || 4); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.7, y + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.7,
+        (Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6,
+        T.layer('p_note'), 0.2, 1 + Math.random() * 0.5, -1);
+    }
+  };
+
+  // Sporen: das Leuchten der Pilzwälder, langsam und schwerelos
+  Particles.prototype.sporen = function (x, y, z, n) {
+    for (var i = 0; i < (n || 1); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.6, y, z + (Math.random() - 0.5) * 0.6,
+        (Math.random() - 0.5) * 0.3, (Math.random() - 0.3) * 0.4, (Math.random() - 0.5) * 0.3,
+        T.layer('p_stern'), 0.07 + Math.random() * 0.05, 3 + Math.random() * 2, 0.05);
+    }
+  };
+
+  // Zauberei: der violette Schimmer beim Trinken und Verzaubern
+  Particles.prototype.zauber = function (x, y, z, n) {
+    for (var i = 0; i < (n || 6); i++) {
+      this.spawn(x + (Math.random() - 0.5) * 0.7, y + (Math.random() - 0.5) * 0.5, z + (Math.random() - 0.5) * 0.7,
+        (Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 1.2,
+        T.layer(Math.random() < 0.5 ? 'p_portal' : 'p_stern'), 0.09, 0.6 + Math.random() * 0.4, -0.5);
+    }
+  };
+
+  // Kauen: Krümel des Essens, das man gerade im Mund hat. Sie tragen wirklich
+  // die Textur der Speise — ein Apfel bröselt rot, Brot braun.
+  Particles.prototype.kauen = function (x, y, z, stack) {
+    var it = stack && MC.Items.get(stack.id);
+    var layer = T.layer(it && T.has(it.tex) ? it.tex : 'p_white');
+    for (var i = 0; i < 4; i++) {
+      var u = Math.random() * 0.75, v = Math.random() * 0.75;
+      this.spawn(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3,
+        (Math.random() - 0.5) * 1.6, Math.random() * 1.2, (Math.random() - 0.5) * 1.6,
+        layer, 0.07, 0.5, 14, [u, v, u + 0.25, v + 0.25]);
+    }
+  };
+
+  // Der kritische Treffer: Sterne, nicht bloß gelbe Klötzchen
   Particles.prototype.crit = function (x, y, z) {
     for (var i = 0; i < 10; i++) {
       this.spawn(x + (Math.random() - 0.5) * 0.6, y + (Math.random() - 0.5) * 0.6, z + (Math.random() - 0.5) * 0.6,
         (Math.random() - 0.5) * 2, Math.random() * 2, (Math.random() - 0.5) * 2,
-        T.layer('p_yellow'), 0.08, 0.4, 10);
+        T.layer('p_stern'), 0.13, 0.4, 10);
     }
   };
 

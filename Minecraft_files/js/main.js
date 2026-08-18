@@ -851,7 +851,7 @@
         // Dorfbewohner ohne Dorf hätten keine Angebote
         if (art === 'villager') neu.makeVillager('frei:' + Math.floor(ex) + ':' + Math.floor(ez), 0, { x: ex, z: ez }, null);
         w.entities.push(neu);
-        this.particles.crit(ex, ey + 0.6, ez);
+        this.particles.funken(ex, ey + 0.6, ez, 12);
         if (this.mode !== 'creative') p.inventory.consumeSelected(1);
         p.swingTime = 1;
       }
@@ -861,7 +861,7 @@
     // Trinken
     if (MC.Effekte && MC.Effekte.zerlegen(it.name)) {
       MC.Effekte.trinken(this, p.inventory.selectedStack());
-      this.particles.crit(p.x, p.eyeY() - 0.3, p.z);
+      this.particles.zauber(p.x, p.eyeY() - 0.3, p.z, 8);
       return;
     }
     // Glasflasche an Wasser fuellen. Wichtig: der normale Zielstrahl geht durch
@@ -2363,7 +2363,7 @@
     if (!inPortal) { p.portalTime = 0; return; }
     if (p.portalCd > 0) return;
     p.portalTime = (p.portalTime || 0) + dt;
-    if ((this.tickCount % 3) === 0) this.particles.crit(p.x, p.y + 1, p.z);
+    if ((this.tickCount % 3) === 0) this.particles.portal(p.x, p.y + 1, p.z, 3);
     if (p.portalTime > 0.7) {
       p.portalTime = 0;
       this.usePortal(b.portal);
@@ -2398,9 +2398,9 @@
       var x = p.x + (Math.random() - 0.5) * 22;
       var y = p.y + 1 + (Math.random() - 0.4) * 10;
       var z = p.z + (Math.random() - 0.5) * 22;
-      if (art === 'asche') this.particles.smoke(x, y, z, 1);
-      else if (art === 'seelen') this.particles.splash(x, y, z, 1);
-      else this.particles.crit(x, y, z);
+      if (art === 'asche') this.particles.asche(x, y, z, 1);
+      else if (art === 'seelen') this.particles.portal(x, y, z, 1);
+      else this.particles.sporen(x, y, z, 1);
     }
   };
 
@@ -2468,7 +2468,7 @@
     if (this.bowCharge > 0) { this.bowCharge = Math.min(1.6, this.bowCharge + dt); return; }
     if (this.eating && it && it.food) {
       p.eatTime -= dt;
-      if ((this.tickCount % 6) === 0) this.particles.crit(p.x, p.eyeY() - 0.4, p.z);
+      if ((this.tickCount % 6) === 0) this.particles.kauen(p.x, p.eyeY() - 0.4, p.z, st);
       if (p.eatTime <= 0) { p.eat(this); this.eating = false; }
     }
   };

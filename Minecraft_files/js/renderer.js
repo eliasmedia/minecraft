@@ -642,7 +642,13 @@
     var tint = schnee ? [1.5, 1.55, 1.6] : (sand ? [1.25, 1.02, 0.62] : [0.62, 0.78, 1.25]);
 
     var anzahl = Math.floor(TROPFEN * Math.min(1, z.staerke));
-    var r = this.camRight(), u = this.camUp();
+    // Ein Tropfen ist keine Reklametafel: er hängt senkrecht in der Welt und
+    // dreht sich nur um seine eigene Achse zur Kamera. Mit camUp kippte er
+    // beim Blick nach oben mit und lag dann waagerecht im Bild.
+    var r = this.camRight();
+    var rl = Math.sqrt(r[0] * r[0] + r[2] * r[2]) || 1;
+    r = [r[0] / rl, 0, r[2] / rl];
+    var u = [0, 1, 0];
     var d = this.dynData, n = 0;
     this.ensureDyn(anzahl * 4 * FPV + 64);
     d = this.dynData;
@@ -1056,7 +1062,7 @@
     var gl = this.gl, mp = this.progMain;
     var model = mob.model;
     if (!model) return;
-    this.ensureDyn(model.parts.length * 6 * 4 * FPV + 64);
+    this.ensureDyn((model.parts.length + 1) * 6 * 4 * FPV + 64);
     var d = this.dynData, n = 0;
     // Ein Junges ist halb so groß. Das gilt für das ganze Modell, also auch für
     // die Drehpunkte — sonst säße der Kopf neben dem Körper.
@@ -1068,8 +1074,14 @@
     var yaw = mob.yaw + Math.PI;
     var cy = Math.cos(yaw), sy = Math.sin(yaw);
 
-    for (var pi = 0; pi < model.parts.length; pi++) {
-      var part = model.parts[pi];
+    // Ein gesatteltes Tier bekommt ein Teil mehr. Die Liste wird einmal je
+    // Modell gebaut und dann behalten — sie ändert sich nie wieder.
+    var teile = model.parts;
+    if (mob.gesattelt && model.sattel) {
+      teile = model._mitSattel || (model._mitSattel = model.parts.concat([model.sattel]));
+    }
+    for (var pi = 0; pi < teile.length; pi++) {
+      var part = teile[pi];
       var rot = animRot(part.anim, mob, walk, swing);
       var pivot = part.pivot || [0, 0, 0];
       var texAll, texFront;
@@ -1147,8 +1159,16 @@
         r.x = mob.swing > 0 ? -Math.sin((1 - mob.swing) * Math.PI) * 1.9
                             : Math.sin(walk) * amp * 0.7;
         break;
-      // Dorfbewohner halten die Arme vor dem Bauch verschränkt
-      case 'armCross': r.x = 1.52; break;
+      // Der linke Arm läuft gegen den rechten. Vorher trugen beide dieselbe
+      // Rechnung und schwangen im Gleichtakt nach vorne — das sieht aus wie
+      // Marschieren, nicht wie Gehen.
+      case 'armSwingL':
+        r.x = -Math.sin(walk) * amp * 0.7;
+        break;
+      // Dorfbewohner halten die Hände vor dem Bauch zusammen: die Arme kippen
+      // etwa 45 Grad nach vorne, nicht waagerecht. Bei 1,52 (fast 90 Grad)
+      // streckten sie die Arme wie ein Zombie von sich.
+      case 'armCross': r.x = 0.82; break;
       // Ghast und Zephyr lassen ihre Tentakel im Schweben pendeln
       case 'tentacle': r.x = Math.sin(mob.age * 1.6) * 0.22; r.z = Math.cos(mob.age * 1.3) * 0.16; break;
       case 'wingR': r.z = -Math.abs(Math.sin(walk * 1.4)) * 0.9; break;

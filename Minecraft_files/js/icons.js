@@ -72,11 +72,14 @@
       case B.SHAPE_FIRE:
       case B.SHAPE_LEVER:
         // Formen, die kein Würfel sind, zeigen ihr Item-Bild flach
-        // Eine Wuchsreihe (block.tex.stage) hat weder side noch top. Ohne den
-        // dritten Zweig landete jede solche Pflanze auf 'white'.
+        // Eine Pflanze mit Wuchsstufen zeigt ihre reife Stufe; welche Reihe das
+        // ist, weiß der Mesher — dieselbe Rechnung wie in der Welt.
+        if (block.shape === B.SHAPE_CROP) {
+          flatIcon(ctx, MC.Mesher.cropReihe(block) + '3');
+          return c;
+        }
         flatIcon(ctx, typeof block.tex === 'string' ? block.tex
-                 : (block.tex.side || block.tex.top ||
-                    (block.tex.stage ? block.tex.stage + '3' : 'white')));
+                 : (block.tex.side || block.tex.top || 'white'));
         return c;
 
       case B.SHAPE_WIRE:

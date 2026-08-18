@@ -2417,6 +2417,17 @@
     tex('painting_' + i, function (g) { g.fill([0, 0, 0], 0); g.art(m.rows, m.pal); });
   });
 
+  // Der Sattel am Tier: dunkles Leder mit heller Naht. Anders als das Symbol
+  // ist das eine volle Kachel — sie liegt auf einem Quader.
+  tex('saddle_block', function (g) {
+    var l = ramp([124, 78, 44], 0.9).list;
+    g.fill(l[2]);
+    g.qn([l[1], l[2], l[3]], 0.6);
+    g.rect(0, 6, 16, 4, l[1]);
+    for (var x = 1; x < 16; x += 3) { g.set(x, 7, l[4]); g.set(x, 8, l[4]); }
+    g.frame(0, 0, 16, 16, l[0]);
+  });
+
   // Der Sattel: Ledersitz mit Bügel
   itemArt('saddle', [
     '................', '................', '....OOOOOOOO....', '..OOMMMMMMMMOO..',

@@ -1529,6 +1529,7 @@
     if (rest > 0) g.throwStack(I.newStack(offer.get[0], rest));
     offer.uses++;
     if (this.trader && this.trader.handelNotieren) this.trader.handelNotieren(idx);
+    if (this.trader) g.particles.noten(this.trader.x, this.trader.y + 2.1, this.trader.z, 5);
     g.player.addXP(2);
     MC.Achievements.grant(g, 'dorf');
     g.audio.play('trade');

@@ -382,7 +382,7 @@
       if (hit) { this.land(game, hit.hx, hit.hy, hit.hz); return; }
     }
     this.x = nx; this.y = ny; this.z = nz;
-    if ((game.tickCount & 1) === 0) game.particles.crit(this.x, this.y, this.z);
+    if ((game.tickCount & 1) === 0) game.particles.portal(this.x, this.y, this.z, 2);
   };
 
   EnderPearl.prototype.land = function (game, x, y, z) {
@@ -398,11 +398,11 @@
     }
     if (by < 0) { game.ui.toast('Dort ist kein Platz zum Landen.'); return; }
 
-    game.particles.crit(p.x, p.eyeY(), p.z);
+    game.particles.portal(p.x, p.eyeY(), p.z, 12);
     p.x = bx + 0.5; p.y = by; p.z = bz + 0.5;
     p.vx = p.vy = p.vz = 0;
     p.fallStart = null;
-    game.particles.crit(p.x, p.eyeY(), p.z);
+    game.particles.portal(p.x, p.eyeY(), p.z, 14);
     game.audio.play('enderman');
     game.ensureChunksAround(p.x, p.z, 1);
     if (!MC.friedlichFuer(game)) p.hurt(5, null, game);
@@ -645,6 +645,8 @@
   var MODELS = {
     pig: {
       height: 0.9, width: 0.9, scale: 1,
+      // Der Sattel wird nur gezeichnet, wenn das Tier einen trägt
+      sattel: part('sattel', 'saddle_block', -6, 13, -5, 12, 2, 9),
       parts: [
         part('body', 'mob_pig', -5, 6, -8, 10, 8, 16),
         part('head', { all: 'mob_pig', front: 'mob_pig_face' }, -4, 6, -12, 8, 8, 4, 'head', [0, 10, -8]),
@@ -876,6 +878,7 @@
     // ---- Aether ----
     moa: {
       height: 1.9, width: 0.8, scale: 1,
+      sattel: part('sattel', 'saddle_block', -5, 16, -4, 10, 2, 9),
       parts: [
         part('body', 'MOA', -4, 8, -5, 8, 9, 12),
         part('neck', 'MOA', -2, 14, -6, 4, 9, 4, 'head', [0, 15, -4]),
@@ -888,6 +891,7 @@
     },
     phyg: {
       height: 0.9, width: 0.9, scale: 1,
+      sattel: part('sattel', 'saddle_block', -6, 13, -5, 12, 2, 9),
       parts: [
         part('body', 'mob_phyg', -5, 6, -8, 10, 8, 16),
         part('head', { all: 'mob_phyg', front: 'mob_phyg_face' }, -4, 6, -12, 8, 8, 4, 'head', [0, 10, -8]),
@@ -960,8 +964,8 @@
         part('head', { all: 'mob_villager', front: 'mob_villager_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
         part('nase', 'mob_villager_nose', -1, 26, -6, 2, 4, 2, 'head', [0, 24, 0]),
         part('body', 'ROBE', -4, 12, -3, 8, 12, 6),
-        part('armR', 'ROBE', -8, 15, -3, 4, 9, 4, 'armCross', [-4, 22, -1]),
-        part('armL', 'ROBE', 4, 15, -3, 4, 9, 4, 'armCross', [4, 22, -1]),
+        part('armR', 'ROBE', -7, 15, -3, 4, 9, 4, 'armCross', [-4, 22, -1]),
+        part('armL', 'ROBE', 3, 15, -3, 4, 9, 4, 'armCross', [4, 22, -1]),
         part('legR', 'ROBE', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
         part('legL', 'ROBE', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
       ]
@@ -972,7 +976,7 @@
         part('head', { all: 'player_skin', front: 'player_face' }, -4, 24, -4, 8, 8, 8, 'head', [0, 24, 0]),
         part('body', 'player_skin', -4, 12, -2, 8, 12, 4),
         part('armR', 'mob_player_arm', -8, 12, -2, 4, 12, 4, 'armSwingR', [-6, 23, 0]),
-        part('armL', 'mob_player_arm', 4, 12, -2, 4, 12, 4, 'armZ', [6, 23, 0]),
+        part('armL', 'mob_player_arm', 4, 12, -2, 4, 12, 4, 'armSwingL', [6, 23, 0]),
         part('legR', 'player_skin', -4, 0, -2, 4, 12, 4, 'legFR', [-2, 12, 0]),
         part('legL', 'player_skin', 0, 0, -2, 4, 12, 4, 'legFL', [2, 12, 0])
       ]
@@ -984,7 +988,7 @@
   //  Mob
   // ============================================================
   var MOB_TYPES = {
-    pig: { futter: 'apple', hp: 10, hostile: false, speed: 2.1, drops: [{ id: 'porkchop_raw', min: 1, max: 3 }], xp: 2, sound: 'pig' },
+    pig: { reitbar: true, reitsprung: 9.2, futter: 'apple', hp: 10, hostile: false, speed: 2.1, drops: [{ id: 'porkchop_raw', min: 1, max: 3 }], xp: 2, sound: 'pig' },
     cow: { futter: 'wheat_item', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'beef_raw', min: 1, max: 3 }, { id: 'leather', min: 0, max: 2 }], xp: 2, sound: 'cow' },
     sheep: { futter: 'wheat_item', hp: 8, hostile: false, speed: 2.0, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
     chicken: { futter: 'seeds', hp: 4, hostile: false, speed: 1.8, drops: [{ id: 'chicken_raw', min: 1, max: 1 }, { id: 'feather', min: 0, max: 2 }], xp: 1, sound: 'chicken' },
@@ -1039,7 +1043,7 @@
     enderman: { hp: 40, hostile: false, speed: 3.4, damage: 7, drops: [{ id: 'ender_pearl', min: 0, max: 2 }], xp: 5, sound: 'enderman' },
     // ---- Aether ----
     moa: { reitbar: true, reitsprung: 13.5, futter: 'blueberries', hp: 14, hostile: false, speed: 2.2, drops: [{ id: 'feather', min: 1, max: 3 }], xp: 3, sound: 'chicken' },
-    phyg: { futter: 'apple', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
+    phyg: { reitbar: true, reitsprung: 11, fliegt: true, futter: 'apple', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'porkchop_raw', min: 1, max: 2 }], xp: 2, sound: 'pig' },
     sheepuff: { futter: 'wheat_item', hp: 8, hostile: false, speed: 1.9, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
     zephyr: { hp: 8, hostile: true, speed: 1.5, damage: 0, ranged: true, flying: true, drops: [{ id: 'aercloud', min: 0, max: 2 }], xp: 4, sound: 'ghast' },
     cockatrice: { hp: 14, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'feather', min: 0, max: 2 }], xp: 5, sound: 'chicken' }
@@ -1345,6 +1349,13 @@
     if (P.inLiquid(world, this, 'water')) {
       this.vy = Math.max(this.vy, 3.2);
     }
+    // Wer im Nether zu Hause ist, geht in Lava nicht unter. Ohne das versinkt
+    // ein Piglin im ersten See, den er quert — feuerfest heißt ja nur, dass es
+    // ihm nicht wehtut, nicht dass er darin schwimmen kann.
+    if (this.spec.fireproof && P.inLiquid(world, this, 'lava')) {
+      this.vy = Math.max(this.vy, 2.2);
+      this.vx *= 0.86; this.vz *= 0.86;
+    }
 
     // Physik
     this.vy -= 30 * dt;
@@ -1641,7 +1652,7 @@
 
     // ---- Verliebt: Partner suchen ----
     if (this.liebe > 0 && !this.baby) {
-      if ((game.tickCount % 4) === 0) game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+      if ((game.tickCount % 4) === 0) game.particles.herzen(this.x, this.y + this.height * 0.9, this.z, 1);
       var partner = null, best = 64;
       var ents = this.world.entities;
       for (var i = 0; i < ents.length; i++) {
@@ -1713,15 +1724,15 @@
 
     if (this.baby) {
       this.wachstum = Math.max(0, this.wachstum - 30);
-      game.particles.crit(this.x, this.y + this.height * 0.8, this.z);
+      game.particles.herzen(this.x, this.y + this.height * 0.8, this.z, 2);
     } else if (this.spec.reitbar && this.zahm < 3) {
       // Reittiere werden erst zutraulich, bevor sie sich satteln lassen
       this.zahm++;
-      game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+      game.particles.herzen(this.x, this.y + this.height * 0.9, this.z, 3);
       game.ui.toast(this.zahm >= 3 ? 'Das Tier vertraut dir jetzt' : 'Das Tier gewöhnt sich an dich');
     } else if (this.zuchtCd <= 0 && this.liebe <= 0) {
       this.liebe = 20;
-      game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+      game.particles.herzen(this.x, this.y + this.height * 0.9, this.z, 5);
     } else {
       return false;
     }
@@ -1739,7 +1750,7 @@
     if (this.woolColor) kind.woolColor = Math.random() < 0.5 ? this.woolColor : partner.woolColor;
     if (this.moaColor) kind.moaColor = Math.random() < 0.5 ? this.moaColor : partner.moaColor;
     this.world.entities.push(kind);
-    game.particles.crit(kind.x, kind.y + 0.5, kind.z);
+    game.particles.herzen(kind.x, kind.y + 0.5, kind.z, 8);
     game.audio.play('pop');
     if (game.player && game.player.addXP) game.player.addXP(1 + ((Math.random() * 6) | 0));
   };
@@ -1878,7 +1889,7 @@
         // Er merkt es: erst zuckt er, dann wird er wütend. Die Vorwarnung muss
         // deutlich sein – wer sie übersieht, wird ohne Vorankündigung angegriffen.
         if (this.stareTime > 0.45 && Math.random() < dt * 10) {
-          game.particles.crit(this.x, this.y + this.height * 0.9, this.z);
+          game.particles.wut(this.x, this.y + this.height * 1.0, this.z, 2);
         }
         if (this.stareTime > 0.45 && !this.zuckLaut) {
           this.zuckLaut = true;
@@ -1958,10 +1969,10 @@
       if (y < 0) continue;
       // knapp drei Blöcke hoch – ohne Kopffreiheit steckt er in der Decke
       if (w.getBlock(x, y + 2, z) !== 0) continue;
-      game.particles.crit(this.x, this.y + 1.6, this.z);
+      game.particles.portal(this.x, this.y + 1.6, this.z, 10);
       this.x = x + 0.5; this.y = y; this.z = z + 0.5;
       this.vx = this.vy = this.vz = 0;
-      game.particles.crit(this.x, this.y + 1.6, this.z);
+      game.particles.portal(this.x, this.y + 1.6, this.z, 10);
       game.audio.play3d('pop', this.x, this.y, this.z, game.player);
       return true;
     }

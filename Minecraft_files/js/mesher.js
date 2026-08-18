@@ -75,16 +75,27 @@
   var MOTIVE = 6;
 
   // Texturebene für eine Blockfläche
+  // Die Wuchsreihe einer Pflanze. Ein Block ohne eigenes `tex` erbt seinen
+  // Namen als Zeichenkette — Weizen heißt darum 'wheat', seine Bilder aber
+  // 'wheat_stage0' bis '3'. Ohne diese Ergänzung landet er auf 'wheat' und
+  // damit auf Weiß; genau das war die Wechselwirkung mit dem Nethergewächs,
+  // dessen Reihe über tex.stage kommt.
+  function cropReihe(block) {
+    var tex = block.tex;
+    if (typeof tex !== 'string') return tex.stage || 'wheat_stage';
+    return T.has(tex + '0') ? tex : tex + '_stage';
+  }
+  M.cropReihe = cropReihe;
+
   function faceLayer(block, face, meta) {
     var tex = block.tex;
+    // Die Wuchsstufe steht VOR der Abkürzung für einfache Texturen — sonst
+    // greift bei einer Pflanze ohne eigenes tex der Name statt der Reihe.
+    if (block.shape === B.SHAPE_CROP) {
+      return T.layer(cropReihe(block) + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
+    }
     if (typeof tex === 'string') return T.layer(tex);
     var name;
-    // Wuchsstufen: jede Pflanze bringt ihre eigene Reihe mit. Vorher stand hier
-    // fest 'wheat_stage' – Nethergewächs sah darum aus wie Weizen.
-    if (block.shape === B.SHAPE_CROP) {
-      var reihe = (typeof tex === 'string') ? tex : (tex.stage || 'wheat_stage');
-      return T.layer(reihe + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
-    }
     // Tür: obere/untere Hälfte bestimmt die Textur, nicht die Fläche
     if (block.shape === B.SHAPE_DOOR) return T.layer((meta & 1) ? tex.top : tex.bottom);
     // Gemälde: das Motiv liegt auf der Vorderseite, alles andere ist Rahmenholz
@@ -254,8 +265,7 @@
             case B.SHAPE_CROP: {
               // Die Texturreihe steht am Block. Hier stand sie früher fest auf
               // Weizen – deshalb war ein gesetztes Nethergewächs grün.
-              var reihe = (typeof block.tex === 'string') ? block.tex : (block.tex.stage || 'wheat_stage');
-              var lay2 = T.layer(reihe + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
+              var lay2 = T.layer(cropReihe(block) + Math.min(3, meta >> (block.stufen === 4 ? 0 : 1)));
               emitCross(buf, x, y, z, lay2, gl(x, y, z), 0.95);
               break;
             }

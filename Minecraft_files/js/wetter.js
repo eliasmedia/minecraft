@@ -151,10 +151,10 @@
       if (dx * dx + dz * dz > 9) continue;
       e.geladen = true;
       e.maxHp = e.hp = Math.max(e.hp, 20);
-      game.particles.crit(e.x, e.y + 1, e.z);
+      game.particles.funken(e.x, e.y + 1, e.z, 24);
       game.ui.toast('Ein Blitz hat einen Creeper aufgeladen');
     }
-    game.particles.explosion(bx + 0.5, by, bz + 0.5, 1.2);
+    game.particles.funken(bx + 0.5, by + 0.3, bz + 0.5, 30);
   };
 
   // Die oberste freie Stelle über festem Grund, oder -1 unter freiem Himmel

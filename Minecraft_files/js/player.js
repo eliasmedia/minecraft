@@ -758,7 +758,7 @@
     if (it.name === 'chicken_raw' && Math.random() < 0.3) this.food = Math.max(0, this.food - 2);
     this.inventory.consumeSelected(1);
     game.audio.play('eat');
-    game.particles.crit(this.x, this.eyeY() - 0.3, this.z);
+    game.particles.kauen(this.x, this.eyeY() - 0.3, this.z, { id: it.name });
     return true;
   };
 

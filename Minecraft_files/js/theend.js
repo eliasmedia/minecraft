@@ -428,7 +428,7 @@
     if (w.getMeta(t.x, t.y, t.z) & 1) { game.ui.toast('In diesem Rahmen steckt schon ein Auge.'); return true; }
 
     w.setMetaOnly(t.x, t.y, t.z, w.getMeta(t.x, t.y, t.z) | 1);
-    game.particles.crit(t.x + 0.5, t.y + 1.1, t.z + 0.5);
+    game.particles.portal(t.x + 0.5, t.y + 1.1, t.z + 0.5, 14);
     game.audio.play('levelup');
     game.player.swingTime = 1;
     if (game.mode !== 'creative') game.player.inventory.consumeSelected(1);

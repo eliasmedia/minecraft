@@ -690,11 +690,27 @@ dann sitzt man auf. Gelenkt wird mit `W A S D` in Blickrichtung, `Leertaste`
 springt — und ein Moa springt 13,5 hoch statt 8,85, was im Aether der ganze
 Zweck der Übung ist. Schleichen steigt ab.
 
+Reiten geht auf **Schwein, Phyg und Moa**, und der Sattel ist zu sehen: das
+Modell trägt ein Teil mehr, sobald es eines hat. Die Teileliste dafür wird einmal
+je Modell gebaut und behalten — sie ändert sich nie wieder.
+
 Die Anbindung ist mit Absicht schlicht: **zwei Zeiger**, das Tier kennt seinen
 Reiter und der Reiter sein Tier. Wichtig ist nur, wer wen setzt — der Reiter wird
 vom Tier gesetzt, und zwar *nach* dessen Physik. Andersherum hinge die Kamera ein
 Bild hinterher und das Reiten ruckelte. Genau diese Anbindung brauchen später die
 Loren.
+
+**Partikel mit Form** — bis eben sah jeder Effekt gleich aus: ein farbiges
+Quadrat, egal ob ein Tier gezähmt wurde, eine Enderperle flog oder der Nether
+Asche fallen ließ. Jetzt haben sie eine Gestalt und sind auf einen Blick
+auseinanderzuhalten: **Herzen** bei Zuneigung und Nachwuchs, ein **violetter
+Wirbel** für Enderperle, Enderman und Portalfläche, **Funken** für Blitz und
+aufgeladenen Creeper, **Aschenflocken** im Basaltdelta, **Sporen** in den
+Pilzwäldern, ein **dunkler Puff** über dem Enderman, kurz bevor er nachsetzt,
+und **Noten** über einem Bewohner nach einem geglückten Handel. Gezeichnet sind
+sie wie die Item-Symbole als Bild aus Zeichen; der Alphatest im Partikeldurchgang
+schneidet den durchsichtigen Rand sauber weg. Beim Essen bröseln sogar Krümel in
+der Farbe der Speise.
 
 **Mobs** — Schwein, Kuh, Schaf (16 Wollfarben, scherbar), Huhn, Zombie, Skelett
 (schießt Pfeile), Creeper (zündet und explodiert), Dorfbewohner; im Nether
