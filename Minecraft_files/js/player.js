@@ -295,6 +295,34 @@
     if (MC.Effekte) MC.Effekte.tick(this, game, dt);
   };
 
+  // Wer gegen eine Kreatur oder eine Lore läuft, schiebt sie weg. Vorher stand
+  // man an einem Schwein wie an einer Mauer, und eine Lore ließ sich nur mit
+  // dem Reiter bewegen — beides fühlt sich falsch an.
+  //
+  // Geschoben wird nur waagerecht und nur, wenn sich die Höhen überlappen:
+  // sonst schöbe man ein Tier, das zwei Blöcke tiefer steht.
+  Player.prototype.schiebeEntitaeten = function (dt, game) {
+    if (game.mode === 'spectator') return;
+    var ents = this.world.entities;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e.dead || (e.type !== 'mob' && e.type !== 'cart')) continue;
+      if (e === this.reittier) continue;
+      if (e.y > this.y + this.height || e.y + (e.height || 1) < this.y) continue;
+      var dx = e.x - this.x, dz = e.z - this.z;
+      var abst = Math.sqrt(dx * dx + dz * dz);
+      var min = (this.width + (e.width || 0.6)) * 0.5;
+      if (abst > min || abst < 1e-4) continue;
+
+      if (e.type === 'cart') { if (e.anstossen) e.anstossen(this, dt); continue; }
+      // Je tiefer man steckt, desto kräftiger der Schub — so löst sich die
+      // Überlappung von selbst auf, statt zu zappeln.
+      var kraft = (min - abst) / min * 26 * dt;
+      e.vx += dx / abst * kraft;
+      e.vz += dz / abst * kraft;
+    }
+  };
+
   Player.prototype.eyeY = function () {
     return this.y + (this.sneaking ? this.eyeHeight - 0.18 : this.eyeHeight);
   };
@@ -550,6 +578,7 @@
     }
 
     var moved = Math.abs(this.vx) + Math.abs(this.vz);
+    this.schiebeEntitaeten(dt, game);
     if (moved > 0.3 && (this.onGround || this.inWater)) {
       this.walkTime += dt * (this.sprinting ? 11 : 8);
       this.bobPhase += dt * (this.sprinting ? 11 : 8);

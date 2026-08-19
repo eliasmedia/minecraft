@@ -358,12 +358,15 @@
     r.onGround = true;
   };
 
-  // Wer dagegenläuft, schiebt sie an
-  Minecart.prototype.anstossen = function (p) {
+  // Wer dagegenläuft, schiebt sie an. Über die Zeit, nicht in einem Bild —
+  // sonst stünde sie bei der ersten Berührung sofort auf Höchstgeschwindigkeit.
+  // Die Richtung entscheidet, auf welcher Seite man steht.
+  Minecart.prototype.anstossen = function (p, dt) {
+    dt = dt || 1 / 60;
     var dx = this.x - p.x, dz = this.z - p.z;
     var pkt = dx * this.dir[0] + dz * this.dir[1];
-    this.speed = Math.min(9, this.speed + 3.5);
     if (pkt < 0) this.dir = [-this.dir[0], -this.dir[1]];
+    this.speed = Math.min(8, this.speed + 16 * dt);
   };
 
   // Beim Abbauen fällt der Inhalt heraus — das erledigt breakBlock über

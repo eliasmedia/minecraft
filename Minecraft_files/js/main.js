@@ -534,7 +534,9 @@
     var ents = this.world.entities;
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
-      if (e.dead || !(e.type === 'mob')) continue;
+      // Auch eine Lore ist ein Ziel — sonst kann man weder aufsteigen noch sie
+      // zerlegen, weil beides am anvisierten Objekt hängt.
+      if (e.dead || (e.type !== 'mob' && e.type !== 'cart')) continue;
       var w = e.width / 2;
       var hit = MC.rayBox(ox, oy, oz, d.x, d.y, d.z,
         e.x - w - 0.1, e.y - 0.05, e.z - w - 0.1, e.x + w + 0.1, e.y + e.height + 0.1, e.z + w + 0.1);

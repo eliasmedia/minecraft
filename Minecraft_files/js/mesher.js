@@ -666,7 +666,10 @@
       var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
       var uv = [[0, 1], [1, 1], [1, 0], [0, 0]];
       var dreh = RAIL_DREH[rm] || 0;
-      var eck = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      // Die Ecken laufen wie bei der Oberseite eines Blocks (FACES[2]), sonst
+      // zeigt das Viereck nach unten und die Flächenaussortierung wirft es weg
+      // — die Schiene war deshalb unsichtbar.
+      var eck = [[0, 1], [1, 1], [1, 0], [0, 0]];
       buf.need(4 * 9);
       var a = buf.a, n = buf.n;
       for (var i = 0; i < 4; i++) {
