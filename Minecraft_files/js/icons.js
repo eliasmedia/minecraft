@@ -58,98 +58,20 @@
     ctx.drawImage(tile, 0, 0, 16, 16, 4, 4, 64, 64);
   }
 
+  // Das Symbol entsteht aus derselben Quaderliste, aus der auch das Item in
+  // der Hand und am Boden gebaut wird - siehe B.itemBoxen(). Solange hier
+  // nichts eigenes mehr steht, koennen die drei Ansichten nicht auseinander
+  // laufen.
   function blockIcon(block, meta) {
     var c = document.createElement('canvas');
     c.width = SIZE; c.height = SIZE;
     var ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    switch (block.shape) {
-      case B.SHAPE_CROSS:
-      case B.SHAPE_CROP:
-      case B.SHAPE_TORCH:
-      case B.SHAPE_LADDER:
-      case B.SHAPE_FIRE:
-      case B.SHAPE_RAIL:
-      case B.SHAPE_LEVER:
-        // Formen, die kein Würfel sind, zeigen ihr Item-Bild flach
-        // Eine Pflanze mit Wuchsstufen zeigt ihre reife Stufe; welche Reihe das
-        // ist, weiß der Mesher — dieselbe Rechnung wie in der Welt.
-        if (block.shape === B.SHAPE_CROP) {
-          flatIcon(ctx, MC.Mesher.cropReihe(block) + '3');
-          return c;
-        }
-        flatIcon(ctx, typeof block.tex === 'string' ? block.tex
-                 : (block.tex.side || block.tex.top || 'white'));
-        return c;
-
-      case B.SHAPE_WIRE:
-        flatIcon(ctx, 'redstone_dust');
-        return c;
-
-      case B.SHAPE_PLATE:
-        isoBox(ctx, [0.0625, 0, 0.0625, 0.9375, 0.0625, 0.9375], block, 0);
-        return c;
-
-      case B.SHAPE_REPEATER: {
-        isoBox(ctx, [0, 0, 0, 1, 0.125, 1], block, 0);
-        // zwei Fackelstummel, wie am Block: vorne fest, hinten je nach Stufe
-        var pin = { tex: 'redstone_torch_off', shape: B.SHAPE_CUBE, name: 'pin' };
-        isoBox(ctx, [0.4, 0.125, 0.1, 0.6, 0.62, 0.3], pin, 0);
-        isoBox(ctx, [0.4, 0.125, 0.7, 0.6, 0.62, 0.9], pin, 0);
-        return c;
-      }
-
-      case B.SHAPE_BUTTON:
-        isoBox(ctx, [0.3125, 0, 0.3125, 0.6875, 0.125, 0.6875], block, 4);
-        return c;
-
-      case B.SHAPE_SLAB:
-        isoBox(ctx, [0, 0, 0, 1, 0.5, 1], block, 0);
-        return c;
-
-      case B.SHAPE_EGG:
-        // von unten nach oben zeichnen, dann verdecken die oberen Lagen richtig
-        for (var eg = 0; eg < B.EGG_LAYERS.length; eg++) isoBox(ctx, B.EGG_LAYERS[eg], block, 0);
-        return c;
-
-      case B.SHAPE_BED:
-        isoBox(ctx, [0, 0, 0, 1, 0.5625, 1], block, 0);
-        return c;
-
-      case B.SHAPE_STAIRS:
-        // Grundplatte, dann die Stufe hinten drauf
-        isoBox(ctx, [0, 0, 0, 1, 0.5, 1], block, 0);
-        isoBox(ctx, [0, 0.5, 0, 1, 1, 0.5], block, 0);
-        return c;
-
-      case B.SHAPE_FENCE:
-        isoBox(ctx, [0.34, 0, 0.34, 0.66, 1, 0.66], block, 0);
-        isoBox(ctx, [0.42, 0.34, 0, 0.58, 0.5, 1], block, 0);
-        isoBox(ctx, [0.42, 0.72, 0, 0.58, 0.88, 1], block, 0);
-        return c;
-
-      case B.SHAPE_GATE:
-        // zwei Pfosten mit zwei Riegeln dazwischen
-        isoBox(ctx, [0.42, 0.16, 0, 0.58, 1, 0.16], block, 0);
-        isoBox(ctx, [0.42, 0.16, 0.84, 0.58, 1, 1], block, 0);
-        isoBox(ctx, [0.44, 0.3, 0.16, 0.56, 0.46, 0.84], block, 0);
-        isoBox(ctx, [0.44, 0.66, 0.16, 0.56, 0.82, 0.84], block, 0);
-        return c;
-
-      case B.SHAPE_DOOR: {
-        // untere und obere Hälfte übereinander, damit man die Tür erkennt
-        var lower = { tex: block.tex, shape: B.SHAPE_CUBE, name: block.name };
-        var upper = { tex: { top: block.tex.top, bottom: block.tex.top, side: block.tex.top }, shape: B.SHAPE_CUBE, name: block.name };
-        isoBox(ctx, [0, 0, 0.36, 1, 0.5, 0.64], lower, 0);
-        isoBox(ctx, [0, 0.5, 0.36, 1, 1, 0.64], upper, 0);
-        return c;
-      }
-
-      default:
-        isoBox(ctx, [0, 0, 0, 1, 1, 1], block, meta);
-        return c;
-    }
+    var teile = B.itemBoxen(block);
+    if (!teile) { flatIcon(ctx, B.itemFlachTex(block)); return c; }
+    for (var i = 0; i < teile.length; i++) isoBox(ctx, teile[i].box, teile[i].b, teile[i].meta);
+    return c;
   }
 
   function itemIcon(name) {

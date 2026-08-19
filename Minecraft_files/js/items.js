@@ -109,10 +109,6 @@
   ['sign', 'item_frame', 'painting'].forEach(function (n) {
     if (I.byName[n]) I.byName[n].iconTex = n + '_item';
   });
-  // Nethergewächs hat eine eigene Item-Grafik. Ohne diesen Zeiger geht das
-  // Symbol über den Block, und dessen Textur steht als Wuchsreihe in tex.stage
-  // statt als tex.side — dabei kam ein weißer Würfel heraus.
-  if (I.byName['nether_wart_item']) I.byName['nether_wart_item'].iconTex = 'nether_wart_item';
   I.byName['redstone'].tex = 'redstone_dust';
   I.byName['redstone'].group = 'redstone';
   if (I.byName['tnt']) I.byName['tnt'].group = 'redstone';
@@ -198,7 +194,12 @@
   // ---------- Brauen ----------
   define('glass_bottle', { title: 'Glasflasche', stack: 16, group: 'nahrung' });
   define('water_bottle', { title: 'Wasserflasche', stack: 1, tex: 'potion_water', group: 'nahrung' });
-  define('nether_wart_item', { title: 'Nethergewächs', tex: 'nether_wart_item', group: 'natur', place: 'nether_wart' });
+  // Eigene Item-Grafik: ohne iconTex ginge das Symbol über den Block, und der
+  // ist eine Pflanze mit Wuchsstufen — im Inventar lag dann die reife Staude
+  // statt der Schote. Die Zuweisung stand früher weiter oben und lief ins
+  // Leere, weil das Item hier erst entsteht.
+  define('nether_wart_item', { title: 'Nethergewächs', tex: 'nether_wart_item',
+    iconTex: 'nether_wart_item', group: 'natur', place: 'nether_wart' });
   define('ghast_tear', { title: 'Ghastträne', group: 'material' });
   // Für jeden Trank ein Item, dazu die gestreckte und die verstärkte Fassung
   MC.Effekte.TRAENKE && Object.keys(MC.Effekte.TRAENKE).forEach(function (k) {

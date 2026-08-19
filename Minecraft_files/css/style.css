@@ -146,6 +146,12 @@ canvas#gl {
 }
 
 /* ---------- Fenster (Inventar etc.) ---------- */
+/* Flexkasten, nicht Block: nur so steht ein Fenster wirklich in der Mitte.
+   Vorher war #screen ein Block und .window hatte margin:0 auto — waagerecht
+   mittig, senkrecht oben angeklebt. Bei 720 px Schirmhöhe blieben unter dem
+   Kreativmenü 189 px leer. `margin:auto 0` am Fenster statt align-items:center
+   ist Absicht: ein zu hohes Fenster wird damit oben und unten gleich
+   abgeschnitten und bleibt scrollbar, statt oben hinauszuragen. */
 #screen {
   position: fixed; inset: 0; display: none;
   background: rgba(0,0,0,.55);
@@ -155,7 +161,8 @@ canvas#gl {
 }
 .window {
   position: relative;
-  margin: 0 auto; width: max-content; max-width: 96vw;
+  margin: auto; width: max-content; max-width: 96vw;
+  max-height: calc(100vh - 40px); overflow-y: auto; flex: 0 0 auto;
   background: var(--panel);
   border: 4px solid; border-color: #fff #555 #555 #fff;
   padding: 10px 14px 14px;
@@ -186,8 +193,6 @@ canvas#gl {
 }
 .pagebtn:disabled { opacity: .35; cursor: default; }
 .pagelabel { font-size: 13px; color: #3f3f3f; min-width: 110px; text-align: center; }
-.tabs { flex-wrap: nowrap; overflow-x: auto; }
-.tab { white-space: nowrap; }
 
 /* ---------- Handel ---------- */
 .tradelist { display: flex; flex-direction: column; gap: 4px; max-height: 46vh; overflow-y: auto; }
@@ -304,10 +309,17 @@ canvas#gl {
 @keyframes glint { from { background-position: 140% 0; } to { background-position: -40% 0; } }
 #itemname .ench { display: block; font-size: 11px; color: #c9a8ff; margin-top: 2px; }
 
-.tabs { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+/* Eine Reihe, die notfalls scrollt — nicht umbrechen. Umbruch schiebt das
+   Gitter darunter nach unten und lässt das Fenster bei jedem Reiterwechsel
+   springen. Diese Regel stand früher zweimal im Blatt, mit gegenläufigem
+   flex-wrap; die spätere gewann und der Umbruch war wieder da. */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 8px;
+  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
+}
 .tab {
   padding: 4px 10px; background: #9a9a9a; border: 2px solid; border-color: #ccc #555 #555 #ccc;
-  cursor: pointer; font-size: 12px;
+  cursor: pointer; font-size: 12px; white-space: nowrap; flex: 0 0 auto;
 }
 .tab.active { background: #e0e0e0; }
 .search {
@@ -352,7 +364,14 @@ canvas#gl {
 .bookbtn.back { margin-top: 12px; }
 
 .window.book { width: min(640px, 94vw); }
-.recipebox { display: flex; flex-direction: column; gap: 6px; min-height: 260px; }
+/* Die Liste scrollt, nicht das Fenster: Suchfeld, Blätterer und Zurück
+   müssen stehenbleiben. Sechs Karten sind rund 900 px hoch und passen auf
+   keinen üblichen Schirm — vorher wuchs das Fenster darüber hinaus und der
+   Zurück-Knopf lag außer Sicht. Gleicher Wert wie beim Erfolgsbaum. */
+.recipebox {
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 260px; max-height: 52vh; overflow-y: auto;
+}
 .rcard { background: rgba(0,0,0,.13); padding: 7px 9px; }
 .rhead { font-size: 12.5px; color: #333; display: flex; align-items: baseline; gap: 8px; }
 .rhead .rart { margin-left: auto; font-size: 10.5px; color: #666; letter-spacing: .06em; }
@@ -820,14 +839,15 @@ canvas#gl {
 /* Der Knüppel gehört in die Ecke, nicht auf halbe Höhe */
 .touch #tstick { bottom: 16px; }
 
-/* Fenster dürfen nicht unten abgeschnitten werden. #screen zentriert sonst
-   senkrecht, und was nicht hineinpasst, ragt oben und unten heraus. */
+/* Am Telefon ist die Höhe knapp: dort darf das Fenster oben anfangen und
+   nach unten scrollen, statt mittig zu stehen und an beiden Enden zu fehlen. */
 .touch #screen {
   padding: 6px 0;
   align-items: flex-start;
   -webkit-overflow-scrolling: touch;
 }
 .touch .window {
+  margin: 0 auto;
   max-height: calc(100dvh - 12px);
   overflow-y: auto; overscroll-behavior: contain;
   max-width: 98vw;

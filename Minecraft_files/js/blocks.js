@@ -796,6 +796,101 @@
     sound: 'stone', group: 'werkzeug'
   });
 
+  // ============================================================
+  //  Item-Modell
+  // ============================================================
+  // Woraus besteht das Bild eines Items? EINE Antwort fuer alle drei Orte, an
+  // denen die Frage gestellt wird: Inventarsymbol, Hand und loses Item am
+  // Boden. Vorher stand sie dreimal getrennt im Code - in icons.js, in
+  // FLAT_IN_HAND und noch einmal in drawItemEntity -, und die drei Antworten
+  // liefen auseinander: im Inventar lag eine Treppe, in der Hand ein Brett.
+  //
+  // null heisst: flach, mit der Textur aus B.itemFlachTex().
+  // Sonst eine Liste von Quadern in Blockeinheiten, jeder mit dem Traeger,
+  // dessen Texturen darauf kommen, und dem Meta, das die Flaechenwahl steuert.
+  // Die Reihenfolge ist die Malreihenfolge: hinten und unten zuerst.
+
+  // Formen ohne Koerper. Die zeigen ihr Bild flach - ein Halm oder eine
+  // Schiene als Quader waere eine Kiste mit aufgeklebtem Bild.
+  B.ITEM_FLACH = [
+    B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_TORCH, B.SHAPE_LADDER, B.SHAPE_FIRE,
+    B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_RAIL,
+    B.SHAPE_SIGN, B.SHAPE_SIGN_WALL, B.SHAPE_FRAME, B.SHAPE_PAINTING
+  ];
+
+  function quader(b, box, meta) { return { b: b, box: box, meta: meta || 0 }; }
+
+  B.itemBoxen = function (b) {
+    if (!b || b.id === 0) return null;
+    if (B.ITEM_FLACH.indexOf(b.shape) >= 0) return null;
+    switch (b.shape) {
+      case B.SHAPE_SLAB:   return [quader(b, [0, 0, 0, 1, 0.5, 1])];
+      case B.SHAPE_BED:    return [quader(b, [0, 0, 0, 1, 0.5625, 1])];
+      case B.SHAPE_PLATE:  return [quader(b, [0.0625, 0, 0.0625, 0.9375, 0.0625, 0.9375])];
+      // Meta 4 = am Boden montiert: sonst sucht die Texturwahl eine Wand
+      case B.SHAPE_BUTTON: return [quader(b, [0.3125, 0, 0.3125, 0.6875, 0.125, 0.6875], 4)];
+      case B.SHAPE_STAIRS: return [quader(b, [0, 0, 0, 1, 0.5, 1]), quader(b, [0, 0.5, 0, 1, 1, 0.5])];
+      case B.SHAPE_FENCE:
+        return [quader(b, [0.34, 0, 0.34, 0.66, 1, 0.66]),
+                quader(b, [0.42, 0.34, 0, 0.58, 0.5, 1]),
+                quader(b, [0.42, 0.72, 0, 0.58, 0.88, 1])];
+      case B.SHAPE_GATE:
+        return [quader(b, [0.42, 0.16, 0, 0.58, 1, 0.16]),
+                quader(b, [0.42, 0.16, 0.84, 0.58, 1, 1]),
+                quader(b, [0.44, 0.3, 0.16, 0.56, 0.46, 0.84]),
+                quader(b, [0.44, 0.66, 0.16, 0.56, 0.82, 0.84])];
+      case B.SHAPE_EGG:   return B.EGG_LAYERS.map(function (x) { return quader(b, x); });
+      case B.SHAPE_ANVIL: return B.ANVIL_LAYERS.map(function (x) { return quader(b, x); });
+      case B.SHAPE_STAND: return B.STAND_LAYERS.map(function (x) { return quader(b, x); });
+      case B.SHAPE_HOPPER:
+        // Auslauf und Trog zuerst, der Rand zuletzt - er verdeckt beide.
+        return [quader(b, [0.375, 0, 0.375, 0.625, 0.25, 0.625]),
+                quader(b, [0.25, 0.25, 0.25, 0.75, 0.625, 0.75]),
+                quader(b, [0, 0.625, 0, 0.125, 1, 1]),
+                quader(b, [0.125, 0.625, 0, 0.875, 1, 0.125]),
+                quader(b, [0.875, 0.625, 0, 1, 1, 1]),
+                quader(b, [0.125, 0.625, 0.875, 0.875, 1, 1])];
+      case B.SHAPE_CAULDRON:
+        // Boden, dann die beiden hinteren Waende, dann die beiden vorderen
+        return [quader(b, [0, 0, 0, 1, 0.1875, 1]),
+                quader(b, [0, 0.1875, 0, 0.125, 1, 1]),
+                quader(b, [0.125, 0.1875, 0, 0.875, 1, 0.125]),
+                quader(b, [0.875, 0.1875, 0, 1, 1, 1]),
+                quader(b, [0.125, 0.1875, 0.875, 0.875, 1, 1])];
+      case B.SHAPE_DOOR:
+        // Zwei Haelften uebereinander. Welches Blatt eine Haelfte zeigt, haengt
+        // bei der Tuer am Meta-Bit 0 und nicht an der Flaeche.
+        return [quader(b, [0, 0, 0.36, 1, 0.5, 0.64], 0),
+                quader(b, [0, 0.5, 0.36, 1, 1, 0.64], 1)];
+      case B.SHAPE_REPEATER: {
+        // Zwei Fackelstuempfe wie am gesetzten Block
+        var stift = { name: 'repeater_stift', tex: 'redstone_torch_off', shape: B.SHAPE_CUBE };
+        return [quader(b, [0, 0, 0, 1, 0.125, 1]),
+                quader(stift, [0.4, 0.125, 0.1, 0.6, 0.62, 0.3]),
+                quader(stift, [0.4, 0.125, 0.7, 0.6, 0.62, 0.9])];
+      }
+      // Nichts davon liegt je im Inventar, aber ein Befehl kann es hineinlegen
+      case B.SHAPE_NONE:
+      case B.SHAPE_LIQUID:
+      case B.SHAPE_PISTON_HEAD:
+      case B.SHAPE_PORTAL:
+      case B.SHAPE_PORTAL_FLAT:
+        return null;
+      default:
+        return [quader(b, [0, 0, 0, 1, 1, 1])];
+    }
+  };
+
+  // Welche Textur traegt ein flaches Item-Bild? Eine Pflanze mit Wuchsstufen
+  // zeigt ihre reife Stufe; welche Reihe das ist, weiss der Mesher.
+  B.itemFlachTex = function (b) {
+    if (!b) return 'white';
+    if (b.shape === B.SHAPE_CROP) return MC.Mesher.cropReihe(b) + '3';
+    if (b.shape === B.SHAPE_WIRE) return 'redstone_dust';
+    if (typeof b.tex === 'string') return b.tex;
+    return b.tex.side || b.tex.top || b.tex.all || 'white';
+  };
+
   // ---------- Helfer ----------
   B.get = function (id) { return B.byId[id] || B.byId[0]; };
   B.id = function (name) { var b = B.byName[name]; return b ? b.id : 0; };

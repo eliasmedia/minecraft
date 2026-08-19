@@ -454,20 +454,25 @@
 
   Game.prototype.dropBlock = function (x, y, z, id, meta, toolName, stack) {
     var b = B.byId[id];
-    if (!b || !b.drop) return;
+    if (!b) return;
     if (this.mode === 'creative') return;
     if (MC.Cmd && !MC.Cmd.regel(this, 'doTileDrops')) return;
     if (!I.canHarvest(toolName, b)) return;
-    var drops = [];
-    var d = b.drop;
 
     // Behutsamkeit: der Block selbst statt seiner Beute – aber nur, wenn es
     // ihn überhaupt als Item gibt (Ackerboden und Feuer haben keins).
+    // Sie wird VOR dem Abbruch bei fehlender Beute geprüft: Glas, Eis und
+    // Kristalllaub lassen von sich aus nichts fallen, und genau die sind der
+    // Grund, warum es die Verzauberung gibt. Vorher stand die Prüfung darunter
+    // und die drei waren mit Behutsamkeit so unabbaubar wie ohne.
     var behutsam = stack && MC.Ench.stufe(stack, 'silk_touch') > 0;
-    if (behutsam && b.item !== false && I.get(b.name) && b.name !== d) {
+    if (behutsam && b.item !== false && I.get(b.name) && b.name !== b.drop) {
       this.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: b.name, count: 1 });
       return;
     }
+    if (!b.drop) return;
+    var drops = [];
+    var d = b.drop;
     // Glück: mehr Beute aus allem, was nicht sich selbst fallen lässt.
     // Original: gleichverteilt 1 bis Stufe+1 Mal, kleinere Werte fallen weg.
     var glueck = stack ? MC.Ench.stufe(stack, 'fortune') : 0;
@@ -496,8 +501,7 @@
     } else if (id === B.id('gravel')) {
       if (Math.random() < 0.12) drops.push({ id: 'flint', n: 1 });
       else drops.push({ id: 'gravel', n: 1 });
-    } else if (id === B.id('wool_white') && false) { /* Platzhalter */ }
-    else {
+    } else {
       drops.push({ id: d, n: b.dropCount || 1 });
     }
 
@@ -1676,6 +1680,10 @@
   Game.prototype.showClickHint = function (on) {
     // Am Telefon gibt es nichts anzuklicken – der Hinweis stünde dauerhaft im Bild
     if (MC.Mobile && MC.Mobile.aktiv) on = false;
+    // Wer im Inventar steht, will den Zeiger behalten. Der Hinweis lag vorher
+    // quer über jedem offenen Fenster – auch über dem Menü und dem Todesschirm,
+    // denn der Zeiger ist in allen dreien frei.
+    if (on && (this.paused || this.player.dead || (this.ui && this.ui.isOpen()))) on = false;
     var el = document.getElementById('clickhint');
     if (el) el.style.display = on ? 'flex' : 'none';
   };

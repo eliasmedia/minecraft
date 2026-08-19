@@ -612,7 +612,11 @@
   UI.prototype.openScreen = function (type, data) {
     if (this.open) this.close();
     this.open = type;
-    this.screen.style.display = 'block';
+    // flex, nicht block: erst damit greift die senkrechte Mitte aus style.css
+    this.screen.style.display = 'flex';
+    // Der Zeiger wird gleich freigegeben, aber angeklickt werden soll das
+    // Fenster und nicht die Welt dahinter – der Hinweis hat hier nichts zu suchen.
+    this.game.showClickHint(false);
     this.screen.innerHTML = '';
     this.game.exitPointerLock();
     this.game.audio.play('open');
@@ -628,6 +632,37 @@
     else if (type === 'trade') this.buildTrade(data);
     else if (type === 'recipes') this.buildRecipes();
     else if (type === 'achievements') this.buildAchievements();
+  };
+
+  // Die untere Hälfte jedes Fensters: 27 Felder Inventar, darunter die Hotbar,
+  // darunter die beiden Buchknöpfe und die Bedienzeile. Sie sah in acht
+  // Fenstern gleich aus und stand darum achtmal im Code — mit dem Ergebnis,
+  // dass nur drei davon eine Bedienzeile hatten und zwei die Knöpfe. Jetzt
+  // steht sie an einer Stelle, und kein Fenster kann sie mehr vergessen.
+  UI.KLICKHILFE = 'Linksklick: nehmen/ablegen · Rechtsklick: teilen/einzeln · ' +
+                  'Shift+Klick: schnell verschieben · E schließt';
+
+  UI.prototype.spielerFach = function (win, zurueck, opts) {
+    var self = this, inv = this.game.player.inventory;
+    opts = opts || {};
+    if (!opts.nurHotbar) {
+      var main = el('div', 'invgrid', win);
+      for (var m = 9; m < 36; m++) {
+        (function (mi) {
+          self.makeSlot(main, function () { return inv.slots[mi]; },
+            function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi });
+        })(m);
+      }
+    }
+    var hb = el('div', 'invgrid hotbarrow', win);
+    for (var h = 0; h < 9; h++) {
+      (function (hi) {
+        self.makeSlot(hb, function () { return inv.slots[hi]; },
+          function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi });
+      })(h);
+    }
+    this.addBookButtons(win, zurueck);
+    el('div', 'whint', win).textContent = opts.hinweis || UI.KLICKHILFE;
   };
 
   // Zwei Knöpfe, die aus jedem Inventarfenster ins Rezeptbuch und in die
@@ -1050,25 +1085,7 @@
     el('div', 'wsep', win);
 
     // Hauptinventar
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) {
-        self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; },
-          { area: 'inv', index: mi });
-      })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) {
-        self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; },
-          { area: 'inv', index: hi });
-      })(hh);
-    }
-
-    this.addBookButtons(win, craftSize === 3 ? 'crafting' : 'inventory');
-
-    var hint = el('div', 'whint', win);
-    hint.textContent = 'Linksklick: nehmen/ablegen · Rechtsklick: teilen/einzeln · Shift+Klick: schnell verschieben · E schließt';
+    this.spielerFach(win, craftSize === 3 ? 'crafting' : 'inventory');
 
     this.updateCraft();
     this.refreshSlots();
@@ -1120,14 +1137,7 @@
       { result: true, onTake: function () { te.output = null; } });
 
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
-    }
+    this.spielerFach(win, 'furnace');
     this.refreshSlots();
   };
 
@@ -1167,14 +1177,7 @@
     this.enchRows = el('div', 'enchrows', top);
 
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
-    }
+    this.spielerFach(win, 'enchant');
     this.refreshEnchant();
     this.refreshSlots();
   };
@@ -1271,14 +1274,7 @@
     this.brewFuel = el('div', 'enchhint', brenn);
 
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
-    }
+    this.spielerFach(win, 'brew');
     this.refreshBrewUI();
     this.refreshSlots();
   };
@@ -1322,14 +1318,7 @@
         onTake: function () { self.anvilNehmen(); } });
 
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) { self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; }, { area: 'inv', index: mi }); })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) { self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi }); })(hh);
-    }
+    this.spielerFach(win, 'anvil');
     this.anvilNameSync();
     this.refreshAnvil();
     this.refreshSlots();
@@ -1408,20 +1397,7 @@
       })(i);
     }
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) {
-        self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; },
-          { area: 'inv', index: mi, onShift: function (slot, st) { if (self.moveIntoChest(st, te)) slot.slotSet(st.count > 0 ? st : null); } });
-      })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) {
-        self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; },
-          { area: 'inv', index: hi, onShift: function (slot, st) { if (self.moveIntoChest(st, te)) slot.slotSet(st.count > 0 ? st : null); } });
-      })(hh);
-    }
+    this.spielerFach(win, 'chest');
     this.refreshSlots();
   };
 
@@ -1479,22 +1455,9 @@
     }
 
     el('div', 'wsep', win);
-    var main = el('div', 'invgrid', win);
-    for (var m = 9; m < 36; m++) {
-      (function (mi) {
-        self.makeSlot(main, function () { return inv.slots[mi]; }, function (v) { inv.slots[mi] = v; },
-          { area: 'inv', index: mi });
-      })(m);
-    }
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) {
-        self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; },
-          { area: 'inv', index: hi });
-      })(hh);
-    }
-
-    el('div', 'whint', win).textContent = 'Smaragde findest du in Smaragderz — oder du verkaufst dem Dorf, was es braucht.';
+    this.spielerFach(win, 'trade', {
+      hinweis: 'Smaragde findest du in Smaragderz — oder du verkaufst dem Dorf, was es braucht.'
+    });
     this.refreshTrade();
     this.refreshSlots();
   };
@@ -1592,13 +1555,7 @@
     });
 
     el('div', 'wsep', win);
-    var hb = el('div', 'invgrid hotbarrow', win);
-    for (var hh = 0; hh < 9; hh++) {
-      (function (hi) {
-        self.makeSlot(hb, function () { return inv.slots[hi]; }, function (v) { inv.slots[hi] = v; }, { area: 'inv', index: hi });
-      })(hh);
-    }
-    this.addBookButtons(win, 'creative');
+    this.spielerFach(win, 'creative', { nurHotbar: true });
     this.fillCreative();
     this.refreshSlots();
   };

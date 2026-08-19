@@ -949,9 +949,9 @@
     var hx = f.x + wx * cy + wz * sy, hy = f.y + wy, hz = f.z - wx * sy + wz * cy;
 
     var n;
-    var blk = it.block && B.byName[it.block];
-    if (blk && FLAT_IN_HAND.indexOf(blk.shape) < 0) {
-      n = this.boxGeometry(0, [hx, hy, hz], 0.3, blk, 0, f.yaw, bl, sl);
+    var teile = itemTeile(it);
+    if (teile) {
+      n = this.itemBoxenGeometry(teile, [hx, hy, hz], 0.3, f.yaw, bl, sl);
     } else {
       var texName = this.itemTexName(it);
       n = this.putItemMeshAt(this.itemMesh(texName), 0.4, bl, sl, hx, hy, hz, yaw, armX + 0.6);
@@ -1037,17 +1037,57 @@
     return T.has(it.tex) ? it.tex : 'white';
   };
 
+  // Der Block hinter einem Item - egal ob er unter 'block' oder unter 'place'
+  // steht. Ohne 'place' bekaeme Tuer und Bett kein Modell, die beiden belegen
+  // zwei Zellen und haben darum kein Auto-Block-Item.
+  function itemBlock(it) {
+    if (!it) return null;
+    return (it.block && B.byName[it.block]) || (it.place && B.byName[it.place]) || null;
+  }
+  // Aus welchen Quadern besteht dieses Item? null = flach als Pixelmodell.
+  // Ein eigenes Symbol (iconTex) schlaegt jedes Blockmodell: Schild, Rahmen
+  // und Gemaelde haben ihre eigene Grafik, die als Quader falsch aussaehe.
+  function itemTeile(it) {
+    if (!it || it.iconTex) return null;
+    return B.itemBoxen(itemBlock(it));
+  }
+  Renderer.prototype.itemTeile = itemTeile;
+
+  // Ein Item-Modell aus Quadern. Dieselbe Liste, aus der auch das
+  // Inventarsymbol entsteht - darum sieht beides gleich aus.
+  Renderer.prototype.itemBoxenGeometry = function (teile, center, size, yaw, bl, sl) {
+    this.ensureDyn(teile.length * 6 * 4 * FPV + 64);
+    var d = this.dynData, n = 0;
+    var cy = Math.cos(yaw), sy = Math.sin(yaw);
+    for (var t = 0; t < teile.length; t++) {
+      var teil = teile[t], bx = teil.box;
+      for (var f = 0; f < 6; f++) {
+        var F = MC.Mesher.FACES[f];
+        var layer = MC.Mesher.faceLayer(teil.b, f, teil.meta);
+        for (var i = 0; i < 4; i++) {
+          var v = F.v[i];
+          var lx = (bx[0] + v[0] * (bx[3] - bx[0]) - 0.5) * size;
+          var ly = (bx[1] + v[1] * (bx[4] - bx[1]) - 0.5) * size;
+          var lz = (bx[2] + v[2] * (bx[5] - bx[2]) - 0.5) * size;
+          var rx = lx * cy + lz * sy, rz = -lx * sy + lz * cy;
+          d[n++] = center[0] + rx; d[n++] = center[1] + ly; d[n++] = center[2] + rz;
+          d[n++] = MC.Mesher.UVS[i][0]; d[n++] = MC.Mesher.UVS[i][1]; d[n++] = layer;
+          d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
+        }
+      }
+    }
+    return n;
+  };
+
   Renderer.prototype.drawItemEntity = function (e, bl, sl, game) {
     var it = MC.Items.get(e.stack.id);
     var bob = Math.sin(e.age * 3 + e.bob) * 0.06;
     var y = e.y + 0.16 + bob;
-    // Nur echte Würfel werden als Würfel gezeigt. Redstone zeigt auf die
-    // Leitung, und die ist flach – als Würfel gezeichnet war sie ein weißer
-    // Klotz. Alles, was kein Würfel ist, kommt als Bild.
-    var blk = (it && it.block) ? B.byName[it.block] : null;
-    if (blk && blk.shape === B.SHAPE_CUBE) {
-      var n = this.boxGeometry(0, [e.x, y, e.z], 0.26, blk, 0, e.age * 1.4, bl, sl);
-      this.drawDyn(n);
+    // Was ein Modell hat, dreht sich als Modell; alles andere - Halme,
+    // Werkzeuge, Redstonestaub - kommt als Bild.
+    var teile = itemTeile(it);
+    if (teile) {
+      this.drawDyn(this.itemBoxenGeometry(teile, [e.x, y, e.z], 0.26, e.age * 1.4, bl, sl));
     } else {
       this.drawSprite(e.x, y, e.z, 0.42, T.layer(this.itemTexName(it)), bl, sl, game);
     }
@@ -1511,12 +1551,6 @@
   var ITEM_DEPTH = 2 / 16;      // zwei Pixel dick
   var ITEM_PX = 1 / 16;
   // Blockformen, die in der Hand kein Würfel sind
-  var FLAT_IN_HAND = [
-    B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_TORCH, B.SHAPE_LADDER, B.SHAPE_FIRE,
-    B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_BUTTON, B.SHAPE_PLATE, B.SHAPE_DOOR,
-    B.SHAPE_SIGN, B.SHAPE_SIGN_WALL, B.SHAPE_FRAME, B.SHAPE_PAINTING, B.SHAPE_RAIL
-  ];
-
   Renderer.prototype.itemMesh = function (texName) {
     var cache = this._itemMeshes || (this._itemMeshes = {});
     if (cache[texName]) return cache[texName];
@@ -1644,24 +1678,13 @@
     var d = this.dynData, n = 0;
 
     var it = stack ? MC.Items.get(stack.id) : null;
-    // Nur echte Würfel werden in der Hand als Würfel gezeigt. Fackel, Hebel,
-    // Leitung, Pflanze und so weiter sähen als Kiste mit aufgeklebtem Bild
-    // falsch aus – die kommen wie Items als extrudiertes Pixelmodell.
-    var alsWuerfel = it && it.block && B.byName[it.block] &&
-                     FLAT_IN_HAND.indexOf(B.byName[it.block].shape) < 0;
-    if (alsWuerfel) {
-      var blk = B.byName[it.block];
-      var meta = 0;
-      for (var f = 0; f < 6; f++) {
-        var F = MC.Mesher.FACES[f];
-        var layer = MC.Mesher.faceLayer(blk, f, meta);
-        for (var i = 0; i < 4; i++) {
-          var v = F.v[i];
-          d[n++] = (v[0] - 0.5) * 0.34; d[n++] = (v[1] - 0.5) * 0.34; d[n++] = (v[2] - 0.5) * 0.34;
-          d[n++] = MC.Mesher.UVS[i][0]; d[n++] = MC.Mesher.UVS[i][1]; d[n++] = layer;
-          d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
-        }
-      }
+    // Was ein Blockmodell hat, kommt als Modell in die Hand. Fackel, Hebel,
+    // Leitung, Pflanze und alle Werkzeuge sähen als Kiste mit aufgeklebtem
+    // Bild falsch aus – die kommen als extrudiertes Pixelmodell.
+    var teile = this.itemTeile(it);
+    if (teile) {
+      n = this.itemBoxenGeometry(teile, [0, 0, 0], 0.34, 0, bl, sl);
+      d = this.dynData;
     } else if (it) {
       // Item als extrudiertes Pixelmodell – hat Dicke, keine Pappscheibe
       var texName = this.itemTexName(it);
