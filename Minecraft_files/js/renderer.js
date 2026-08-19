@@ -1111,6 +1111,10 @@
     var lay = T.layer('hopper_side');
     var quer = Math.abs(e.dir[0]) > Math.abs(e.dir[1]);
     var lx = quer ? 0.9 : 0.62, lz = quer ? 0.62 : 0.9;
+    // Auf einer Rampe steht die Lore schräg. Gekippt wird um die Achse quer
+    // zur Fahrt, also je nach Gleisrichtung um X oder um Z.
+    var nei = e.neigung || 0;
+    var cn = Math.cos(nei), sn = Math.sin(nei);
     var d = this.dynData, n = 0;
     this.ensureDyn(5 * 6 * 4 * FPV + 64);
     d = this.dynData;
@@ -1127,9 +1131,16 @@
         var F = MC.Mesher.FACES[f];
         for (var i = 0; i < 4; i++) {
           var v = F.v[i];
-          d[n++] = e.x + bx[0] + v[0] * (bx[3] - bx[0]);
-          d[n++] = e.y + bx[1] + v[1] * (bx[4] - bx[1]);
-          d[n++] = e.z + bx[2] + v[2] * (bx[5] - bx[2]);
+          var px = bx[0] + v[0] * (bx[3] - bx[0]);
+          var py = bx[1] + v[1] * (bx[4] - bx[1]);
+          var pz = bx[2] + v[2] * (bx[5] - bx[2]);
+          if (nei) {
+            if (quer) { var t1 = px * cn - py * sn; py = px * sn + py * cn; px = t1; }
+            else { var t2 = pz * cn + py * sn; py = -pz * sn + py * cn; pz = t2; }
+          }
+          d[n++] = e.x + px;
+          d[n++] = e.y + py;
+          d[n++] = e.z + pz;
           d[n++] = MC.Mesher.UVS[i][0]; d[n++] = MC.Mesher.UVS[i][1]; d[n++] = lay;
           d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
         }

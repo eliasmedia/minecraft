@@ -287,7 +287,9 @@
               // hebt zwei der vier Ecken an.
               var rm = meta & 15;
               var rtex = B.railKurve(rm) ? 'rail_curve'
-                       : (block.name === 'powered_rail' ? 'rail_powered' : 'rail');
+                       : (block.name === 'powered_rail'
+                           ? ((meta & 16) ? 'rail_powered_on' : 'rail_powered')
+                           : 'rail');
               emitRail(buf, x, y, z, T.layer(rtex), gl(x, y, z), rm);
               break;
             }
@@ -663,7 +665,14 @@
     // beim ersten Aufruf darum undefiniert — und weil das Meshen dann wirft,
     // wird der Chunk nie fertig und das Spiel steht.
     function emitRail(buf, x, y, z, layer, lightRaw, rm) {
-      var RAIL_DREH = [0, 1, 0, 1, 2, 3];
+      // Welche Vierteldrehung die Textur braucht. Hergeleitet, nicht geraten:
+      // bei dreh = 0 gilt u = x und v = z, und der gezeichnete Bogen liegt bei
+      // kleinem u und v — er verbindet also die -X- und die -Z-Kante, das ist
+      // West-Nord (Meta 5). Jede weitere Drehung rückt eine Kurve weiter:
+      // 2 = Nord-Ost -> 1, 3 = Ost-Süd -> 2, 4 = Süd-West -> 3, 5 -> 0.
+      // Die Steigungen 6..9 sind gerade Gleise und brauchen dieselbe Drehung
+      // wie 0 und 1 — ohne sie lag jede zweite Rampe quer.
+      var RAIL_DREH = [0, 1, 1, 2, 3, 0, 0, 1, 0, 1];
       var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
       var uv = [[0, 1], [1, 1], [1, 0], [0, 0]];
       var dreh = RAIL_DREH[rm] || 0;

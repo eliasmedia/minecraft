@@ -972,6 +972,11 @@ Antriebsschiene unter Strom erreicht sie die Höchstgeschwindigkeit von 11 — o
 Strom bremst dieselbe Schiene scharf ab. Dieselbe Schiene ist damit Gaspedal und
 Bremse.
 
+Auf einer Rampe steht die Lore **schräg** — gekippt um die Achse quer zur Fahrt,
+gemessen 0,72 rad an einer Stufe je Block. Und sie bleibt nicht mehr hängen: der
+Blick nach vorn prüft auch eine Ebene höher, denn am Anstieg liegt der nächste
+Block zwangsläufig darüber. Eine Stufe ist keine Wand.
+
 **Steigungen** entstehen von selbst: liegt eine Schiene einen Block höher
 daneben, wird aus der unteren eine Rampe. Damit fährt man in eine Mine hinunter,
 statt vor einer Stufe zu stehen.
@@ -989,7 +994,12 @@ richtet sich im Rollen nach der bisherigen Fahrt — eine Lore kehrt nicht mitte
 in der Bewegung um —, im **Stand aber nach dem Blick des Reiters**. Umdrehen,
 `W` drücken, zurück.
 
-Steigungen fehlen noch: eine Lore fährt bisher nur in der Ebene.
+Eine Schiene braucht **festen Boden**: in die Luft oder auf eine andere Schiene
+lässt sie sich nicht setzen, und wer ihr den Boden wegnimmt, dem fällt sie vor
+die Füße.
+
+Weichen fehlen noch — bei drei Nachbarn gewinnt die Gerade —, und Loren mit
+Truhe oder Trichter ebenso.
 
 **Beobachter** — hängt nicht an der Aufladung, sondern an der Veränderung: er
 merkt sich den Block vor sich und gibt nach hinten einen kurzen Impuls ab, sobald

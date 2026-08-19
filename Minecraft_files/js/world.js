@@ -631,6 +631,18 @@
     if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_REPEATER) {
       if (!B.isSolid(this.getBlock(x, y - 1, z))) { this.breakBlockNatural(x, y, z); return; }
     }
+    // Antriebsschiene: das Strom-Bit im Meta hält die Textur aktuell. Der
+    // Mesher kennt kein Redstone, also muss der Zustand im Block stehen.
+    if (b.name === 'powered_rail' && MC.Redstone) {
+      var anR = MC.Redstone.powered(this, x, y, z);
+      var mR = this.getMeta(x, y, z);
+      if (!!(mR & 16) !== !!anR) this.setMetaOnly(x, y, z, anR ? (mR | 16) : (mR & ~16));
+    }
+    // Eine Schiene ohne Boden fällt — wie eine Fackel ohne Wand
+    if (b.shape === B.SHAPE_RAIL && !B.isSolid(this.getBlock(x, y - 1, z))) {
+      this.breakBlockNatural(x, y, z);
+      return;
+    }
     // Schild, Rahmen und Gemälde fallen mit ihrer Wand oder ihrem Boden
     if (b.shape === B.SHAPE_SIGN || b.shape === B.SHAPE_SIGN_WALL ||
         b.shape === B.SHAPE_FRAME || b.shape === B.SHAPE_PAINTING) {

@@ -307,6 +307,7 @@
     this.tempo = 0;                 // Blöcke je Sekunde ENTLANG dir, mit Vorzeichen
     this.dir = [0, 1];              // Fahrtrichtung in der Ebene
     this.reiter = null;
+    this.neigung = 0;      // Längsneigung auf einer Rampe
     this.gravity = 30;
   }
   Minecart.prototype = Object.create(MC.Entity.prototype);
@@ -415,12 +416,21 @@
     this.vy = 0;
     this.onGround = true;
 
-    // Gegen eine Wand ist Schluss
-    var vx = Math.floor(this.x + this.dir[0] * 0.6), vz = Math.floor(this.z + this.dir[1] * 0.6);
-    if (!L.istSchiene(w, vx, jetzt.y, vz) && B.isSolid(w.getBlock(vx, jetzt.y, vz))) {
+    // Gegen eine Wand ist Schluss — aber eine Stufe ist keine Wand. Auf einer
+    // Rampe liegt der nächste Block zwangsläufig eine Ebene höher; wer nur auf
+    // gleicher Höhe nachsieht, bleibt am Anstieg kleben.
+    var vx = Math.floor(this.x + this.dir[0] * 0.7), vz = Math.floor(this.z + this.dir[1] * 0.7);
+    var frei = L.istSchiene(w, vx, jetzt.y, vz) ||
+               L.istSchiene(w, vx, jetzt.y + 1, vz) ||
+               L.istSchiene(w, vx, jetzt.y - 1, vz) ||
+               !B.isSolid(w.getBlock(vx, jetzt.y + 1, vz));
+    if (!frei) {
       this.tempo = 0;
       this.x = mx; this.z = mz;
     }
+    // Die Neigung merken, damit der Renderer die Lore schräg stellen kann
+    var auf = B.railSteigung(jetzt.meta);
+    this.neigung = auf ? -(auf[0] * this.dir[0] + auf[1] * this.dir[1]) * 0.72 : 0;
     if (this.reiter) this.reiterSetzen();
   };
 

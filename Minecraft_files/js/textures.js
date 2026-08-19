@@ -2365,6 +2365,19 @@
     }
   });
 
+  // Unter Strom glüht sie: dieselbe Schiene, nur in Hellrot. Man muss im
+  // Gleis auf einen Blick sehen, wo Schub anliegt und wo gebremst wird.
+  tex('rail_powered_on', function (g) {
+    g.copyFrom(data('rail_powered'));
+    var rot = [[255, 96, 72], [255, 148, 110], [214, 54, 40]];
+    for (var x = 0; x < 16; x++) for (var y = 0; y < 16; y++) {
+      var c = g.get(x, y);
+      if (!c || c[3] < 200) continue;
+      // Nur die goldenen Bänder werden rot, die Holzschwellen bleiben
+      if (c[0] > 150 && c[2] < 140) g.set(x, y, rot[(x + y) % 3]);
+    }
+  });
+
   // Die Kurve: dieselben zwei Bänder, aber im Viertelkreis von der einen Kante
   // zur benachbarten. Gezeichnet wird sie als Kreisbogen um die Ecke (0,0) —
   // vorher war es ein Gestrichel ohne erkennbare Form.

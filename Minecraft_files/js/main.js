@@ -1208,6 +1208,10 @@
       // Der Beobachter ist umgekehrt herum: er schaut in Blickrichtung, damit
       // er den Block im Auge hat, den man gerade ansieht.
       if (block.name === 'observer') meta = meta < 4 ? ((meta + 2) & 3) : (meta === 4 ? 5 : 4);
+    } else if (block.shape === B.SHAPE_RAIL) {
+      // Eine Schiene braucht festen Boden. Ohne diese Prüfung konnte man
+      // Gleise in die Luft und sogar aufeinander setzen.
+      if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
     } else if (block.shape === B.SHAPE_HOPPER) {
       // Der Auslauf zeigt dorthin, wohin man geklickt hat: auf die Oberseite
       // eines Blocks gesetzt läuft er nach unten, an eine Wand zur Seite.
