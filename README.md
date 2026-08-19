@@ -447,6 +447,22 @@ darüber selbst ab und wieder an; die Periode ist 2 × (2 + 2 × Stufe) Ticks, a
 bis 1,0 s. Wichtig ist nur, dass die Schleife dem Trägerblock nicht zu nahe kommt —
 liegt Staub direkt neben ihm, hält sich das Signal selbst und der Takt bleibt stehen.
 
+**Bauwerkzeuge** — `fill` und `clone` gab es längst, samt Deckel bei 32768
+Blöcken. Was fehlte, war die Bedienung: zwei Ecken mit der Hand setzen, statt
+sechs Koordinaten abzutippen.
+
+Der **Auswahlstab** macht das — Linksklick setzt die erste Ecke, Rechtsklick die
+zweite, und der grüne Drahtkasten liegt über allem, damit man ihn auch findet,
+wenn eine Ecke hinter einem Hügel steht. Darauf arbeiten `/fuellen`, `/huelle`
+(nur die Außenhaut, für Räume der häufigste Wunsch), `/kopieren`, `/einfuegen`,
+`/spiegeln x|z`, `/drehen` und `/rueckgaengig`.
+
+Zwei Entscheidungen, die den Unterschied machen: **Spiegeln und Drehen arbeiten
+auf der Ablage, nicht in der Welt** — so sieht man das Ergebnis erst beim
+Einfügen und kann vorher noch zweimal drehen. Und **jeder Eingriff legt vorher
+den alten Zustand des betroffenen Kastens ab**, acht Schritte weit; damit ist
+`/rueckgaengig` kein Sonderfall, sondern gilt für alles gleichermaßen.
+
 **Rezeptbuch** — zwei Knöpfe in jedem Inventarfenster. Das Buch listet alle 208
 Rezepte mit Zutatengitter und Ergebnis, blätterbar und nach Ergebnis durchsuchbar;
 Sammelbegriffe wie „jede Brettersorte" zeigen einen Vertreter.

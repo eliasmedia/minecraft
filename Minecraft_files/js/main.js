@@ -552,6 +552,12 @@
     if (button === 0) {
       this.updateTarget();
       p.swingTime = 1;
+      // Der Auswahlstab baut nicht ab, er markiert
+      var wst = p.inventory.selectedStack();
+      if (wst && wst.id === 'wand' && this.target && MC.Bauen) {
+        MC.Bauen.setzeEcke(this, 1, this.target.x, this.target.y, this.target.z);
+        return;
+      }
       if (this.targetEntity) this.attackEntity(this.targetEntity);
       else if (this.target) this.startMining();
     } else if (button === 1) {
@@ -893,6 +899,13 @@
     }
 
     if (!it) return;
+
+    // Der Auswahlstab setzt die zweite Ecke
+    if (it.name === 'wand' && this.target && MC.Bauen) {
+      MC.Bauen.setzeEcke(this, 2, this.target.x, this.target.y, this.target.z);
+      p.swingTime = 1;
+      return;
+    }
 
     // Lore auf eine Schiene setzen
     if (it.name === 'minecart' && this.target && MC.Logistik) {

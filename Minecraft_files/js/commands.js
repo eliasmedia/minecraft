@@ -336,6 +336,62 @@
     });
   BEFEHLE.teleport = BEFEHLE.tp;
 
+  // ---------- Bauwerkzeuge ----------
+  // Sie arbeiten alle auf der Auswahl, die der Stab setzt. Getrennt von /fill
+  // und /clone, weil die mit Koordinaten arbeiten — hier ist der Ort schon
+  // bekannt, und das ist der ganze Punkt.
+  function nurKreativ(k) {
+    if (k.game.mode !== 'creative') throw new Fehler('Nur im Kreativmodus');
+    if (!MC.Bauen) throw new Fehler('Bauwerkzeuge fehlen');
+  }
+
+  befehl('fuellen', '<block> [nurluft]',
+    'Füllt die Auswahl mit einem Block.',
+    function (l, k) {
+      nurKreativ(k);
+      var name = l.wort('einen Block');
+      var wie = l.optional();
+      return MC.Bauen.fuellen(k.game, name, wie === 'nurluft');
+    },
+    { vervollstaendigen: function () { return MC.Blocks.list.map(function (b) { return b.name; }); } });
+
+  befehl('huelle', '<block>',
+    'Setzt nur die Außenhaut der Auswahl — Wände, Boden und Decke.',
+    function (l, k) { nurKreativ(k); return MC.Bauen.huelle(k.game, l.wort('einen Block')); },
+    { vervollstaendigen: function () { return MC.Blocks.list.map(function (b) { return b.name; }); } });
+
+  befehl('kopieren', '', 'Legt die Auswahl in die Ablage.',
+    function (l, k) { nurKreativ(k); return MC.Bauen.kopieren(k.game); });
+
+  befehl('einfuegen', '', 'Setzt die Ablage an der eigenen Stelle ab.',
+    function (l, k) { nurKreativ(k); return MC.Bauen.einfuegen(k.game); });
+
+  befehl('spiegeln', '<x|z>', 'Spiegelt die Ablage an einer Achse.',
+    function (l, k) {
+      nurKreativ(k);
+      var a = l.wort('x oder z').toLowerCase();
+      if (a !== 'x' && a !== 'z') throw new Fehler('x oder z — nicht "' + a + '"', l.pos);
+      return MC.Bauen.spiegeln(k.game, a);
+    },
+    { vervollstaendigen: function () { return ['x', 'z']; } });
+
+  befehl('drehen', '', 'Dreht die Ablage um eine Vierteldrehung.',
+    function (l, k) { nurKreativ(k); return MC.Bauen.drehen(k.game); });
+
+  befehl('rueckgaengig', '', 'Nimmt den letzten Eingriff zurück.',
+    function (l, k) { nurKreativ(k); return MC.Bauen.rueckgaengig(k.game); });
+
+  befehl('auswahl', '', 'Zeigt oder löscht die Auswahl.',
+    function (l, k) {
+      nurKreativ(k);
+      var was = l.optional();
+      if (was === 'weg' || was === 'clear') { MC.Bauen.leeren(); return 'Auswahl gelöscht'; }
+      if (!MC.Bauen.hatAuswahl()) return 'Keine Auswahl — mit dem Auswahlstab zwei Ecken setzen';
+      var kb = MC.Bauen.kasten();
+      return 'Auswahl: ' + kb.x0 + ' ' + kb.y0 + ' ' + kb.z0 + ' bis ' + kb.x1 + ' ' + kb.y1 + ' ' + kb.z1 +
+             ' · ' + MC.Bauen.anzahl() + ' Blöcke';
+    });
+
   befehl('weather', '<klar|regen|gewitter|sandsturm|schneesturm> [dauer]',
     'Setzt das Wetter. Ohne Dauer gilt die übliche Länge.',
     function (l, k) {

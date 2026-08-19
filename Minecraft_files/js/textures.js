@@ -2479,6 +2479,14 @@
     tex('painting_' + i, function (g) { g.fill([0, 0, 0], 0); g.art(m.rows, m.pal); });
   });
 
+  // Der Auswahlstab: ein Stock mit leuchtender Spitze
+  itemArt('wand', [
+    '................', '............NN..', '...........NYYN.', '..........NYWYN.',
+    '..........NYYYN.', '...........NYN..', '..........NNN...', '.........OMO....',
+    '........OMO.....', '.......OMO......', '......OMO.......', '.....OMO........',
+    '....OMO.........', '...OMO..........', '...OO...........', '................'
+  ], itemPal([150, 118, 76]));
+
   // Das Schild: Holzplanken mit Eisenbeschlag
   itemArt('shield', [
     '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvMMMMvvWO..', '..OWvMMMMMMvWO..',

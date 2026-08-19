@@ -601,6 +601,9 @@
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
 
+    // ---- Bauauswahl ----
+    if (MC.Bauen && !game.panorama) this.renderBauAuswahl(game);
+
     // ---- Niederschlag ----
     if (MC.Wetter && !game.panorama) this.renderNiederschlag(game, dt, daylight);
 
@@ -1260,6 +1263,36 @@
     gl.disable(gl.CULL_FACE);
     this.drawDyn(n);
     gl.enable(gl.CULL_FACE);
+  };
+
+  // Die Bauauswahl als Drahtkasten. Sie liegt über allem, damit man sie auch
+  // findet, wenn eine Ecke hinter einem Hügel steht.
+  Renderer.prototype.renderBauAuswahl = function (game) {
+    if (!MC.Bauen || !MC.Bauen.hatAuswahl() || game.mode !== 'creative') return;
+    var k = MC.Bauen.kasten();
+    var gl = this.gl;
+    var x0 = k.x0 - 0.003, y0 = k.y0 - 0.003, z0 = k.z0 - 0.003;
+    var x1 = k.x1 + 1.003, y1 = k.y1 + 1.003, z1 = k.z1 + 1.003;
+    var pts = [
+      x0, y0, z0, x1, y0, z0, x1, y0, z0, x1, y0, z1, x1, y0, z1, x0, y0, z1, x0, y0, z1, x0, y0, z0,
+      x0, y1, z0, x1, y1, z0, x1, y1, z0, x1, y1, z1, x1, y1, z1, x0, y1, z1, x0, y1, z1, x0, y1, z0,
+      x0, y0, z0, x0, y1, z0, x1, y0, z0, x1, y1, z0, x1, y0, z1, x1, y1, z1, x0, y0, z1, x0, y1, z1
+    ];
+    var arr = this.lineData;
+    for (var i = 0; i < pts.length; i++) arr[i] = pts[i];
+    gl.useProgram(this.progLine.prog);
+    gl.uniformMatrix4fv(this.progLine.u.uMVP, false, this.vp);
+    gl.uniform4f(this.progLine.u.uColor, 0.25, 1, 0.45, 0.9);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.lineBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, arr.subarray(0, pts.length), gl.DYNAMIC_DRAW);
+    gl.bindVertexArray(this.lineVao);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.drawArrays(gl.LINES, 0, pts.length / 3);
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.bindVertexArray(null);
   };
 
   // ---------- Auswahlrahmen ----------
