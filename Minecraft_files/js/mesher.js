@@ -114,7 +114,7 @@
       return T.layer(isEnd ? tex.top : tex.side);
     }
     // Kolben zeigen in sechs Richtungen, nicht nur in vier
-    if (block.piston6) {
+    if (block.piston6 || block.dir6) {
       var pd = meta & 7;
       var pf = B.FACE6[pd];
       if (face === pf) return T.layer(tex.front);
@@ -674,7 +674,10 @@
       var a = buf.a, n = buf.n;
       for (var i = 0; i < 4; i++) {
         var e = eck[i];
-        a[n++] = x + e[0]; a[n++] = y + 0.0625; a[n++] = z + e[1];
+        // bx0/bz0 ist der Weltursprung des Chunks. Ohne ihn lag die Schiene
+        // bei den lokalen Koordinaten 0..15 — also irgendwo am Weltnullpunkt
+        // statt dort, wo sie gesetzt wurde. Sichtbar war sie deshalb nie.
+        a[n++] = bx0 + x + e[0]; a[n++] = y + 0.0625; a[n++] = bz0 + z + e[1];
         var u = uv[(i + dreh) & 3];
         a[n++] = u[0]; a[n++] = u[1]; a[n++] = layer;
         a[n++] = bl; a[n++] = sl; a[n++] = 1;

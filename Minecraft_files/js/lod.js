@@ -104,7 +104,9 @@
     }
 
     var gebaut = 0;
-    for (var r = nah; r <= fern && gebaut < L.PRO_BILD; r++) {
+    // Einen Ring früher anfangen als die Sichtweite: das Gitter darf ruhig
+    // unter dem echten Gelände liegen, sichtbar wird immer nur eines von beiden.
+    for (var r = Math.max(1, nah - 1); r <= fern && gebaut < L.PRO_BILD; r++) {
       for (var dz = -r; dz <= r && gebaut < L.PRO_BILD; dz++) {
         for (var dx = -r; dx <= r && gebaut < L.PRO_BILD; dx++) {
           // Nur der Rand des Quadrats — das Innere kam in kleineren Ringen dran
@@ -112,8 +114,11 @@
           var cx = pcx + dx, cz = pcz + dz;
           var key = cx + ',' + cz;
           if (L.meshes[key]) continue;
-          // Ein geladener Chunk zeichnet sich selbst
-          if (w.getChunk(cx, cz)) continue;
+          // Gebaut wird auch dort, wo ein Chunk geladen ist: geladen heißt
+          // nicht gezeichnet. Zwischen der Sichtweite und dem Ladeumkreis lag
+          // sonst ein Ring, den weder das Gelände noch das Gitter füllte —
+          // genau die Lücke am Rand. Ob das Gitter dann wirklich gezeichnet
+          // wird, entscheidet der Renderer anhand des echten Meshes.
           L.meshes[key] = L.baue(w, cx, cz);
           game.renderer.uploadLOD(key, L.meshes[key]);
           gebaut++;

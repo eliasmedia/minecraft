@@ -255,7 +255,8 @@
     var t = this.reittier;
 
     // Absteigen beim Schleichen
-    if (input.key('ShiftLeft') || input.key('ShiftRight')) { game.absitzen(); return; }
+    if (input.key('ShiftLeft') || input.key('ShiftRight')) { this.sitzt = false; game.absitzen(); return; }
+    this.sitzt = (t.type === 'cart');
 
     var fwd = 0, side = 0;
     if (input.key('KeyW')) fwd += 1;
@@ -324,6 +325,9 @@
   };
 
   Player.prototype.eyeY = function () {
+    // Wer sitzt, schaut tiefer — in einer Lore ist der Kopf keine 1,6 Blöcke
+    // über dem Boden des Wagens.
+    if (this.sitzt) return this.y + this.eyeHeight * 0.62;
     return this.y + (this.sneaking ? this.eyeHeight - 0.18 : this.eyeHeight);
   };
 

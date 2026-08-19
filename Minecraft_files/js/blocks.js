@@ -121,6 +121,9 @@
                                    // fürs Schwimmen als Wasser
 
       piston6: !!o.piston6,        // Kolbenfamilie: Blickrichtung in Meta-Bit 0..2
+      // Dasselbe Meta, aber KEIN Kolben: Redstone erkennt einen Kolben an
+      // piston6 und fuhr den Werfer darum aus, sobald Strom anlag.
+      dir6: !!o.dir6,
       sticky: !!o.sticky,          // Klebkolben: zieht beim Einfahren mit
       group: o.group || 'natur'
     };
@@ -757,7 +760,7 @@
     sound: 'stone', group: 'redstone'
   });
   define('dropper', {
-    title: 'Werfer', hardness: 3.5, tool: 'pickaxe', level: 1, piston6: true,
+    title: 'Werfer', hardness: 3.5, tool: 'pickaxe', level: 1, dir6: true,
     tex: { top: 'dropper_side', side: 'dropper_side', bottom: 'dropper_side', front: 'dropper_front' },
     sound: 'stone', group: 'redstone'
   });

@@ -1196,7 +1196,7 @@
       } else if (B.isSolid(w.getBlock(nx, ny - 1, nz))) {
         meta = 4;
       } else return;
-    } else if (block.piston6) {
+    } else if (block.piston6 || block.dir6) {
       // Der Kolben zeigt zum Spieler, wie im Original. Steht man deutlich
       // darüber oder darunter, fährt er senkrecht aus.
       var pd = p.lookDir();
@@ -1359,6 +1359,7 @@
     if (!p.reittier) return;
     if (p.reittier.reiter === p) p.reittier.reiter = null;
     p.reittier = null;
+    p.sitzt = false;
     p.y += 0.4;
     p.vy = 2.4;
   };

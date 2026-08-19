@@ -314,10 +314,17 @@
     }
 
     var enden = B.RAIL_ENDEN[schiene.meta] || B.RAIL_ENDEN[0];
-    // Von den beiden Enden das nehmen, das besser zur bisherigen Fahrt passt
+    // Wonach richtet sich die Fahrt? Im Rollen nach der bisherigen Richtung —
+    // eine Lore kehrt nicht mitten in der Fahrt um. Steht sie aber und jemand
+    // sitzt drin, entscheidet dessen Blick: umdrehen, W drücken, zurück. Ohne
+    // das fuhr sie für immer nur in die eine Richtung, in die sie zuerst kam.
+    var nach = this.dir;
+    if (this.speed < 0.6 && this.reiter && this.reiter.reitEingabe && this.reiter.reitEingabe.vor) {
+      nach = [Math.sin(this.reiter.yaw), Math.cos(this.reiter.yaw)];
+    }
     var bestes = enden[0], bestP = -9;
     for (var i = 0; i < 2; i++) {
-      var pkt = enden[i][0] * this.dir[0] + enden[i][1] * this.dir[1];
+      var pkt = enden[i][0] * nach[0] + enden[i][1] * nach[1];
       if (pkt > bestP) { bestP = pkt; bestes = enden[i]; }
     }
     this.dir = [bestes[0], bestes[1]];
@@ -354,8 +361,9 @@
   Minecart.prototype.reiterSetzen = function () {
     var r = this.reiter;
     if (!r || r.reittier !== this) { this.reiter = null; return; }
-    r.x = this.x; r.z = this.z; r.y = this.y + 0.35;
+    r.x = this.x; r.z = this.z; r.y = this.y + 0.12;
     r.onGround = true;
+    r.sitzt = true;          // Beine nach vorn, Auge tiefer
   };
 
   // Wer dagegenläuft, schiebt sie an. Über die Zeit, nicht in einem Bild —

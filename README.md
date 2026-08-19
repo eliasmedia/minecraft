@@ -963,6 +963,12 @@ Richtung weiter aus. Wer aufsitzt, gibt mit `W` Schub und bremst mit `S`;
 Schleichen steigt ab. Es ist dieselbe Reit-Anbindung wie beim Moa — sie war
 genau dafür gebaut.
 
+Wer aufsitzt, **sitzt auch**: die Beine stehen waagerecht nach vorn, und das
+Auge liegt bei 1,0 statt 1,6 Blöcken über dem Wagenboden. Die Fahrtrichtung
+richtet sich im Rollen nach der bisherigen Fahrt — eine Lore kehrt nicht mitten
+in der Bewegung um —, im **Stand aber nach dem Blick des Reiters**. Umdrehen,
+`W` drücken, zurück.
+
 Steigungen fehlen noch: eine Lore fährt bisher nur in der Ebene.
 
 **Beobachter** — hängt nicht an der Aufladung, sondern an der Veränderung: er

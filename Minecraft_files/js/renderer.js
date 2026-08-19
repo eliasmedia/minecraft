@@ -320,8 +320,12 @@
     for (var k in this.lodMeshes) {
       var m = this.lodMeshes[k];
       if (!m.n) continue;
-      // Ist der Chunk inzwischen wirklich geladen, zeichnet er sich selbst
-      if (world.getChunk(m.cx, m.cz)) continue;
+      // Übersprungen wird nur, was wirklich als echter Chunk gezeichnet wird —
+      // also ein hochgeladenes Mesh hat. "Geladen" allein reicht nicht: ein
+      // Chunk kann im Speicher liegen und trotzdem außerhalb der Sichtweite
+      // ungezeichnet bleiben. Genau dort klaffte die Lücke.
+      var echt = this.chunkMeshes[k];
+      if (echt && echt.nO > 0) continue;
       var bx = m.cx * CS, bz = m.cz * CS;
       if (!U.aabbInFrustum(this.frustum, bx, 0, bz, bx + CS, MC.WORLD_HEIGHT, bz + CS)) continue;
       gl.bindVertexArray(m.vao);
@@ -916,6 +920,7 @@
     f.moving = (p.vx * p.vx + p.vz * p.vz) > 0.6;
     f.hurtTime = p.hurtTime;
     f.swing = p.swingTime;
+    f.sitzt = !!p.sitzt;
     f.age = game.time;
     this.drawMob(f, bl, sl, game);
     this.drawHeldItem(game, f, bl, sl);
@@ -1262,8 +1267,12 @@
         r.y = MC.approachAngle(0, normAngle((mob.headYaw || mob.yaw) - mob.yaw), 1.2);
         r.x = mob.headPitch || 0;
         break;
-      case 'legFR': case 'legBL': r.x = Math.sin(walk) * amp; break;
-      case 'legFL': case 'legBR': r.x = -Math.sin(walk) * amp; break;
+      // Sitzen: die Beine stehen waagerecht nach vorn, egal was die
+      // Laufanimation gerade meint.
+      case 'legFR': case 'legBL':
+        r.x = mob.sitzt ? -1.45 : Math.sin(walk) * amp; break;
+      case 'legFL': case 'legBR':
+        r.x = mob.sitzt ? -1.45 : -Math.sin(walk) * amp; break;
       case 'armZ':
         // Positives r.x kippt die Modellvorderseite (-Z) nach oben – Zombie und
         // Skelett strecken die Arme damit nach vorne statt nach hinten.
@@ -1274,6 +1283,7 @@
       // aus. Nur die Außenansicht sieht das — in der Ich-Ansicht macht das
       // die Hand vor der Kamera.
       case 'armSwingR':
+        if (mob.sitzt) { r.x = -0.5; break; }
         r.x = mob.swing > 0 ? -Math.sin((1 - mob.swing) * Math.PI) * 1.9
                             : Math.sin(walk) * amp * 0.7;
         break;
@@ -1281,7 +1291,7 @@
       // Rechnung und schwangen im Gleichtakt nach vorne — das sieht aus wie
       // Marschieren, nicht wie Gehen.
       case 'armSwingL':
-        r.x = -Math.sin(walk) * amp * 0.7;
+        r.x = mob.sitzt ? -0.5 : -Math.sin(walk) * amp * 0.7;
         break;
       // Dorfbewohner halten die Hände vor dem Bauch zusammen: die Arme kippen
       // etwa 45 Grad nach vorne, nicht waagerecht. Bei 1,52 (fast 90 Grad)
