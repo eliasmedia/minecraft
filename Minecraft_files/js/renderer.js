@@ -886,12 +886,7 @@
     if (blk && FLAT_IN_HAND.indexOf(blk.shape) < 0) {
       n = this.boxGeometry(0, [hx, hy, hz], 0.3, blk, 0, f.yaw, bl, sl);
     } else {
-      var texName = it.iconTex || it.tex;
-      if (blk && !it.iconTex) {
-        var bt = blk.tex;
-        if (T.has(it.name)) texName = it.name;
-        else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);
-      }
+      var texName = this.itemTexName(it);
       n = this.putItemMeshAt(this.itemMesh(texName), 0.4, bl, sl, hx, hy, hz, yaw, armX + 0.6);
     }
     this.drawDyn(n);
@@ -954,6 +949,27 @@
     return [this.view[1], this.view[5], this.view[9]];
   };
 
+  // Welche Textur zeigt dieses Item? Ein Block ohne eigenes Bild erbt seinen
+  // Namen, und der ist bei allem mit mehreren Seiten keine Textur: 'hopper'
+  // gibt es nicht, nur 'hopper_top' und 'hopper_side'. Ohne diese Auflösung
+  // liegt ein weggeworfener Trichter als weißes Viereck im Gras.
+  Renderer.prototype.itemTexName = function (it) {
+    if (!it) return 'white';
+    if (it.iconTex && T.has(it.iconTex)) return it.iconTex;
+    if (T.has(it.name)) return it.name;
+    var blk = it.block ? B.byName[it.block] : (it.place ? B.byName[it.place] : null);
+    if (blk) {
+      if (blk.shape === B.SHAPE_CROP) return MC.Mesher.cropReihe(blk) + '3';
+      var bt = blk.tex;
+      if (typeof bt === 'string' && T.has(bt)) return bt;
+      if (bt && typeof bt === 'object') {
+        var kand = [bt.side, bt.top, bt.front, bt.all, bt.bottom];
+        for (var i = 0; i < kand.length; i++) if (kand[i] && T.has(kand[i])) return kand[i];
+      }
+    }
+    return T.has(it.tex) ? it.tex : 'white';
+  };
+
   Renderer.prototype.drawItemEntity = function (e, bl, sl, game) {
     var it = MC.Items.get(e.stack.id);
     var bob = Math.sin(e.age * 3 + e.bob) * 0.06;
@@ -966,7 +982,7 @@
       var n = this.boxGeometry(0, [e.x, y, e.z], 0.26, blk, 0, e.age * 1.4, bl, sl);
       this.drawDyn(n);
     } else {
-      this.drawSprite(e.x, y, e.z, 0.42, T.layer(it ? it.tex : 'white'), bl, sl, game);
+      this.drawSprite(e.x, y, e.z, 0.42, T.layer(this.itemTexName(it)), bl, sl, game);
     }
   };
 
@@ -1415,7 +1431,7 @@
   var FLAT_IN_HAND = [
     B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_TORCH, B.SHAPE_LADDER, B.SHAPE_FIRE,
     B.SHAPE_WIRE, B.SHAPE_LEVER, B.SHAPE_BUTTON, B.SHAPE_PLATE, B.SHAPE_DOOR,
-    B.SHAPE_SIGN, B.SHAPE_SIGN_WALL, B.SHAPE_FRAME, B.SHAPE_PAINTING
+    B.SHAPE_SIGN, B.SHAPE_SIGN_WALL, B.SHAPE_FRAME, B.SHAPE_PAINTING, B.SHAPE_RAIL
   ];
 
   Renderer.prototype.itemMesh = function (texName) {
@@ -1565,12 +1581,7 @@
       }
     } else if (it) {
       // Item als extrudiertes Pixelmodell – hat Dicke, keine Pappscheibe
-      var texName = it.iconTex || it.tex;
-      if (it.block && B.byName[it.block] && !it.iconTex) {
-        var bt = B.byName[it.block].tex;
-        if (T.has(it.name)) texName = it.name;
-        else texName = typeof bt === 'string' ? bt : (bt.side || bt.top);
-      }
+      var texName = this.itemTexName(it);
       if (it.name === 'bow' && charge > 0) {
         texName = 'bow_pull_' + (charge > 0.75 ? 2 : (charge > 0.4 ? 1 : 0));
       }

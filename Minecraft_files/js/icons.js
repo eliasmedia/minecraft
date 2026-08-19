@@ -70,6 +70,7 @@
       case B.SHAPE_TORCH:
       case B.SHAPE_LADDER:
       case B.SHAPE_FIRE:
+      case B.SHAPE_RAIL:
       case B.SHAPE_LEVER:
         // Formen, die kein Würfel sind, zeigen ihr Item-Bild flach
         // Eine Pflanze mit Wuchsstufen zeigt ihre reife Stufe; welche Reihe das

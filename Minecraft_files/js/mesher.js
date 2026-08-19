@@ -655,8 +655,14 @@
     // Schienenfläche: ein Viereck bei y = 1/16, dessen UV je nach Verlauf
     // gedreht wird. Gerade in X ist die Textur um 90 Grad gedreht, jede Kurve
     // um ein Vielfaches davon.
-    var RAIL_DREH = [0, 1, 0, 1, 2, 3];
+    //
+    // Die Drehtabelle steht IN der Funktion, nicht daneben: die Meshschleife
+    // steht weiter oben im selben Rumpf, und eine Funktionsdeklaration wird
+    // gehoben, die Zuweisung an ein `var` daneben aber nicht. Die Tabelle war
+    // beim ersten Aufruf darum undefiniert — und weil das Meshen dann wirft,
+    // wird der Chunk nie fertig und das Spiel steht.
     function emitRail(buf, x, y, z, layer, lightRaw, rm) {
+      var RAIL_DREH = [0, 1, 0, 1, 2, 3];
       var bl = (lightRaw & 15) / 15, sl = ((lightRaw >> 4) & 15) / 15;
       var uv = [[0, 1], [1, 1], [1, 0], [0, 0]];
       var dreh = RAIL_DREH[rm] || 0;
