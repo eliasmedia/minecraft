@@ -79,6 +79,7 @@
   shaped(['I I', 'ICI', ' I '], { I: 'iron_ingot', C: 'chest' }, 'hopper', 1);
   shaped(['CCC', 'C C', 'CRC'], { C: 'cobblestone', R: 'redstone' }, 'dropper', 1);
   shaped(['I I', 'III'], { I: 'iron_ingot' }, 'minecart', 1);
+  shaped(['PIP', 'PPP', ' P '], { P: '#planks', I: 'iron_ingot' }, 'shield', 1);
   shaped(['I I', 'ISI', 'I I'], { I: 'iron_ingot', S: 'stick' }, 'rail', 16);
   // Sattel: drei Leder und zwei Eisenbarren als Bügel
   shaped(['LLL', 'I I'], { L: 'leather', I: 'iron_ingot' }, 'saddle', 1);

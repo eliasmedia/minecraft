@@ -1434,13 +1434,22 @@
     var shake = charge > 0.85 ? (Math.random() - 0.5) * 0.012 : 0;
 
     var mv = M4.identity(M4.create());
-    M4.translate(mv, mv,
-      0.44 - charge * 0.22 + bob + shake,
-      -0.42 + bobY - eat + charge * 0.10 + shake,
-      -0.62 + charge * 0.14);
-    M4.rotateY(mv, mv, -0.55 + sw * 0.5 + charge * 0.45);
-    M4.rotateX(mv, mv, -0.18 - sw * 0.9 - charge * 0.20);
-    M4.rotateZ(mv, mv, 0.12);
+    if (p.blockt) {
+      // Geblockt wird vor dem Gesicht: das Schild wandert zur Bildmitte und
+      // stellt sich auf. Ohne das hielte man es weiter seitlich am Bein.
+      M4.translate(mv, mv, 0.22 + bob, -0.28 + bobY, -0.42);
+      M4.rotateY(mv, mv, 0.35);
+      M4.rotateX(mv, mv, 0.05);
+      M4.scale(mv, mv, 1.5, 1.5, 1.5);
+    } else {
+      M4.translate(mv, mv,
+        0.44 - charge * 0.22 + bob + shake,
+        -0.42 + bobY - eat + charge * 0.10 + shake,
+        -0.62 + charge * 0.14);
+      M4.rotateY(mv, mv, -0.55 + sw * 0.5 + charge * 0.45);
+      M4.rotateX(mv, mv, -0.18 - sw * 0.9 - charge * 0.20);
+      M4.rotateZ(mv, mv, 0.12);
+    }
 
     var mvp = M4.multiply(M4.create(), proj, mv);
 

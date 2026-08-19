@@ -346,6 +346,8 @@
     var speed = 4.317;
     if (this.sprinting) speed = 5.6;
     if (this.sneaking && !this.flying) speed = 1.45;
+    // Wer das Schild hebt, kommt kaum vorwärts — sonst wäre es kostenlos
+    if (this.blockt && !this.flying) speed = Math.min(speed, 1.9);
     if (this.flying) speed = this.sprinting ? 21 : 10.5;
     if (this.inWater && !this.flying) speed *= 0.62;
     // In Lava kommt man voran, nur zäh – vorher sank man einfach hilflos ab
@@ -659,11 +661,36 @@
   Player.prototype.exhaust = function (n) { this.exhaustion += n; };
 
   // art: 'feuer' | 'explosion' | 'geschoss' | 'fall' | undefined
+  // Deckt das Schild diesen Treffer ab? Nur, was von vorne kommt — sonst wäre
+  // es kein Schild, sondern ein Panzer. Gemessen wird der Winkel zwischen
+  // Blickrichtung und Angreifer; hundert Grad zu jeder Seite sind das, was man
+  // "vor sich" nennt.
+  Player.prototype.deckt = function (source) {
+    if (!this.blockt || !source) return false;
+    var dx = source.x - this.x, dz = source.z - this.z;
+    var d = Math.sqrt(dx * dx + dz * dz);
+    if (d < 0.001) return true;
+    var bx = Math.sin(this.yaw), bz = Math.cos(this.yaw);
+    return (dx / d * bx + dz / d * bz) > -0.17;
+  };
+
   Player.prototype.hurt = function (amount, source, game, art) {
     if (this.dead) return;
     if (game.mode === 'spectator') return;
     if (game.mode === 'creative' && amount < 900) return;
     if (this.hurtTime > 0.35 && amount < 900) return;
+
+    // Das Schild nimmt zwei Drittel weg und fast den ganzen Rückstoß, kostet
+    // dafür Haltbarkeit. Es hilft nicht gegen Ertrinken, Sturz oder Gift —
+    // gegen alles ohne Angreifer also gar nicht.
+    var gedeckt = amount < 900 && this.deckt(source);
+    if (gedeckt) {
+      amount *= 0.33;
+      this.inventory.damageSelected(Math.max(1, Math.round(amount)), game);
+      game.audio.play('thud');
+      game.particles.funken(this.x + Math.sin(this.yaw) * 0.6, this.eyeY() - 0.3,
+                            this.z + Math.cos(this.yaw) * 0.6, 6);
+    }
     var def = this.inventory.defense();
     if (amount < 900 && def > 0) amount = amount * (1 - Math.min(20, def) * 0.04);
     // Schutzverzauberungen zahlen auf denselben Topf ein, gedeckelt bei 20
@@ -677,7 +704,9 @@
     if (source) {
       var dx = this.x - source.x, dz = this.z - source.z;
       var d = Math.sqrt(dx * dx + dz * dz) || 1;
-      this.vx += dx / d * 8; this.vz += dz / d * 8; this.vy = Math.max(this.vy, 6);
+      var stoss = gedeckt ? 1.6 : 8;
+      this.vx += dx / d * stoss; this.vz += dz / d * stoss;
+      if (!gedeckt) this.vy = Math.max(this.vy, 6);
       // Dornen schlagen zurück, wenn der Angreifer nah genug ist
       if (MC.Ench && source.hurt && d < 6) {
         var dorn = MC.Ench.dornen(this.inventory);

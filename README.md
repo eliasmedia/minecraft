@@ -634,6 +634,28 @@ Holzrezepte akzeptieren jede Brettersorte. Ofen mit Brennstoffverwaltung, Truhen
 als Lager, Ackerbau vom Pflügen bis zur Ernte, Feuer per Feuerzeug, TNT mit
 Kettenreaktion.
 
+**Kampf mit Entscheidungen** — bisher gab es nur eine: klicken. Jetzt drei.
+
+Das **Schild** (fünf Bretter und ein Eisenbarren) wird mit der rechten Maustaste
+gehoben und nimmt zwei Drittel des Schadens sowie fast den ganzen Rückstoß —
+aber **nur von vorne**. Gemessen wird der Winkel zwischen Blickrichtung und
+Angreifer; hundert Grad zu jeder Seite gelten als „vor dir". Gegen einen Treffer
+von hinten hilft es nicht, gegen Sturz, Ertrinken und Gift ebenso wenig: es gibt
+dort keinen Angreifer, dessen Richtung man prüfen könnte. Wer es hebt, kommt
+kaum noch vorwärts, und jeder abgefangene Schlag kostet Haltbarkeit.
+
+Gemessen bei sechs Schaden: **ohne Schild 6, von vorne mit Schild 2, von hinten
+wieder 6.**
+
+Der **Sweep** trifft mit einem Schwerthieb, was daneben steht — ein Drittel des
+Schadens, drei Blöcke weit, nur nach vorne. Er gilt **am Boden und nicht im
+Sprint**; sonst wäre er der einzige sinnvolle Angriff und jeder andere
+überflüssig. Gemessen an vier nebeneinanderstehenden Zombies: im Stand vier von
+vier getroffen, im Sprint nur der eine, den man angesehen hat.
+
+Den **kritischen Treffer** im Fallen gab es schon lange, nur hat ihn niemand
+bemerkt. Er hat jetzt Sterne und einen eigenen Klang.
+
 **Überleben** — Leben, Hunger mit Sättigung und Erschöpfung, Rüstungsschutz, Fall-,
 Ertrinkungs-, Lava- und Kaktusschaden, Regeneration, Tod mit Item-Drop und Respawn,
 Erfahrungsstufen, Schlafen im Bett zum Setzen des Spawnpunkts.

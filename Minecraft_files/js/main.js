@@ -647,7 +647,14 @@
       return;
     }
     var dmg = it ? it.damage : 1;
-    if (!p.onGround && p.vy < 0) { dmg *= 1.5; this.particles.crit(e.x, e.y + e.height * 0.7, e.z); }
+    // Kritischer Treffer: im Fallen zuschlagen. Er war schon da, aber kaum zu
+    // bemerken — jetzt sieht und hört man ihn.
+    if (!p.onGround && p.vy < 0) {
+      dmg *= 1.5;
+      this.particles.crit(e.x, e.y + e.height * 0.7, e.z);
+      this.particles.crit(e.x, e.y + e.height * 0.4, e.z);
+      this.audio.play('levelup', 0.5);
+    }
     if (st) dmg += MC.Ench.schadenBonus(st, e);
     if (MC.Effekte) dmg += 3 * MC.Effekte.stufe(p, 'staerke');
     var vorher = e.health;
@@ -665,6 +672,28 @@
       if (fa && vorher !== undefined) e.brennt = Math.max(e.brennt || 0, fa * 4);
       var pl = MC.Ench.stufe(st, 'looting');
       if (pl) e.looting = pl;
+    }
+    // Sweep: ein Schwerthieb erwischt, was daneben steht. Er gilt nur am Boden
+    // und nicht im Sprint — sonst wäre er der einzige sinnvolle Angriff und
+    // jeder andere überflüssig. Die Nachbarn bekommen ein Drittel ab.
+    if (it && it.tool && it.tool.type === 'sword' && p.onGround && !p.sprinting) {
+      var ents = this.world.entities, getroffen = 0;
+      for (var si = 0; si < ents.length; si++) {
+        var o = ents[si];
+        if (o === e || o.dead || !o.isMob || !o.hurt) continue;
+        var sdx = o.x - p.x, sdy = (o.y + o.height * 0.5) - p.eyeY(), sdz = o.z - p.z;
+        if (sdx * sdx + sdy * sdy + sdz * sdz > 3.1 * 3.1) continue;
+        // Nur nach vorne, nicht im Rücken
+        var sl = Math.sqrt(sdx * sdx + sdz * sdz) || 1;
+        if ((sdx / sl) * Math.sin(p.yaw) + (sdz / sl) * Math.cos(p.yaw) < 0.35) continue;
+        o.hurt(Math.max(1, Math.round(dmg * 0.34)), p, this);
+        o.vx += sdx / sl * 2.5; o.vz += sdz / sl * 2.5;
+        getroffen++;
+      }
+      if (getroffen) {
+        this.particles.crit(p.x + Math.sin(p.yaw) * 1.4, p.y + 1, p.z + Math.cos(p.yaw) * 1.4);
+        this.audio.play('hit', 0.6);
+      }
     }
     p.exhaust(0.1);
     if (it && it.tool && it.tool.type === 'sword') p.inventory.damageSelected(1, this);
@@ -2508,6 +2537,11 @@
 
   Game.prototype.handleUseHold = function (dt) {
     var p = this.player;
+    // Schild: gehalten wird geblockt, losgelassen nicht mehr. Das läuft über
+    // dieselbe rechte Maustaste wie Essen und Bogen — es schließt sich aus.
+    var haltSt = p.inventory.selectedStack();
+    p.blockt = !!(this.input.mouse[2] && haltSt && haltSt.id === 'shield' && this.mode !== 'spectator');
+
     if (!this.input.mouse[2]) { this.bowCharge = 0; this.eating = false; p.eatTime = 0; return; }
     var st = p.inventory.selectedStack();
     var it = st ? I.get(st.id) : null;

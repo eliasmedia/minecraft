@@ -100,6 +100,7 @@
   // Ohne das war das Item im Inventar wie am Boden ein weißer Fleck.
   define('saddle', { title: 'Sattel', stack: 1, tex: 'saddle', group: 'werkzeug' });
   define('minecart', { title: 'Lore', stack: 1, tex: 'minecart', group: 'werkzeug' });
+  define('shield', { title: 'Schild', stack: 1, tex: 'shield', durability: 336, group: 'werkzeug' });
 
   I.byName['redstone'].iconTex = 'redstone_dust';
   // Schild, Rahmen und Gemälde sehen als Würfel falsch aus — sie bekommen ihr

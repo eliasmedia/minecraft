@@ -2479,6 +2479,14 @@
     tex('painting_' + i, function (g) { g.fill([0, 0, 0], 0); g.art(m.rows, m.pal); });
   });
 
+  // Das Schild: Holzplanken mit Eisenbeschlag
+  itemArt('shield', [
+    '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvMMMMvvWO..', '..OWvMMMMMMvWO..',
+    '..OWvMMhhMMvWO..', '..OWvMhWWhMvWO..', '..OWvMhWWhMvWO..', '..OWvMMhhMMvWO..',
+    '..OWvMMMMMMvWO..', '..OWvvMMMMvvWO..', '..OWWvvMMvvWWO..', '...OWWvvvvWWO...',
+    '....OWWvvWWO....', '.....OWWWWO.....', '......OOOO......', '................'
+  ], itemPal([148, 106, 62]));
+
   // Der Sattel am Tier: dunkles Leder mit heller Naht. Anders als das Symbol
   // ist das eine volle Kachel — sie liegt auf einem Quader.
   tex('saddle_block', function (g) {
