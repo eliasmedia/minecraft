@@ -235,12 +235,26 @@
   // nachträglich angebautes Stück quer liegen.
   var NACHBARN = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
+  L.istSchiene = function (world, x, y, z) {
+    var id = world.getBlock(x, y, z);
+    return id === B.id('rail') || id === B.id('powered_rail');
+  };
+
   L.railAusrichten = function (world, x, y, z) {
-    if (world.getBlock(x, y, z) !== B.id('rail')) return;
-    var da = [];
+    if (!L.istSchiene(world, x, y, z)) return;
+    var da = [], hoch = -1;
     for (var i = 0; i < 4; i++) {
       var n = NACHBARN[i];
-      if (world.getBlock(x + n[0], y, z + n[1]) === B.id('rail')) da.push(i);
+      if (L.istSchiene(world, x + n[0], y, z + n[1])) da.push(i);
+      // Eine Schiene einen Block höher nebenan macht aus dieser eine Rampe
+      else if (L.istSchiene(world, x + n[0], y + 1, z + n[1])) { da.push(i); if (hoch < 0) hoch = i; }
+    }
+    // Steigung schlägt alles andere: sonst läge am Fuß eines Anstiegs eine
+    // flache Schiene und die Lore stünde vor einer Stufe.
+    if (hoch >= 0) {
+      var sm = 6 + hoch;
+      if ((world.getMeta(x, y, z) & 15) !== sm) world.setMetaOnly(x, y, z, sm);
+      return;
     }
     var meta;
     if (da.length === 0) meta = 0;
@@ -261,7 +275,7 @@
         if (meta === undefined) meta = 0;
       }
     }
-    if ((world.getMeta(x, y, z) & 7) !== meta) world.setMetaOnly(x, y, z, meta);
+    if ((world.getMeta(x, y, z) & 15) !== meta) world.setMetaOnly(x, y, z, meta);
   };
 
   // Nach jeder Änderung an einer Schiene richten sich auch die Nachbarn neu aus
@@ -269,7 +283,11 @@
     L.railAusrichten(world, x, y, z);
     for (var i = 0; i < 4; i++) {
       var n = NACHBARN[i];
+      // Auch eine Ebene darüber und darunter: eine neue Schiene am Fuß eines
+      // Hangs macht aus der oberen eine Rampe und umgekehrt.
       L.railAusrichten(world, x + n[0], y, z + n[1]);
+      L.railAusrichten(world, x + n[0], y + 1, z + n[1]);
+      L.railAusrichten(world, x + n[0], y - 1, z + n[1]);
     }
   };
 
@@ -279,11 +297,14 @@
   // Sie fährt nicht frei durch die Gegend, sondern folgt der Schiene unter sich:
   // aus deren Verlauf kommt die Richtung, und die Lore wird jedes Bild auf die
   // Mitte des Gleises gezogen. Damit kann sie gar nicht erst entgleisen.
+  var MAX_TEMPO = 11;     // Höchstgeschwindigkeit einer Lore
+  var SCHUB_MAX = 2.6;    // so schnell wird man von Hand, nicht schneller
+
   function Minecart(world, x, y, z) {
     MC.Entity.call(this, world, x, y, z);
     this.width = 0.94; this.height = 0.7;
     this.type = 'cart';
-    this.speed = 0;                 // Blöcke je Sekunde entlang der Schiene
+    this.tempo = 0;                 // Blöcke je Sekunde ENTLANG dir, mit Vorzeichen
     this.dir = [0, 1];              // Fahrtrichtung in der Ebene
     this.reiter = null;
     this.gravity = 30;
@@ -295,67 +316,123 @@
 
   Minecart.prototype.railUnter = function () {
     var w = this.world;
-    var bx = Math.floor(this.x), by = Math.floor(this.y + 0.1), bz = Math.floor(this.z);
-    if (w.getBlock(bx, by, bz) === B.id('rail')) return { x: bx, y: by, z: bz, meta: w.getMeta(bx, by, bz) & 7 };
-    if (w.getBlock(bx, by - 1, bz) === B.id('rail')) return { x: bx, y: by - 1, z: bz, meta: w.getMeta(bx, by - 1, bz) & 7 };
+    var bx = Math.floor(this.x), bz = Math.floor(this.z);
+    // Von oben nach unten suchen: auf einer Rampe steht die Lore höher als der
+    // Block, zu dem die Schiene gehört.
+    for (var dy = 1; dy >= -1; dy--) {
+      var by = Math.floor(this.y + 0.1) + dy;
+      if (!L.istSchiene(w, bx, by, bz)) continue;
+      return { x: bx, y: by, z: bz, meta: w.getMeta(bx, by, bz) & 15,
+               antrieb: w.getBlock(bx, by, bz) === B.id('powered_rail') };
+    }
     return null;
   };
 
+  // Höhe innerhalb einer Rampenzelle: 0 am Fuß, 1 an der Bergkante.
+  function rampenHoehe(schiene, x, z) {
+    var auf = B.railSteigung(schiene.meta);
+    if (!auf) return 0;
+    var l = auf[0] ? (x - schiene.x) : (z - schiene.z);
+    if (auf[0] < 0 || auf[1] < 0) l = 1 - l;
+    return Math.max(0, Math.min(1, l));
+  }
+
+  // Die ganze Fahrt in einer Größe: `tempo` ist die Geschwindigkeit ENTLANG
+  // `dir`, mit Vorzeichen. Vorher gab es einen Betrag und eine Richtung, die
+  // beim Gegensteuern umsprang — dabei wurde man schneller statt langsamer,
+  // weil der Betrag ja stieg. Mit Vorzeichen bremst ein Schub von vorne
+  // einfach, kehrt um und beschleunigt in die andere Richtung.
   Minecart.prototype.update = function (dt, game) {
     var w = this.world;
     this.age += dt;
     var schiene = this.railUnter();
 
     if (!schiene) {
-      // Ohne Gleis ist sie ein Gegenstand wie jeder andere und fällt
       this.applyPhysics(dt, 0.98, 0.4);
       if (this.reiter) this.reiterSetzen();
       return;
     }
 
-    var enden = B.RAIL_ENDEN[schiene.meta] || B.RAIL_ENDEN[0];
-    // Wonach richtet sich die Fahrt? Im Rollen nach der bisherigen Richtung —
-    // eine Lore kehrt nicht mitten in der Fahrt um. Steht sie aber und jemand
-    // sitzt drin, entscheidet dessen Blick: umdrehen, W drücken, zurück. Ohne
-    // das fuhr sie für immer nur in die eine Richtung, in die sie zuerst kam.
-    var nach = this.dir;
-    if (this.speed < 0.6 && this.reiter && this.reiter.reitEingabe && this.reiter.reitEingabe.vor) {
-      nach = [Math.sin(this.reiter.yaw), Math.cos(this.reiter.yaw)];
-    }
+    var steigung = B.railSteigung(schiene.meta);
+    var enden = steigung ? B.RAIL_ENDEN_STEIGUNG[schiene.meta - 6]
+                         : (B.RAIL_ENDEN[schiene.meta] || B.RAIL_ENDEN[0]);
+    // Die Achse bleibt, wo sie war — sonst springt die Fahrtrichtung in jeder
+    // Kurve. Gewählt wird das Ende, das der bisherigen Achse am nächsten liegt.
     var bestes = enden[0], bestP = -9;
     for (var i = 0; i < 2; i++) {
-      var pkt = enden[i][0] * nach[0] + enden[i][1] * nach[1];
+      var pkt = enden[i][0] * this.dir[0] + enden[i][1] * this.dir[1];
       if (pkt > bestP) { bestP = pkt; bestes = enden[i]; }
     }
     this.dir = [bestes[0], bestes[1]];
 
-    // Der Reiter gibt Schub; ohne ihn rollt sie aus
+    // ---- Kräfte ----
+    // 1) Schwerkraft auf der Rampe. Sie ist die eigentliche Quelle von Tempo:
+    //    wer in die Mine hinunter will, braucht keinen Antrieb.
+    if (steigung) {
+      var bergauf = steigung[0] * this.dir[0] + steigung[1] * this.dir[1];
+      this.tempo -= bergauf * 11 * dt;
+    }
+
+    // 2) Antriebsschiene: unter Strom Gas, ohne Strom Bremse. Steht die Lore,
+    //    stößt sie in Achsenrichtung an.
+    if (schiene.antrieb) {
+      var an = MC.Redstone ? MC.Redstone.powered(w, schiene.x, schiene.y, schiene.z) : false;
+      if (an) {
+        if (Math.abs(this.tempo) < 0.3) this.tempo = 1.2;
+        else this.tempo += (this.tempo > 0 ? 1 : -1) * 14 * dt;
+      } else {
+        this.tempo *= Math.pow(0.02, dt);
+      }
+    }
+
+    // 3) Der Reiter schiebt nur an — Tempo kommt aus Gefälle und Antrieb.
     if (this.reiter && this.reiter.reitEingabe) {
       var e = this.reiter.reitEingabe;
-      if (e.vor) this.speed = Math.min(9, this.speed + 9 * dt);
-      if (e.zurueck) this.speed = Math.max(0, this.speed - 12 * dt);
+      if (e.vor || e.zurueck) {
+        var blick = [Math.sin(this.reiter.yaw), Math.cos(this.reiter.yaw)];
+        var wohin = (blick[0] * this.dir[0] + blick[1] * this.dir[1]) >= 0 ? 1 : -1;
+        if (e.zurueck) wohin = -wohin;
+        this.schub(wohin, dt);
+      }
     }
-    this.speed *= Math.pow(0.62, dt);
-    if (this.speed < 0.05) this.speed = 0;
 
-    // Fahren und dabei auf die Gleismitte ziehen
-    this.x += this.dir[0] * this.speed * dt;
-    this.z += this.dir[1] * this.speed * dt;
+    this.tempo *= Math.pow(0.86, dt);
+    if (Math.abs(this.tempo) < 0.04) this.tempo = 0;
+    if (this.tempo > MAX_TEMPO) this.tempo = MAX_TEMPO;
+    if (this.tempo < -MAX_TEMPO) this.tempo = -MAX_TEMPO;
+
+    // ---- Fahren ----
+    this.x += this.dir[0] * this.tempo * dt;
+    this.z += this.dir[1] * this.tempo * dt;
     var mx = schiene.x + 0.5, mz = schiene.z + 0.5;
     if (this.dir[0] === 0) this.x += (mx - this.x) * Math.min(1, dt * 12);
     if (this.dir[1] === 0) this.z += (mz - this.z) * Math.min(1, dt * 12);
-    this.y = schiene.y + 0.12;
+
+    // Nach dem Zug erneut nachsehen, welche Schiene jetzt unter uns liegt —
+    // sonst hängt die Höhe auf einer Rampe ein Feld hinterher.
+    var jetzt = this.railUnter() || schiene;
+    this.y = jetzt.y + 0.12 + rampenHoehe(jetzt, this.x, this.z);
     this.vy = 0;
     this.onGround = true;
 
     // Gegen eine Wand ist Schluss
     var vx = Math.floor(this.x + this.dir[0] * 0.6), vz = Math.floor(this.z + this.dir[1] * 0.6);
-    var vor = w.getBlock(vx, schiene.y + 1, vz);
-    if (vor && B.isSolid(vor) && w.getBlock(vx, schiene.y + 1, vz) !== B.id('rail')) {
-      this.speed = 0;
+    if (!L.istSchiene(w, vx, jetzt.y, vz) && B.isSolid(w.getBlock(vx, jetzt.y, vz))) {
+      this.tempo = 0;
       this.x = mx; this.z = mz;
     }
     if (this.reiter) this.reiterSetzen();
+  };
+
+  // Anschieben — von Hand oder vom Reiter. Der Deckel ist der Punkt: mit der
+  // Hand kommt man in Gang, aber nicht auf Fahrt.
+  Minecart.prototype.schub = function (richtung, dt) {
+    var ziel = richtung * SCHUB_MAX;
+    if (richtung > 0 && this.tempo >= ziel) return;
+    if (richtung < 0 && this.tempo <= ziel) return;
+    this.tempo += richtung * 9 * dt;
+    if (richtung > 0 && this.tempo > ziel) this.tempo = ziel;
+    if (richtung < 0 && this.tempo < ziel) this.tempo = ziel;
   };
 
   Minecart.prototype.reiterSetzen = function () {
@@ -366,15 +443,13 @@
     r.sitzt = true;          // Beine nach vorn, Auge tiefer
   };
 
-  // Wer dagegenläuft, schiebt sie an. Über die Zeit, nicht in einem Bild —
-  // sonst stünde sie bei der ersten Berührung sofort auf Höchstgeschwindigkeit.
-  // Die Richtung entscheidet, auf welcher Seite man steht.
+  // Wer dagegenläuft, schiebt sie an — aber nur bis Schrittgeschwindigkeit.
+  // Tempo gibt es nur bergab oder auf einer Antriebsschiene.
   Minecart.prototype.anstossen = function (p, dt) {
     dt = dt || 1 / 60;
     var dx = this.x - p.x, dz = this.z - p.z;
-    var pkt = dx * this.dir[0] + dz * this.dir[1];
-    if (pkt < 0) this.dir = [-this.dir[0], -this.dir[1]];
-    this.speed = Math.min(8, this.speed + 16 * dt);
+    var richtung = (dx * this.dir[0] + dz * this.dir[1]) >= 0 ? 1 : -1;
+    this.schub(richtung, dt);
   };
 
   // Beim Abbauen fällt der Inhalt heraus — das erledigt breakBlock über

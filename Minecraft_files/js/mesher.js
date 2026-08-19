@@ -282,12 +282,13 @@
             }
 
             case B.SHAPE_RAIL: {
-              // Eine flache Fläche knapp über dem Boden. Die Drehung steckt in
-              // den Texturkoordinaten, nicht in der Geometrie — ein Viereck
-              // bleibt ein Viereck, egal wie die Schiene liegt.
-              var rm = meta & 7;
-              var kurve = rm >= 2;
-              emitRail(buf, x, y, z, T.layer(kurve ? 'rail_curve' : 'rail'), gl(x, y, z), rm);
+              // Eine Fläche knapp über dem Boden. Die Drehung steckt in den
+              // Texturkoordinaten, nicht in der Geometrie; nur die Steigung
+              // hebt zwei der vier Ecken an.
+              var rm = meta & 15;
+              var rtex = B.railKurve(rm) ? 'rail_curve'
+                       : (block.name === 'powered_rail' ? 'rail_powered' : 'rail');
+              emitRail(buf, x, y, z, T.layer(rtex), gl(x, y, z), rm);
               break;
             }
 
@@ -670,14 +671,24 @@
       // zeigt das Viereck nach unten und die Flächenaussortierung wirft es weg
       // — die Schiene war deshalb unsichtbar.
       var eck = [[0, 1], [1, 1], [1, 0], [0, 0]];
+      // Steigung: die beiden Ecken auf der Bergseite gehen um einen Block hoch.
+      // Damit ist die Schiene eine Rampe und die Lore fährt sie hinauf, statt
+      // vor einer Stufe zu stehen.
+      var auf = B.railSteigung(rm);
       buf.need(4 * 9);
       var a = buf.a, n = buf.n;
       for (var i = 0; i < 4; i++) {
         var e = eck[i];
+        var hoch = 0;
+        if (auf) {
+          var lx = auf[0] ? (auf[0] > 0 ? e[0] : 1 - e[0]) : 0;
+          var lz = auf[1] ? (auf[1] > 0 ? e[1] : 1 - e[1]) : 0;
+          hoch = auf[0] ? lx : lz;
+        }
         // bx0/bz0 ist der Weltursprung des Chunks. Ohne ihn lag die Schiene
         // bei den lokalen Koordinaten 0..15 — also irgendwo am Weltnullpunkt
         // statt dort, wo sie gesetzt wurde. Sichtbar war sie deshalb nie.
-        a[n++] = bx0 + x + e[0]; a[n++] = y + 0.0625; a[n++] = bz0 + z + e[1];
+        a[n++] = bx0 + x + e[0]; a[n++] = y + 0.0625 + hoch; a[n++] = bz0 + z + e[1];
         var u = uv[(i + dreh) & 3];
         a[n++] = u[0]; a[n++] = u[1]; a[n++] = layer;
         a[n++] = bl; a[n++] = sl; a[n++] = 1;

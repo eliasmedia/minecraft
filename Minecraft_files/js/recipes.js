@@ -81,6 +81,7 @@
   shaped(['I I', 'III'], { I: 'iron_ingot' }, 'minecart', 1);
   shaped(['PIP', 'PPP', ' P '], { P: '#planks', I: 'iron_ingot' }, 'shield', 1);
   shaped(['I I', 'ISI', 'I I'], { I: 'iron_ingot', S: 'stick' }, 'rail', 16);
+  shaped(['G G', 'GSG', 'GRG'], { G: 'gold_ingot', S: 'stick', R: 'redstone' }, 'powered_rail', 6);
   // Sattel: drei Leder und zwei Eisenbarren als Bügel
   shaped(['LLL', 'I I'], { L: 'leather', I: 'iron_ingot' }, 'saddle', 1);
   // Schild, Rahmen, Gemälde — die drei Wanddinge

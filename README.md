@@ -963,6 +963,26 @@ Richtung weiter aus. Wer aufsitzt, gibt mit `W` Schub und bremst mit `S`;
 Schleichen steigt ab. Es ist dieselbe Reit-Anbindung wie beim Moa — sie war
 genau dafür gebaut.
 
+**Tempo bekommt man nicht geschenkt.** Von Hand schiebt man eine Lore nur auf
+Schrittgeschwindigkeit an — gedeckelt bei 2,6 Blöcken je Sekunde. Richtig
+schnell wird sie auf zwei Wegen: **bergab** und auf einer **Antriebsschiene**
+(sechs Goldbarren, ein Stock, ein Redstone). Gemessen an einer Strecke mit fünf
+Stufen Gefälle: angeschoben mit 2,6, unten angekommen mit **9,7**. Auf einer
+Antriebsschiene unter Strom erreicht sie die Höchstgeschwindigkeit von 11 — ohne
+Strom bremst dieselbe Schiene scharf ab. Dieselbe Schiene ist damit Gaspedal und
+Bremse.
+
+**Steigungen** entstehen von selbst: liegt eine Schiene einen Block höher
+daneben, wird aus der unteren eine Rampe. Damit fährt man in eine Mine hinunter,
+statt vor einer Stufe zu stehen.
+
+Die Fahrt steckt jetzt in **einer** Größe: `tempo` ist die Geschwindigkeit
+entlang der Gleisachse, **mit Vorzeichen**. Vorher gab es einen Betrag und eine
+Richtung, die beim Gegensteuern umsprang — dabei wurde man *schneller* statt
+langsamer, weil der Betrag ja stieg. Mit Vorzeichen bremst ein Schub von vorne
+einfach, kehrt um und beschleunigt in die andere Richtung. Gemessen beim
+Gegensteuern aus voller Fahrt: −0,1 → −2,4 → −2,6.
+
 Wer aufsitzt, **sitzt auch**: die Beine stehen waagerecht nach vorn, und das
 Auge liegt bei 1,0 statt 1,6 Blöcken über dem Wagenboden. Die Fahrtrichtung
 richtet sich im Rollen nach der bisherigen Fahrt — eine Lore kehrt nicht mitten

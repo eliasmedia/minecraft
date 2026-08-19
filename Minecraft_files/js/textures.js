@@ -2352,21 +2352,43 @@
     g.rect(3, 0, 1, 16, EISEN[4]);
     g.rect(11, 0, 1, 16, EISEN[4]);
   });
+  // Die Antriebsschiene: dieselbe Form, aber mit Gold statt Eisen — man muss
+  // sie im Gleis auf einen Blick von der gewöhnlichen unterscheiden können.
+  tex('rail_powered', function (g) {
+    g.copyFrom(data('rail'));
+    var gold = ramp([214, 176, 60], 0.9).list;
+    for (var x = 0; x < 16; x++) for (var y = 0; y < 16; y++) {
+      var c = g.get(x, y);
+      if (!c || c[3] < 200) continue;
+      // Nur die Bänder einfärben, die Schwellen bleiben Holz
+      if (c[0] > 90 && Math.abs(c[0] - c[2]) < 26) g.set(x, y, gold[x % 2 ? 3 : 4]);
+    }
+  });
+
+  // Die Kurve: dieselben zwei Bänder, aber im Viertelkreis von der einen Kante
+  // zur benachbarten. Gezeichnet wird sie als Kreisbogen um die Ecke (0,0) —
+  // vorher war es ein Gestrichel ohne erkennbare Form.
   tex('rail_curve', function (g) {
     g.fill([0, 0, 0], 0);
     var h = ramp([104, 72, 44], 0.8).list;
-    for (var i = 0; i < 16; i++) {
-      var d = Math.sqrt(i * i);
-      if (i % 4 === 1) { g.rect(i, 1, 2, 3, h[1]); g.rect(1, i, 3, 2, h[1]); }
+    // Schwellen: acht Speichen vom Mittelpunkt der Kurve nach außen
+    for (var s2 = 0; s2 < 8; s2++) {
+      var w = (s2 + 0.5) / 8 * Math.PI / 2;
+      for (var rr = 3; rr <= 13; rr++) {
+        var px = Math.round(Math.cos(w) * rr), py = Math.round(Math.sin(w) * rr);
+        if (px >= 0 && px < 16 && py >= 0 && py < 16) g.set(px, py, h[1]);
+      }
     }
-    for (var t = 0; t < 16; t++) {
-      var yy = Math.round(Math.sqrt(Math.max(0, 9 - (t - 12) * (t - 12) / 4)));
-      // Zwei Bänder, die von der einen Kante zur anderen schwenken
-      var a = Math.round(3 + 9 * (t / 15) * (t / 15));
-      var b2 = Math.round(11 + 4 * (t / 15) * (t / 15));
-      if (a >= 0 && a < 16) { g.set(t, a, EISEN[4]); g.set(t, a + 1, EISEN[3]); }
-      if (b2 >= 0 && b2 < 16) { g.set(t, Math.min(15, b2), EISEN[4]); }
-    }
+    // Zwei Bänder als Kreisbögen mit Radius 4 und 12
+    [4, 12].forEach(function (rad) {
+      for (var a = 0; a <= 90; a++) {
+        var w2 = a * Math.PI / 180;
+        var px = Math.round(Math.cos(w2) * rad), py = Math.round(Math.sin(w2) * rad);
+        if (px < 0 || px > 15 || py < 0 || py > 15) continue;
+        g.set(px, py, EISEN[4]);
+        if (px + 1 < 16) g.set(px + 1, py, EISEN[3]);
+      }
+    });
   });
 
   // ============================================================

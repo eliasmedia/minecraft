@@ -623,6 +623,7 @@
   };
 
   Game.prototype.onMouseUp = function (button) {
+    if (button === 0) this.miningGesperrt = false;
     if (button === 0) this.mining = null;
     if (button === 2) {
       if (this.bowCharge > 0.25) this.shootBow();
@@ -635,6 +636,7 @@
   Game.prototype.attackEntity = function (e) {
     if (this.mode === 'spectator') return;
     var p = this.player;
+    this.miningGesperrt = true;
     // Eine Lore wird nicht geschlagen, sie wird zerlegt
     if (e.type === 'cart') {
       if (e.reiter) this.absitzen();
@@ -2533,6 +2535,10 @@
   Game.prototype.handleMining = function (dt) {
     var p = this.player;
     if (!this.input.mouse[0] || this.player.dead) { this.mining = null; return; }
+    // Nach einem Schlag auf eine Entität wird nicht weitergegraben, solange die
+    // Taste gehalten bleibt. Sonst zerlegt man eine Lore und bricht im selben
+    // Klick den Block darunter — im Kreativmodus sofort.
+    if (this.miningGesperrt) { this.mining = null; return; }
     if (!this.target) { this.mining = null; return; }
     if (this.targetEntity) return;
     var t = this.target;

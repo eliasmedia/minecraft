@@ -747,11 +747,27 @@
     [[0, 1], [-1, 0]],      // 4: Süd-West
     [[-1, 0], [0, -1]]      // 5: West-Nord
   ];
-  B.railKurve = function (meta) { return (meta & 7) >= 2; };
+  B.railKurve = function (meta) { var m = meta & 15; return m >= 2 && m <= 5; };
+  // 6..9: Steigung, die in Richtung SIDE_DIRS[meta-6] ANSTEIGT
+  B.railSteigung = function (meta) {
+    var m = meta & 15;
+    return (m >= 6 && m <= 9) ? B.SIDE_DIRS[m - 6] : null;
+  };
+  // Auf einer Steigung verläuft das Gleis in derselben Achse wie die Steigung
+  B.RAIL_ENDEN_STEIGUNG = [
+    [[0, -1], [0, 1]], [[-1, 0], [1, 0]], [[0, -1], [0, 1]], [[-1, 0], [1, 0]]
+  ];
 
   define('rail', {
     title: 'Schiene', shape: B.SHAPE_RAIL, opaque: false, collide: false, opacity: 0,
     hardness: 0.7, tool: 'pickaxe', tex: 'rail', sound: 'stone', group: 'redstone'
+  });
+  // Die Antriebsschiene ist die einzige Quelle für dauerhaftes Tempo. Ohne
+  // Strom bremst sie — das ist im Original so und macht sie erst nützlich:
+  // dieselbe Schiene ist Gaspedal und Bremse.
+  define('powered_rail', {
+    title: 'Antriebsschiene', shape: B.SHAPE_RAIL, opaque: false, collide: false, opacity: 0,
+    hardness: 0.7, tool: 'pickaxe', tex: 'rail_powered', sound: 'stone', group: 'redstone'
   });
 
   define('hopper', {
