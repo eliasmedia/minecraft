@@ -532,13 +532,21 @@ vollständiger Gravititsatz kostet damit 24 Diamanten, 16 Zanit und 16 Gravitit.
 | Gravititrüstung komplett | 24 | 16 | 16 |
 
 **Detektorhelm** — ein Zanithelm, in der Werkbank rundum mit acht Diamanten
-belegt. Er schützt wie sein Vorgänger und meldet alle dreißig Sekunden, wenn im
-Umkreis von zwanzig Blöcken etwas Lohnendes im Gestein steckt: Diamant, Smaragd,
-Gold, Lapis, Redstone, Netherquarz, Ambrosium, Zanit oder Gravitit. Kohle und
-Eisen zählen nicht — die liegen ohnehin überall. Das Signal ist ein kurzer
-Schimmer am Rand des Sichtfelds, kräftiger je näher der Fund; in der Bildmitte
-bleibt es frei, damit es beim Graben nicht stört. Er sagt nur, dass etwas da ist,
-nicht wo — die Richtung muss man selbst suchen.
+belegt. Er schützt wie sein Vorgänger und lässt einen **alle zwanzig Sekunden
+für gut zwei Sekunden durch den Fels sehen**: Diamant, Smaragd, Gold, Lapis,
+Redstone, Netherquarz, Ambrosium, Zanit und Gravitit im Umkreis von zwanzig
+Blöcken stehen dann frei im Dunkeln, dort wo sie wirklich liegen. Kohle und
+Eisen zählen nicht — die liegen ohnehin überall.
+
+Vorher war es ein Schimmer am Bildrand, der nur sagte *dass* etwas da ist. Das
+war eine Information, mit der man wenig anfangen konnte; jetzt sieht man *wo*
+und *wie viel*, und der Blick geht nach zwei Sekunden wieder zu.
+
+Gezeichnet werden die Erze als gewöhnliche Würfel, aber mit **abgeschaltetem
+Tiefentest** — sie liegen damit über allem, auch über dem Stein, der davorsteht.
+Gesucht wird einmal je Durchblick, nicht in jedem Bild: ein Kasten von 41 Kanten
+sind 68000 Felder, und die sind ein paar Millisekunden wert, wenn man sie alle
+zwanzig Sekunden durchgeht.
 
 **Aether** — dieselbe Rahmenform, aber aus Glowstone und mit einem Eimer Wasser
 geflutet statt angezündet. Dahinter schweben Inseln über der Leere: Aethergras

@@ -120,12 +120,12 @@
   // und Eisen liegen überall herum und würden den Puls entwerten.
   var DETEKTOR_ERZE = ['diamond_ore', 'emerald_ore', 'gold_ore', 'lapis_ore', 'redstone_ore',
                        'ambrosium_ore', 'zanite_ore', 'gravitite_ore', 'quartz_ore'];
-  var DETEKTOR_TAKT = 30;      // Sekunden zwischen zwei Peilungen
+  var DETEKTOR_TAKT = 20;      // Sekunden zwischen zwei Durchblicken
   var DETEKTOR_R = 20;         // Blöcke Reichweite
+  var DETEKTOR_DAUER = 2.2;    // wie lange man hindurchsieht
   var detektorIds = null;
 
-  // Nächstes lohnendes Erz im Umkreis; liefert den Abstand oder -1
-  function detektorSuche(world, px, py, pz) {
+  function detektorIdSatz() {
     if (!detektorIds) {
       detektorIds = {};
       for (var i = 0; i < DETEKTOR_ERZE.length; i++) {
@@ -133,34 +133,49 @@
         if (id) detektorIds[id] = true;
       }
     }
-    var best = -1, r = DETEKTOR_R, r2 = r * r;
+    return detektorIds;
+  }
+
+  // Alle lohnenden Erze im Umkreis. Gesucht wird EINMAL je Durchblick, nicht
+  // je Bild: ein Kasten von 41 Kanten sind 68000 Felder, und das ist ein paar
+  // Millisekunden wert — alle zwanzig Sekunden.
+  function detektorSuche(world, px, py, pz) {
+    var satz = detektorIdSatz();
+    var treffer = [];
+    var r = DETEKTOR_R, r2 = r * r;
     var x0 = Math.floor(px), y0 = Math.floor(py), z0 = Math.floor(pz);
     for (var dy = -r; dy <= r; dy++) {
       var wy = y0 + dy;
       if (wy < 0 || wy >= MC.WORLD_HEIGHT) continue;
       for (var dz = -r; dz <= r; dz++) {
         for (var dx = -r; dx <= r; dx++) {
-          var d2 = dx * dx + dy * dy + dz * dz;
-          if (d2 > r2) continue;
-          if (best >= 0 && d2 >= best) continue;
-          if (detektorIds[world.getBlock(x0 + dx, wy, z0 + dz)]) best = d2;
+          if (dx * dx + dy * dy + dz * dz > r2) continue;
+          var id = world.getBlock(x0 + dx, wy, z0 + dz);
+          if (satz[id]) treffer.push(x0 + dx, wy, z0 + dz, id);
         }
       }
     }
-    return best < 0 ? -1 : Math.sqrt(best);
+    return treffer;
   }
+  MC.detektorErze = detektorSuche;
 
+  // Der Detektorhelm meldet nicht mehr am Bildrand, dass irgendwo etwas ist —
+  // er lässt einen für zwei Sekunden **durch den Fels sehen**. Was drinsteckt,
+  // steht dann da, wo es wirklich liegt, und man weiß nicht nur *dass*, sondern
+  // auch *wo* und *wie viel*. Alle zwanzig Sekunden einmal.
   function tickDetektor(p, game, dt) {
     p.detektorCd = (p.detektorCd === undefined) ? 2 : p.detektorCd - dt;
-    p.detektorPuls = Math.max(0, (p.detektorPuls || 0) - dt);
+    p.roentgen = Math.max(0, (p.roentgen || 0) - dt);
+    if (p.roentgen <= 0 && p.roentgenErze) p.roentgenErze = null;
     if (p.detektorCd > 0) return;
     p.detektorCd = DETEKTOR_TAKT;
-    var d = detektorSuche(p.world, p.x, p.y + 0.5, p.z);
-    if (d < 0) return;
-    // Je näher, desto kräftiger der Impuls – ganz nah volle Stärke, am Rand kaum
-    p.detektorStaerke = Math.max(0.15, 1 - d / DETEKTOR_R);
-    p.detektorPuls = 1.6;
-    game.audio.play('click');
+
+    var erze = detektorSuche(p.world, p.x, p.y + 0.5, p.z);
+    if (!erze.length) return;
+    p.roentgenErze = erze;
+    p.roentgen = DETEKTOR_DAUER;
+    p.roentgenMax = DETEKTOR_DAUER;
+    game.audio.play('levelup', 0.35);
   }
 
   // Trägt der Spieler dieses Rüstungsteil? slot 0=Helm 1=Brust 2=Hose 3=Schuhe
@@ -341,7 +356,7 @@
     var helm = inv.armor[0];
     if (MC.Effekte) MC.Effekte.tick(this, game, dt);
     this.detektor = !!(helm && helm.id === 'detector_helmet');
-    if (this.detektor) tickDetektor(this, game, dt); else this.detektorPuls = 0;
+    if (this.detektor) tickDetektor(this, game, dt); else { this.roentgen = 0; this.roentgenErze = null; }
 
     var speed = 4.317;
     if (this.sprinting) speed = 5.6;

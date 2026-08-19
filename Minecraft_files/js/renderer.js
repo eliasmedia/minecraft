@@ -601,6 +601,9 @@
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
 
+    // ---- Röntgenblick des Detektorhelms ----
+    if (p.roentgen > 0 && p.roentgenErze) this.renderRoentgen(game);
+
     // ---- Bauauswahl ----
     if (MC.Bauen && !game.panorama) this.renderBauAuswahl(game);
 
@@ -1293,6 +1296,57 @@
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
     gl.bindVertexArray(null);
+  };
+
+  // Der Durchblick: jedes gefundene Erz wird als Würfel gezeichnet, aber mit
+  // abgeschaltetem Tiefentest — es liegt damit über allem, auch über dem Fels,
+  // der davorsteht. Genau das macht ein Röntgen-Texturpaket, nur dass hier der
+  // Stein sichtbar bleibt und der Blick nach zwei Sekunden wieder zugeht.
+  Renderer.prototype.renderRoentgen = function (game) {
+    var gl = this.gl, mp = this.progMain, p = game.player;
+    var erze = p.roentgenErze;
+    var anzahl = erze.length / 4;
+    if (!anzahl) return;
+
+    // Aufblenden und ausblenden, damit es nicht springt
+    var t = p.roentgen, max = p.roentgenMax || 2.2;
+    var staerke = Math.min(1, t / 0.35) * Math.min(1, (max - t) / 0.25 + 0.2);
+
+    this.ensureDyn(anzahl * 6 * 4 * FPV + 64);
+    var d = this.dynData, n = 0;
+    var e = 0.02;                       // eine Winzigkeit größer als der Block
+    for (var i = 0; i < erze.length; i += 4) {
+      var bx = erze[i], by = erze[i + 1], bz = erze[i + 2], id = erze[i + 3];
+      var blk = B.byId[id];
+      if (!blk) continue;
+      for (var f = 0; f < 6; f++) {
+        var F = MC.Mesher.FACES[f];
+        var layer = MC.Mesher.faceLayer(blk, f, 0);
+        for (var v = 0; v < 4; v++) {
+          var vv = F.v[v];
+          d[n++] = bx - e + vv[0] * (1 + 2 * e);
+          d[n++] = by - e + vv[1] * (1 + 2 * e);
+          d[n++] = bz - e + vv[2] * (1 + 2 * e);
+          d[n++] = MC.Mesher.UVS[v][0]; d[n++] = MC.Mesher.UVS[v][1]; d[n++] = layer;
+          // Volles Licht: im Berg ist es dunkel, und ein dunkles Erz sieht man
+          // durch den Fels erst recht nicht
+          d[n++] = 1; d[n++] = 1; d[n++] = F.shade * 0.35 + 0.65;
+        }
+      }
+    }
+    if (!n) return;
+    gl.useProgram(mp.prog);
+    gl.uniform4f(mp.u.uTint, 1.35, 1.35, 1.35, staerke);
+    gl.uniform1f(mp.u.uAlphaTest, 0.02);
+    gl.uniform1f(mp.u.uFogFar, 100000);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    this.drawDyn(n);
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
+    gl.uniform1f(mp.u.uAlphaTest, 0.5);
   };
 
   // ---------- Auswahlrahmen ----------

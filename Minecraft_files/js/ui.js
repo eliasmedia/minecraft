@@ -519,18 +519,16 @@
     this.updateBossBar();
   };
 
-  // Der Puls des Detektorhelms: kurz aufleuchten und wieder abklingen. Wie hell,
-  // hängt am Abstand zum Fund – ganz nah leuchtet er kräftig, am Rand der
-  // Reichweite bleibt es ein Hauch.
+  // Der Detektorhelm hat keinen Rand-Schimmer mehr — er zeigt die Erze selbst.
+  // Was hier bleibt, ist ein ganz leichter Schleier über dem Bild, solange der
+  // Durchblick läuft: er erklärt, warum plötzlich Erz im Fels schwebt.
   UI.prototype.updateDetector = function (p) {
     if (!this.detectorEl) this.detectorEl = document.getElementById('detector');
     if (!this.detectorEl) return;
-    var t = p.detektorPuls || 0;
+    var t = p.roentgen || 0;
     if (t <= 0) { this.detectorEl.style.opacity = 0; return; }
-    // Zwei Schwünge über die 1,6 s, damit es als Signal lesbar ist und nicht als Blende
-    var welle = Math.sin((1.6 - t) / 1.6 * Math.PI * 2) * 0.5 + 0.5;
-    var huelle = Math.min(1, t / 0.4);
-    this.detectorEl.style.opacity = (welle * huelle * (p.detektorStaerke || 0.5)).toFixed(3);
+    var huelle = Math.min(1, t / 0.5) * Math.min(1, (p.roentgenMax - t) / 0.3 + 0.35);
+    this.detectorEl.style.opacity = (0.22 * huelle).toFixed(3);
   };
 
   UI.prototype.flashPickup = function (stack) {
