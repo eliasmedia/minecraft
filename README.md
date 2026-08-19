@@ -1053,6 +1053,44 @@ sie gibt — so tauchen gebaute Häuser auf — und sonst aus dem Generator; die
 der Nachbarspalte gibt die Schattierung. In der Hand liegt sie klein unten
 rechts, **N** macht sie groß.
 
+**Fernsicht** — die Berge gehen bis y 110, und man sah sie nie: hinter der
+Sichtweite hörte die Welt in einer Nebelwand auf. Die Sichtweite hochzudrehen
+hilft, kostet aber das volle Programm — jeder Chunk will erzeugt, belichtet und
+mit rund 1500 Vierecken vermascht werden.
+
+Jenseits der geladenen Chunks liegt jetzt ein grobes **Höhengitter**, das gar
+keine Blöcke braucht: es kommt direkt aus dem Generator, besteht aus **16
+Vierecken je Chunk statt 1500** und kennt weder Licht noch Höhlen noch Bäume.
+Für etwas, das zweihundert Blöcke entfernt ist, ist genau das die richtige Menge
+Information. Die vier Ecken einer Zelle bekommen ihre echte Höhe, damit ein Hang
+schräg ist und nicht getreppt; die Deckfarbe kommt aus dem Biom.
+
+Gemessen: ein LOD-Chunk braucht **0,03 ms** und **2,3 KB** — ein echter Chunk
+8,4 ms und 215 KB. Das sind **280-mal weniger Rechenzeit und 93-mal weniger
+Speicher** für dieselbe Fläche. Bei Sichtweite 7 reicht das Gitter 2,4-mal so
+weit, also gut 270 Blöcke; über tausend Kacheln kosten zusammen 2,3 MB.
+
+Zwei Dinge mussten mitwandern, sonst sieht man nichts davon: der **Nebel** muss
+weiter hinaus (sonst steht das Gitter komplett darin) und die **ferne
+Schnittebene** des Sichtkegels ebenso. Und gezeichnet wird das Gitter *im*
+Geländedurchgang, nicht davor — vorher ist noch das Himmelsprogramm gebunden
+und keine Uniform gesetzt; es wurde dann zwar gezeichnet, aber mit falscher
+Matrix und ohne Textur, also unsichtbar.
+
+Abschaltbar im Pausenmenü unter **Fernsicht**. Aus heißt: exakt das Spiel von
+vorher, mit der Leistung von vorher.
+
+*Randnotiz für später: **farbiges Licht.** Die Lichtdaten liegen als ein Byte je
+Block (oberes Halbbyte Sonne, unteres Blocklicht). RGB bräuchte ein zweites Byte
+— das sind bei Sichtweite 7 gerade 1,5 MB mehr, also kein Thema. Der Preis
+steckt woanders: der Mesher liest pro Ecke einen Lichtwert mit Ambient Occlusion,
+und mit drei Kanälen wird daraus die dreifache Arbeit an der teuersten Stelle
+(geschätzt 8,4 → 12 ms je Chunk). Dazu liefe die Flood-Fill-Engine bei jeder
+gesetzten Fackel dreimal statt einmal. Die Bildrate im Stehen bliebe gleich; was
+man merken würde, ist Stocken beim Laden von Gelände. Machbar, aber ein eigenes
+Vorhaben — und die Lichtengine ist der Teil, in dem ein Fehler sich überall als
+falsche Helligkeit zeigt.*
+
 **Technik** — eigener WebGL2-Renderer mit Texture-Array, Chunk-Meshing mit Ambient
 Occlusion und weichem Licht, Flood-Fill-Lichtengine für Sonnen- und Blocklicht,
 Frustum-Culling, Tag/Nacht-Zyklus mit Sonne, Mond, Sternen und Wolken, Partikel,

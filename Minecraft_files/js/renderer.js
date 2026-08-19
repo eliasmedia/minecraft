@@ -285,6 +285,53 @@
     return vao;
   };
 
+  // ---------- Fernsicht ----------
+  // Dieselbe Puffermechanik wie bei einem Chunk, nur mit einem einzigen
+  // undurchsichtigen Netz je Kachel — das Gitter hat keine Glasscheiben.
+  Renderer.prototype.uploadLOD = function (key, floats) {
+    var gl = this.gl;
+    if (!this.lodMeshes) this.lodMeshes = {};
+    var m = this.lodMeshes[key];
+    if (!m) {
+      m = { vbo: gl.createBuffer(), n: 0 };
+      m.vao = this.makeVao(m.vbo);
+      this.lodMeshes[key] = m;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, floats, gl.STATIC_DRAW);
+    m.n = floats.length / FPV;
+    var t = key.split(',');
+    m.cx = +t[0]; m.cz = +t[1];
+  };
+
+  Renderer.prototype.dropLOD = function (key) {
+    if (!this.lodMeshes) return;
+    var m = this.lodMeshes[key];
+    if (!m) return;
+    this.gl.deleteBuffer(m.vbo);
+    this.gl.deleteVertexArray(m.vao);
+    delete this.lodMeshes[key];
+  };
+
+  Renderer.prototype.renderLOD = function (game) {
+    if (!MC.LOD || !MC.LOD.aktiv || !this.lodMeshes) return;
+    var gl = this.gl, world = game.world;
+    var n = 0;
+    for (var k in this.lodMeshes) {
+      var m = this.lodMeshes[k];
+      if (!m.n) continue;
+      // Ist der Chunk inzwischen wirklich geladen, zeichnet er sich selbst
+      if (world.getChunk(m.cx, m.cz)) continue;
+      var bx = m.cx * CS, bz = m.cz * CS;
+      if (!U.aabbInFrustum(this.frustum, bx, 0, bz, bx + CS, MC.WORLD_HEIGHT, bz + CS)) continue;
+      gl.bindVertexArray(m.vao);
+      gl.drawElements(gl.TRIANGLES, (m.n / 4) * 6, gl.UNSIGNED_INT, 0);
+      n++;
+    }
+    this.stats.lod = n;
+    gl.bindVertexArray(null);
+  };
+
   // ---------- Chunk-Meshes ----------
   Renderer.prototype.uploadChunk = function (chunk, mesh) {
     var gl = this.gl;
@@ -448,7 +495,8 @@
     this.camPos = this.camPos || [0, 0, 0];
     this.camPos[0] = camX; this.camPos[1] = camY; this.camPos[2] = camZ;
 
-    var near = 0.08, far = Math.max(64, this.renderDistance * CS * 1.9);
+    var fernFaktor = (MC.LOD && MC.LOD.aktiv) ? MC.LOD.FAKTOR + 0.6 : 1.9;
+    var near = 0.08, far = Math.max(64, this.renderDistance * CS * fernFaktor);
     M4.perspective(this.proj, (this.fov + (p.sprinting ? 6 : 0)) * Math.PI / 180, this.aspect, near, far);
     M4.fpsView(this.view, camX, camY, camZ, camYaw, camPitch);
     if (game.camShake > 0) {
@@ -494,6 +542,12 @@
     else if (world.dim === 'nether') { fogNear = this.renderDistance * CS * 0.22; fogFar = this.renderDistance * CS * 0.85; }
     else if (world.dim === 'the_end') { fogNear = this.renderDistance * CS * 0.45; fogFar = this.renderDistance * CS * 1.05; }
     else { fogNear = this.renderDistance * CS * 0.55; fogFar = this.renderDistance * CS * 0.97; }
+    // Mit Fernsicht muss auch der Nebel weiter hinaus — sonst steht das
+    // Höhengitter komplett in der Nebelwand und die ganze Mühe ist unsichtbar.
+    if (MC.LOD && MC.LOD.aktiv && world.dim === 'overworld') {
+      fogNear *= MC.LOD.FAKTOR * 0.85;
+      fogFar *= MC.LOD.FAKTOR;
+    }
     if (wSicht < 1) { fogNear *= wSicht * wSicht; fogFar *= wSicht; }
 
     gl.clearColor(fogColor[0], fogColor[1], fogColor[2], 1);
@@ -542,6 +596,14 @@
     gl.uniform3fv(mp.u.uFogColor, new Float32Array(fogColor));
     gl.uniform4f(mp.u.uTint, 1, 1, 1, 1);
     gl.uniform1f(mp.u.uAlphaTest, 0.5);
+
+    // ---- Fernsicht ----
+    // Erst HIER, nicht früher: vorher ist noch das Himmelsprogramm gebunden
+    // und keine einzige Uniform des Hauptprogramms gesetzt — gezeichnet wurde
+    // dann zwar etwas, aber mit falscher Matrix und ohne Textur.
+    // Die echten Chunks kommen gleich danach und überschreiben das Gitter
+    // dort, wo sie liegen.
+    if (MC.LOD && MC.LOD.aktiv) this.renderLOD(game);
 
     var visible = [];
     var pcx = Math.floor(p.x / CS), pcz = Math.floor(p.z / CS);

@@ -153,6 +153,7 @@
     // Der Atlas kennt Schilder und Karten nur am Inhalt, nicht an der Welt —
     // beim Wechsel muss er darum geleert werden.
     if (MC.DynTex) MC.DynTex.leeren();
+    if (MC.LOD) MC.LOD.leeren(this);
     // Jede Welt bekommt eine eigene Kennung und einen Namen – vorher hat eine
     // neue Welt die alte schlicht überschrieben.
     this.weltId = MC.Welten.neueId();
@@ -2024,6 +2025,12 @@
         self.toggleFullscreen(); setTimeout(function () { self.showMenu('pause'); }, 120);
       });
       btn('Sichtweite: ' + this.renderer.renderDistance, function () { self.cycleRenderDistance(); self.showMenu('pause'); });
+      btn('Fernsicht: ' + (MC.LOD && MC.LOD.aktiv ? 'an' : 'aus'), function () {
+        if (!MC.LOD) return;
+        MC.LOD.aktiv = !MC.LOD.aktiv;
+        if (!MC.LOD.aktiv) MC.LOD.leeren(self);
+        self.showMenu('pause');
+      });
       btn('Musik: ' + (this.audio.musicOn ? 'an' : 'aus'), function () { self.audio.musicOn = !self.audio.musicOn; self.showMenu('pause'); });
       btn('Lautstärke: ' + Math.round(this.audio.volume * 100) + '%', function () {
         var v = self.audio.volume + 0.2; if (v > 1.01) v = 0;
@@ -2405,6 +2412,7 @@
       if (MC.Herobrine) MC.Herobrine.tick(this, dt);
       if (MC.Wetter) MC.Wetter.tick(this, dt);
       if (MC.Logistik) MC.Logistik.tick(this, dt);
+      if (MC.LOD) MC.LOD.tick(this);
       MC.Redstone.tickButtons(this, dt);
       this.achTimer = (this.achTimer || 0) + dt;
       if (this.achTimer > 1) { this.achTimer = 0; MC.Achievements.checkArmor(this); }
