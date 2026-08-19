@@ -21,7 +21,7 @@
     ['werkzeug', 'Erstes Werkzeug', 'Stelle eine Spitzhacke her.', 'werkbank', 'wood_pickaxe'],
     ['stein', 'Unter der Grasnarbe', 'Baue Stein ab.', 'werkzeug', 'cobblestone'],
     ['ofen', 'Warm ums Herz', 'Baue einen Ofen.', 'stein', 'furnace'],
-    ['brot', 'Nicht nur rohes Fleisch', 'Backe oder braten etwas Essbares.', 'ofen', 'bread'],
+    ['brot', 'Nicht nur rohes Fleisch', 'Backe oder brate etwas Essbares.', 'ofen', 'bread'],
     ['eisen', 'Härter als Stein', 'Schmelze einen Eisenbarren.', 'ofen', 'iron_ingot'],
     ['ruestung_eisen', 'Blech am Leib', 'Trage ein Rüstungsteil aus Eisen.', 'eisen', 'iron_chestplate'],
     ['diamant', 'Diamanten!', 'Finde einen Diamanten.', 'eisen', 'diamond'],
@@ -59,6 +59,42 @@
       if (A.LIST[i][3] === id) out.push(A.byId[A.LIST[i][0]]);
     }
     return out;
+  };
+
+  // ============================================================
+  //  Baumlayout
+  // ============================================================
+  // Die Tiefe bestimmt die Spalte, die Zeile ergibt sich aus den Blaettern:
+  // jedes Blatt bekommt die naechste freie Zeile, jeder Elternknoten die Mitte
+  // zwischen seinem ersten und letzten Kind. Das ist das uebliche Verfahren
+  // fuer aufgeraeumte Baeume und braucht genau einen Durchgang.
+  //
+  // Vorher rueckte die Anzeige jede Stufe um einen festen Betrag ein. Bei einer
+  // Kette, die bis zum Drachen sechzehn Stufen tief geht, blieb hinten keine
+  // Zeilenbreite mehr uebrig — und die Verzweigungen sah man ueberhaupt nicht.
+  A.layout = function () {
+    if (A._layout) return A._layout;
+    var pos = {}, zeile = 0;
+    function gehe(knoten, tiefe) {
+      var kinder = A.children(knoten.id);
+      if (!kinder.length) {
+        pos[knoten.id] = { t: tiefe, z: zeile++ };
+        return pos[knoten.id].z;
+      }
+      var erste = null, letzte = 0;
+      for (var i = 0; i < kinder.length; i++) {
+        var z = gehe(kinder[i], tiefe + 1);
+        if (erste === null) erste = z;
+        letzte = z;
+      }
+      pos[knoten.id] = { t: tiefe, z: (erste + letzte) / 2 };
+      return pos[knoten.id].z;
+    }
+    A.children(null).forEach(function (w) { gehe(w, 0); });
+    var maxT = 0, maxZ = 0;
+    for (var k in pos) { if (pos[k].t > maxT) maxT = pos[k].t; if (pos[k].z > maxZ) maxZ = pos[k].z; }
+    A._layout = { pos: pos, spalten: maxT + 1, zeilen: maxZ + 1 };
+    return A._layout;
   };
 
   A.state = function (game) {

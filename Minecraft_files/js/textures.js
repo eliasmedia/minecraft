@@ -1614,6 +1614,20 @@
     auge(g, 4, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
     auge(g, 9, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
   });
+  // ---- Spinne ----
+  // Der Koerper traegt dieselbe Hautfunktion wie alle anderen, die Beine eine
+  // Stufe dunkler - sonst verschwinden sie vor dem Hinterleib.
+  mob('mob_spider', [58, 46, 40], 'h');
+  mob('mob_spider_leg', [38, 30, 26], 'h');
+  mobFace('mob_spider_face', [58, 46, 40], function (g) {
+    // Acht Augen wie im Original: vier grosse in einer Reihe, vier kleine darueber
+    var rot = [206, 44, 38], glut = [255, 128, 96];
+    [[2, 8], [5, 8], [9, 8], [12, 8]].forEach(function (a) {
+      g.rect(a[0], a[1], 2, 2, rot); g.set(a[0], a[1], glut);
+    });
+    [[5, 6], [7, 6], [8, 6], [10, 6]].forEach(function (a) { g.set(a[0], a[1], rot); });
+  });
+
   mob('mob_guardian', [88, 140, 138], 'v');
   mobFace('mob_guardian_face', [88, 140, 138], function (g) {
     g.rect(5, 5, 6, 6, [24, 40, 44]);

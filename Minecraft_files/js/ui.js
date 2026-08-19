@@ -833,7 +833,7 @@
     var self = this, g = this.game;
     var A = MC.Achievements;
     this.slotList = [];
-    var win = el('div', 'window book', this.screen);
+    var win = el('div', 'window book breit', this.screen);
     var head = el('div', 'wtitle', win);
     var erreicht = 0;
     A.LIST.forEach(function (e) { if (A.has(g, e[0])) erreicht++; });
@@ -841,44 +841,89 @@
     var close = el('div', 'wclose', head); close.textContent = '✕';
     close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
 
-    var baum = el('div', 'achtree', win);
+    // Ein waagerechter Baum wie im Original: die Tiefe laeuft nach rechts, die
+    // Geschwister stapeln sich nach unten. Die Flaeche ist breiter als das
+    // Fenster und scrollt — sechzehn Stufen passen auf keinen Schirm.
+    // Die Karte muss zwei Zeilen Titel und zwei Zeilen Text tragen, ohne dass
+    // etwas heraushaengt — daher lieber eine Nummer zu gross als zu knapp.
+    var SP = 200, ZH = 74, KB = 178, KH = 62;
+    var L = A.layout();
+    var box = el('div', 'achbox', win);
+    var flaeche = el('div', 'achflaeche', box);
+    flaeche.style.width = (L.spalten * SP) + 'px';
+    flaeche.style.height = (L.zeilen * ZH) + 'px';
 
-    // Der Baum wird rekursiv eingerückt; die Linien links machen die
-    // Abhängigkeiten sichtbar, ohne dass man Kanten zeichnen muss.
-    function zweig(eltern, tiefe, behaelter) {
-      A.children(eltern).forEach(function (e) {
-        var offen = A.has(g, e.id);
-        // Erreichbar, sobald der Vorgänger steht – sonst bleibt es verdeckt
-        var frei = !e.parent || A.has(g, e.parent);
-        var row = el('div', 'achrow' + (offen ? ' done' : (frei ? '' : ' locked')), behaelter);
-        // Gedeckelt: der Baum ist stellenweise zwanzig Stufen tief, und ohne
-        // Deckel blieb hinten keine Zeilenbreite mehr für Titel und Text.
-        // Ab der sechsten Stufe zeigt nur noch die Ziffer die Tiefe an.
-        row.style.marginLeft = (Math.min(tiefe, 5) * 22) + 'px';
-        if (tiefe > 5) el('span', 'achtiefe', row).textContent = tiefe + '.';
-
-        var ico = el('div', 'slot mini achico', row);
-        if (offen || frei) self.renderSlot(ico, { id: e.icon, count: 1 });
-
-        var txt = el('div', 'achtxt', row);
-        var t = el('div', 'achname', txt);
-        t.textContent = (offen ? '✓ ' : '') + (frei ? e.title : '???');
-        var d = el('div', 'achdesc', txt);
-        d.textContent = frei ? e.desc : 'Erst den vorigen Erfolg holen.';
-
-        zweig(e.id, tiefe + 1, behaelter);
-      });
+    function mitte(id) {
+      var q = L.pos[id];
+      return { x: q.t * SP, y: q.z * ZH + (ZH - KH) / 2 };
     }
-    zweig(null, 0, baum);
 
-    var hinweis = el('div', 'whint', win);
-    hinweis.textContent = 'Der Baum folgt dem Weg durch die vier Welten. Wer einen Erfolg ' +
-                          'überspringt, bekommt die Vorgeschichte rückwirkend angerechnet.';
+    // Verbindungen zuerst, damit sie hinter den Karten liegen. Ein Winkelzug
+    // aus drei Strecken statt einer Diagonalen — gerade Linien passen zum Rest
+    // der Oberflaeche, und man sieht, welches Kind an welchem Elternteil haengt.
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'achlinien');
+    svg.setAttribute('width', L.spalten * SP);
+    svg.setAttribute('height', L.zeilen * ZH);
+    flaeche.appendChild(svg);
 
+    A.LIST.forEach(function (e) {
+      var kind = A.byId[e[0]];
+      if (!kind.parent) return;
+      var a = mitte(kind.parent), b = mitte(kind.id);
+      var x0 = a.x + KB, y0 = a.y + KH / 2, x1 = b.x, y1 = b.y + KH / 2;
+      var xm = x0 + (x1 - x0) / 2;
+      var pfad = document.createElementNS(NS, 'path');
+      pfad.setAttribute('d', 'M' + x0 + ' ' + y0 + ' H' + xm + ' V' + y1 + ' H' + x1);
+      pfad.setAttribute('class', A.has(g, kind.id) ? 'achlinie done' : 'achlinie');
+      svg.appendChild(pfad);
+    });
+
+    A.LIST.forEach(function (e) {
+      var k = A.byId[e[0]];
+      var offen = A.has(g, k.id);
+      // Erreichbar, sobald der Vorgaenger steht – sonst bleibt es verdeckt
+      var frei = !k.parent || A.has(g, k.parent);
+      var q = mitte(k.id);
+      var karte = el('div', 'achknoten' + (offen ? ' done' : (frei ? '' : ' locked')), flaeche);
+      karte.style.left = q.x + 'px';
+      karte.style.top = q.y + 'px';
+      karte.style.width = KB + 'px';
+      karte.style.height = KH + 'px';
+
+      var ico = el('div', 'slot mini achico', karte);
+      if (offen || frei) self.renderSlot(ico, { id: k.icon, count: 1 });
+
+      var txt = el('div', 'achtxt', karte);
+      el('div', 'achname', txt).textContent = (offen ? '✓ ' : '') + (frei ? k.title : '???');
+      el('div', 'achdesc', txt).textContent = frei ? k.desc : 'Erst den vorigen Erfolg holen.';
+      karte.title = frei ? k.title + ' — ' + k.desc : 'Noch verdeckt';
+    });
+
+    el('div', 'whint', win).textContent =
+      'Der Baum folgt dem Weg durch die vier Welten. Wer einen Erfolg überspringt, ' +
+      'bekommt die Vorgeschichte rückwirkend angerechnet.';
     this.backButton(win);
+
+    // Beim Öffnen dorthin scrollen, wo es gerade weitergeht — in beide
+    // Richtungen. Nur waagerecht zu scrollen half nichts: der Stamm liegt in
+    // der Mitte der Fläche, und oben stand dann ein leeres Feld.
+    var naechst = null;
+    A.LIST.forEach(function (e) {
+      var k = A.byId[e[0]];
+      if (naechst || A.has(g, k.id)) return;
+      if (!k.parent || A.has(g, k.parent)) naechst = k;
+    });
+    if (!naechst) naechst = A.byId[A.LIST[A.LIST.length - 1][0]];
+    var z = mitte(naechst.id);
+    // Nach dem Einhängen messen: vorher kennt der Kasten seine Größe nicht.
+    setTimeout(function () {
+      box.scrollLeft = Math.max(0, z.x + KB / 2 - box.clientWidth / 2);
+      box.scrollTop = Math.max(0, z.y + KH / 2 - box.clientHeight / 2);
+    }, 0);
   };
 
-  // Auffälliger als ein normaler Toast: der Erfolg soll man merken
   UI.prototype.achievementToast = function (e) {
     var t = el('div', 'toast ach', this.toastEl);
     t.innerHTML = '<span class="achtoastico" style="background-image:url(' +

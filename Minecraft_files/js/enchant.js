@@ -420,14 +420,20 @@
 
   // Schärfe: 1 + 0,5 je weiterer Stufe. Bann und Nemesis zählen nur gegen ihre
   // Gruppe, dafür kräftiger.
+  // Wer zaehlt als untot, wer als Gliederfuesser? Beide Listen stehen hier und
+  // nicht als Aufzaehlung mitten in der Rechnung: Bann traf vorher nur Zombie
+  // und Skelett und liess Witherskelett, Aschen- und Frostwicht aus, obwohl
+  // alle drei genauso untot sind.
+  E.UNTOT = ['zombie', 'skeleton', 'wither_skeleton', 'ash_wight', 'frost_wight'];
+  E.GLIEDERFUESSER = ['spider'];
+
   E.schadenBonus = function (stack, ziel) {
     var d = 0;
     var sc = E.stufe(stack, 'sharpness');
     if (sc) d += 1 + (sc - 1) * 0.5;
-    var untot = ziel && (ziel.mobType === 'zombie' || ziel.mobType === 'skeleton');
-    if (untot) d += E.stufe(stack, 'smite') * 2.5;
-    var krabbler = ziel && (ziel.mobType === 'spider' || ziel.mobType === 'silverfish');
-    if (krabbler) d += E.stufe(stack, 'bane_of_arthropods') * 2.5;
+    if (!ziel) return d;
+    if (E.UNTOT.indexOf(ziel.mobType) >= 0) d += E.stufe(stack, 'smite') * 2.5;
+    if (E.GLIEDERFUESSER.indexOf(ziel.mobType) >= 0) d += E.stufe(stack, 'bane_of_arthropods') * 2.5;
     return d;
   };
 

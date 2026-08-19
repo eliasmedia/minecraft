@@ -418,19 +418,33 @@ canvas#gl {
 .slot.mini { width: 26px; height: 26px; border-width: 1px; background-size: 24px 24px; }
 .rarrow { font-size: 18px; color: #555; }
 
-.achtree { display: flex; flex-direction: column; gap: 3px; max-height: 52vh; overflow-y: auto; }
-.achrow {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(0,0,0,.13); padding: 5px 8px;
-  border-left: 3px solid #7a7a7a;
+/* Der Erfolgsbaum: eine Flaeche, die breiter ist als ihr Fenster, und darin
+   frei gesetzte Karten. Vorher war es eine Liste mit fester Einrueckung je
+   Stufe — bei sechzehn Stufen blieb hinten keine Zeilenbreite mehr, und die
+   Verzweigungen sah man gar nicht. */
+.achbox {
+  max-height: 52vh; overflow: auto; background: rgba(0,0,0,.13);
+  padding: 8px; -webkit-overflow-scrolling: touch;
 }
-.achrow.done { border-left-color: #4e8f1e; background: rgba(126,242,42,.14); }
-.achrow.locked { opacity: .45; }
+.achflaeche { position: relative; }
+.achlinien { position: absolute; left: 0; top: 0; pointer-events: none; }
+.achlinie { fill: none; stroke: #7a7a7a; stroke-width: 2; }
+.achlinie.done { stroke: #4e8f1e; }
+.achknoten {
+  position: absolute; display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; box-sizing: border-box; overflow: hidden;
+  background: #9a9a9a; border: 2px solid; border-color: #ccc #555 #555 #ccc;
+}
+.achknoten .achtxt { min-width: 0; overflow: hidden; }
+.achknoten.done { background: #bcd9a2; border-color: #e2f2d2 #4e8f1e #4e8f1e #e2f2d2; }
+.achknoten.locked { opacity: .42; }
+.achknoten .achname { font-size: 10.5px; line-height: 1.25; }
+.achknoten .achdesc { font-size: 9px; line-height: 1.25; opacity: .72; margin-top: 1px; }
+.window.book.breit { width: min(940px, 96vw); }
 .achico { flex: 0 0 auto; }
-.achtiefe { flex: 0 0 auto; font-size: 10px; color: #777; margin-left: -4px; }
 .achtxt { min-width: 0; }
 .achname { font-size: 12.5px; color: #222; font-weight: bold; }
-.achrow.done .achname { color: #2c5c10; }
+.achknoten.done .achname { color: #2c5c10; }
 .achdesc { font-size: 11px; color: #555; }
 
 .toast.ach {

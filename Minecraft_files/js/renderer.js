@@ -1321,6 +1321,20 @@
     // Unheimliche und machte ihn zu einer Figur, die etwas vorhat.
     if (mob.spec && mob.spec.starr) return r;
     var amp = 0.85 * swing;
+    // Spinnenbeine: acht Stueck aus einem Punkt. Der feste Anteil faechert sie
+    // von vorn nach hinten (r.y) und knickt sie nach unten (r.z), der bewegte
+    // hebt sie im Wechsel — benachbarte Beine laufen gegenlaeufig, sonst huepft
+    // die Spinne statt zu laufen.
+    if (anim && anim.indexOf('spinne') === 0) {
+      var links = anim.charAt(6) === 'L';
+      var nr = +anim.charAt(7);
+      var faecher = [0.62, 0.22, -0.22, -0.62][nr];
+      var takt = ((nr + (links ? 0 : 1)) & 1) ? -1 : 1;
+      var heben = Math.sin(walk * 1.5) * 0.30 * takt * swing;
+      r.y = links ? faecher : -faecher;
+      r.z = (links ? -0.68 : 0.68) + (links ? -heben : heben);
+      return r;
+    }
     switch (anim) {
       case 'head':
         r.y = MC.approachAngle(0, normAngle((mob.headYaw || mob.yaw) - mob.yaw), 1.2);

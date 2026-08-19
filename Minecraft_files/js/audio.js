@@ -182,6 +182,11 @@
         break;
       case 'zombie': this.tone(t, 0.55, 0.24 * g, 'sawtooth', 150, 95, 9); this.noise(t, 0.5, 0.12 * g, 'lowpass', 500, 1, 250); break;
       case 'skeleton': for (var k = 0; k < 4; k++) this.noise(t + k * 0.07, 0.05, 0.16 * g, 'bandpass', 2200 + k * 300, 6, 1800); break;
+      // Ein kurzes, trockenes Zirpen — kein Zischen wie beim Creeper und kein
+      // Knochenklappern wie beim Skelett.
+      case 'spider':
+        for (var sp = 0; sp < 3; sp++) this.noise(t + sp * 0.05, 0.04, 0.17 * g, 'bandpass', 3000 + sp * 500, 8, 2400);
+        this.tone(t, 0.12, 0.10 * g, 'sawtooth', 260, 180, 16); break;
       case 'creeper': this.noise(t, 0.7, 0.26 * g, 'highpass', 2800, 1, 4200); break;
       case 'villager': this.tone(t, 0.16, 0.2 * g, 'square', 300, 240, 18); this.tone(t + 0.17, 0.13, 0.16 * g, 'square', 250, 320, 14); break;
       case 'ghast': this.tone(t, 0.9, 0.22 * g, 'sine', 620, 240, 5); this.noise(t, 0.7, 0.1 * g, 'lowpass', 900, 1, 300); break;

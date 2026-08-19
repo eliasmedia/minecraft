@@ -691,6 +691,27 @@
         part('leg1', 'mob_chicken_leg', 1, 0, -1, 1, 5, 3, 'legFL', [1, 5, 0])
       ]
     },
+    // Die Spinne: Hinterleib, Brust, Kopf und acht Beine. Die vier Paare setzen
+    // von vorn nach hinten am Koerper an; nach aussen und nach unten geknickt
+    // werden sie erst in animRot(). So stehen die Winkel an einer Stelle statt
+    // achtmal von Hand im Modell, wo sie beim naechsten Massstabswechsel nicht
+    // mehr passen wuerden.
+    spider: {
+      height: 0.9, width: 1.4, scale: 1,
+      parts: [
+        part('hinterleib', 'mob_spider', -5, 4, 2, 10, 8, 12),
+        part('brust', 'mob_spider', -3, 5, -4, 6, 6, 6),
+        part('kopf', { all: 'mob_spider', front: 'mob_spider_face' }, -4, 5, -12, 8, 8, 8),
+        part('beinR0', 'mob_spider_leg', -19, 9, -5, 16, 2, 2, 'spinneR0', [-3, 10, -4]),
+        part('beinL0', 'mob_spider_leg', 3, 9, -5, 16, 2, 2, 'spinneL0', [3, 10, -4]),
+        part('beinR1', 'mob_spider_leg', -19, 9, -2, 16, 2, 2, 'spinneR1', [-3, 10, -1]),
+        part('beinL1', 'mob_spider_leg', 3, 9, -2, 16, 2, 2, 'spinneL1', [3, 10, -1]),
+        part('beinR2', 'mob_spider_leg', -19, 9, 1, 16, 2, 2, 'spinneR2', [-3, 10, 2]),
+        part('beinL2', 'mob_spider_leg', 3, 9, 1, 16, 2, 2, 'spinneL2', [3, 10, 2]),
+        part('beinR3', 'mob_spider_leg', -19, 9, 4, 16, 2, 2, 'spinneR3', [-3, 10, 5]),
+        part('beinL3', 'mob_spider_leg', 3, 9, 4, 16, 2, 2, 'spinneL3', [3, 10, 5])
+      ]
+    },
     // Herobrine hat Steves Maße – er soll aussehen wie ein Spieler, der dort
     // steht, wo keiner stehen sollte.
     herobrine: {
@@ -1005,6 +1026,13 @@
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
     creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },
     villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
+    // Die Spinne klettert an Waenden hoch und ist nur im Dunkeln feindlich —
+    // beides wie im Original. Ihr Faden ist die einzige Quelle ausserhalb der
+    // Spinnweben in den verlassenen Minen; ohne sie hing der Bogen an einem
+    // Minenfund.
+    spider: { hp: 16, hostile: true, speed: 2.6, damage: 2, klettert: true, lichtscheu: true,
+      drops: [{ id: 'string', min: 0, max: 2 }], xp: 5, sound: 'spider' },
+
     // ---- Nether ----
     piglin: { hp: 16, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
     ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, projectile: 'fireball', drops: [{ id: 'gunpowder', min: 0, max: 2 }, { id: 'ghast_tear', min: 0, max: 1 }], xp: 5, sound: 'ghast', fireproof: true },
@@ -1079,6 +1107,7 @@
     this.moving = false;
     this.fuse = -1;
     this.jumpCd = 0;
+    this.gereizt = 0;      // Lichtscheue: wie lange ein Treffer noch nachwirkt
     this.headYaw = 0; this.headPitch = 0;
     this.burning = 0;
     this.woolColor = null;
@@ -1181,6 +1210,24 @@
         }
       }
       if (fliehe) this.panic = Math.max(this.panic, 1.6);
+    }
+
+    // Lichtscheu: nur im Dunkeln greift sie von sich aus an. Wer sie schlaegt,
+    // hat sie am Hals, egal wie hell es ist — der Reiz haelt an, bis sie ihn
+    // verliert. Das Original macht es genauso.
+    if (this.spec.lichtscheu) {
+      if (this.gereizt > 0) { this.gereizt -= dt; this.hostile = true; }
+      else {
+        var hx = Math.floor(this.x), hy = Math.floor(this.y + this.height * 0.5), hz = Math.floor(this.z);
+        // Himmelslicht mal Tageshelligkeit, dagegen das Blocklicht — dieselbe
+        // Rechnung wie im Original. Ein Schalter auf isNight() waere zu grob:
+        // in der Daemmerung stuende die Spinne im Halbdunkel und waere trotzdem
+        // noch friedlich, bis es schlagartig Nacht ist.
+        var hell = Math.max(world.getSky(hx, hy, hz) * world.daylight(),
+                            world.getLightRaw(hx, hy, hz) & 15);
+        this.hostile = hell <= 9;
+        if (!this.hostile) this.target = null;
+      }
     }
 
     // Verbrennen im Tageslicht
@@ -1354,6 +1401,15 @@
     // Schwimmen
     if (P.inLiquid(world, this, 'water')) {
       this.vy = Math.max(this.vy, 3.2);
+    }
+    // Die Spinne klettert: stoesst sie waagerecht an, zieht sie sich daran
+    // hoch. Kein Sprung, sondern eine gehaltene Aufwaertsbewegung — sonst
+    // haengt sie an jeder zweiten Wand fest und huepft davor auf und ab.
+    // Steht hier und nicht weiter oben: alles vor der Physik wird von der
+    // Schwerkraft und dem Bodenabgleich darunter wieder eingesammelt.
+    if (this.spec.klettert && this.collidedH && !P.inLiquid(world, this, 'water')) {
+      this.vy = Math.max(this.vy, 4.2);
+      this.onGround = false;
     }
     // Wer im Nether zu Hause ist, geht in Lava nicht unter. Ohne das versinkt
     // ein Piglin im ersten See, den er quert — feuerfest heißt ja nur, dass es
@@ -2082,6 +2138,8 @@
     if (this.hurtTime > 0.25 || this.dead) return;
     this.hp -= amount;
     this.hurtTime = 0.5;
+    // Eine getroffene Spinne bleibt feindlich, auch am hellen Tag
+    if (this.spec.lichtscheu) { this.gereizt = 20; this.hostile = true; }
     // Ein getroffener Enderman wird wütend und setzt sich erst einmal ab
     if (this.mobType === 'enderman') {
       this.hostile = true;
@@ -2212,9 +2270,10 @@
         if (y < 0) continue;
         // Endermen sind eine Seltenheit, kein Nachtvolk: eine von vierundzwanzig
         // Erscheinungen, und nie mehr als zwei gleichzeitig in der Umgebung.
-        var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie',
-                      'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
-                      'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'enderman'];
+        var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie',
+                      'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
+                      'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper',
+                      'spider', 'spider', 'spider', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
         if (kind2 === 'enderman') {
           var anzahlE = 0;
