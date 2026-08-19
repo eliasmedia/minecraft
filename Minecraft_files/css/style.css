@@ -3,6 +3,12 @@
    ============================================================ */
 :root {
   --slot: 46px;
+  /* Herz, Hunger, Rüstung, Blase im Verhältnis zum Feld. Im Original sind es
+     8 px bei 20 px Feldbreite, also 0,4. Vorher standen hier feste 10 px: bei
+     46 px Feldern war das 0,22, und die Leisten wirkten verloren über einer
+     doppelt so breiten Hotbar. Fest heißt außerdem, dass sie beim Verkleinern
+     auf dem Telefon nicht mitgehen. */
+  --hudicon: calc(var(--slot) * 0.4);
   /* Symbol-Canvas ist 72 px. Anzeige nur in ganzzahligen Teilern
      (36 = 72/2, 24 = 72/3), sonst werden die Pixel ungleich breit. */
   --icon: 36px;
@@ -90,13 +96,13 @@ canvas#gl {
 
 .bars { display: flex; justify-content: space-between; width: 100%; }
 .barcol { display: flex; flex-direction: column; gap: 1px; }
-.bar { display: flex; gap: 1px; height: 11px; }
+.bar { display: flex; gap: 1px; height: var(--hudicon); }
 .bar.right { flex-direction: row-reverse; }
 
-.icon { width: 10px; height: 10px; background-size: 100% 100%; background-repeat: no-repeat; }
+.icon { width: var(--hudicon); height: var(--hudicon); background-size: 100% 100%; background-repeat: no-repeat; }
 
 #xpbar {
-  position: relative; width: 100%; height: 8px;
+  position: relative; width: 100%; height: calc(var(--slot) * 0.17);
   background: #1c1c1c; border: 1px solid #000;
 }
 #xpfill { position: absolute; left: 0; top: 0; bottom: 0; background: #7ef22a; width: 0%; }
@@ -179,7 +185,13 @@ canvas#gl {
 .wrow { display: flex; gap: 14px; align-items: flex-start; }
 .whint { margin-top: 10px; font-size: 11px; color: #555; max-width: 560px; }
 
-.invgrid { display: grid; grid-template-columns: repeat(9, var(--slot)); gap: 2px; }
+/* Mittig: die Fensterbreite kommt von der breitesten Zeile — im Kreativmenü
+   von der Reiterleiste, im Inventar von Rüstung plus Werkbank. Linksbündig
+   blieben daneben bis zu 240 px leere Gitterspur stehen. */
+.invgrid {
+  display: grid; grid-template-columns: repeat(9, var(--slot)); gap: 2px;
+  justify-content: center;
+}
 .hotbarrow { margin-top: 8px; }
 .creativegrid {
   grid-template-columns: repeat(9, var(--slot));
@@ -215,23 +227,49 @@ canvas#gl {
 .armorbox { display: grid; grid-template-columns: var(--slot); gap: 2px; }
 .armorslot { background-color: rgba(120,120,120,.75); }
 .preview {
-  width: 100px; height: calc(var(--slot) * 4 + 6px);
+  width: calc(var(--slot) * 2); height: calc(var(--slot) * 4 + 6px);
   background: #8b8b8b; border: 2px solid; border-color: #555 #fff #fff #555;
   display: flex; align-items: center; justify-content: center;
 }
-.pvbody { width: 46px; height: 92px; background: linear-gradient(#dea 0 28%, #58a 28% 62%, #345 62% 100%); border: 2px solid #444; }
+/* Die Figur kommt als isometrisches Bild aus icons.js — dieselbe Projektion
+   wie bei den Blocksymbolen. Vorher stand hier ein Farbverlauf. */
+.pvbody {
+  width: 100%; height: 100%;
+  background-repeat: no-repeat; background-position: center;
+  background-size: contain; image-rendering: pixelated;
+}
 
 .craftbox { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.wrow.nurcraft { justify-content: center; }
+.wrow.nurcraft .craftbox { margin-left: 0; }
 .cgrid { display: grid; gap: 2px; }
 .arrow { font-size: 26px; color: #555; }
 .resultslot { width: calc(var(--slot) * 1.2); height: calc(var(--slot) * 1.2); }
 
 .furnacebox { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 6px 0 10px; }
 .fcol { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.fire { width: 24px; height: 24px; background: #555; position: relative; overflow: hidden; }
-.fire i { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(#ffdc4a, #ff8b1f); height: 0%; }
+/* Die Flammengrafik liegt zweimal übereinander: dunkel als Grund, hell als
+   wachsende Füllung. background-position: bottom hält beide deckungsgleich,
+   während die Füllung von unten nach oben aufgeht. */
+.fire {
+  width: 26px; height: 26px; position: relative; overflow: hidden;
+  background-size: 100% 26px; background-position: bottom; background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+.fire i {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 0%;
+  background-size: 26px 26px; background-position: bottom; background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
 .fmid { flex: 0 0 90px; }
+/* Ein Pfeil, kein Balken: clip-path schneidet Schaft und Spitze aus dem
+   Rechteck, die Füllung darin wird mitgeschnitten. Der senkrechte Balken des
+   Braustands behält seine Rechteckform. */
 .progress { width: 90px; height: 14px; background: #555; position: relative; overflow: hidden; }
+.progress:not(.tall) {
+  height: 20px;
+  clip-path: polygon(0 30%, 66% 30%, 66% 0, 100% 50%, 66% 100%, 66% 70%, 0 70%);
+}
 .progress i { position: absolute; left: 0; top: 0; bottom: 0; background: #dedede; width: 0%; }
 
 /* ---- Karte ---- */
@@ -389,6 +427,7 @@ canvas#gl {
 .achrow.done { border-left-color: #4e8f1e; background: rgba(126,242,42,.14); }
 .achrow.locked { opacity: .45; }
 .achico { flex: 0 0 auto; }
+.achtiefe { flex: 0 0 auto; font-size: 10px; color: #777; margin-left: -4px; }
 .achtxt { min-width: 0; }
 .achname { font-size: 12.5px; color: #222; font-weight: bold; }
 .achrow.done .achname { color: #2c5c10; }
@@ -520,9 +559,12 @@ canvas#gl {
 }
 .mhead { text-align: center; margin-bottom: 26px; position: relative; }
 .mlogo { display: block; margin: 0 auto; max-width: 100%; image-rendering: pixelated; }
-/* Der gelbe Spruch hängt schräg an der rechten Ecke des Logos und wippt */
+/* Der gelbe Spruch hängt schräg an der rechten Ecke des Logos und wippt.
+   bottom: -22px hing ihn tiefer als die Logounterkante, und bei schmalen
+   Fenstern lag er quer über dem Feld "Name der Welt". Er gehört auf die Höhe
+   der Logounterkante, nicht darunter. */
 .splash {
-  position: absolute; right: -34px; bottom: -22px;
+  position: absolute; right: -28px; bottom: 4px; pointer-events: none;
   color: #ffff55; font-size: 15px; text-shadow: 2px 2px 0 #3f3f00;
   transform: rotate(-18deg); transform-origin: 50% 50%;
   animation: splashwipp .95s ease-in-out infinite alternate;

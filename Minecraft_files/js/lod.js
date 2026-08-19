@@ -26,7 +26,8 @@
   L.aktiv = true;
   L.FAKTOR = 2.4;        // so viel weiter als die gemeshte Sichtweite
   L.STEP = 4;            // Kantenlänge einer LOD-Zelle in Blöcken
-  L.PRO_BILD = 3;        // wie viele Chunks je Bild gebaut werden
+  L.PRO_BILD = 16;       // Obergrenze je Bild
+  L.BUDGET_MS = 3;       // ... und was davon tatsaechlich gebaut wird
 
   L.meshes = {};         // "cx,cz" -> Float32Array
   L.warteschlange = [];
@@ -103,7 +104,13 @@
       }
     }
 
+    // Bei Sichtweite 8 umfasst der Fernring rund tausend Chunks. Mit drei je
+    // Bild dauerte das Auffuellen eine gute Viertelminute, und nach jedem
+    // Teleport klaffte solange ein Loch zwischen geladenem Gelaende und
+    // Hoehengitter. Gebaut wird jetzt nach Zeit, nicht nach Stueckzahl: was in
+    // drei Millisekunden hineinpasst, kostet kein Bild.
     var gebaut = 0;
+    var t0 = performance.now();
     // Einen Ring früher anfangen als die Sichtweite: das Gitter darf ruhig
     // unter dem echten Gelände liegen, sichtbar wird immer nur eines von beiden.
     for (var r = Math.max(1, nah - 1); r <= fern && gebaut < L.PRO_BILD; r++) {
@@ -122,6 +129,7 @@
           L.meshes[key] = L.baue(w, cx, cz);
           game.renderer.uploadLOD(key, L.meshes[key]);
           gebaut++;
+          if (performance.now() - t0 > L.BUDGET_MS) gebaut = L.PRO_BILD;
         }
       }
     }

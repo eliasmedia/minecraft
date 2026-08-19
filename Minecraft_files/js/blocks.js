@@ -646,7 +646,12 @@
   // gehalten — man platziert Redstonestaub, der zu dieser Leitung wird.
   define('redstone_wire', {
     title: 'Redstoneleitung', shape: B.SHAPE_WIRE, solid: false, collide: false, opaque: false,
-    cutout: true, hardness: 0, drop: 'redstone', item: false, opacity: 0, sound: 'stone'
+    cutout: true, hardness: 0, drop: 'redstone', item: false, opacity: 0, sound: 'stone',
+    // Der Mesher zeichnet die Leitung selbst und fragt nie nach einer Fläche.
+    // Ohne tex hiesse sie trotzdem 'redstone_wire', und die Textur gibt es
+    // nicht: jeder Aufrufer ausserhalb des Meshers - Partikel beim Abbauen,
+    // ein Symbol, ein spaeterer Renderpfad - bekaeme sechs weisse Flaechen.
+    tex: 'redstone_dust'
   });
   define('redstone_block', {
     title: 'Redstoneblock', hardness: 5, tool: 'pickaxe', level: 1, sound: 'stone', group: 'redstone'

@@ -851,7 +851,11 @@
         // Erreichbar, sobald der Vorgänger steht – sonst bleibt es verdeckt
         var frei = !e.parent || A.has(g, e.parent);
         var row = el('div', 'achrow' + (offen ? ' done' : (frei ? '' : ' locked')), behaelter);
-        row.style.marginLeft = (tiefe * 26) + 'px';
+        // Gedeckelt: der Baum ist stellenweise zwanzig Stufen tief, und ohne
+        // Deckel blieb hinten keine Zeilenbreite mehr für Titel und Text.
+        // Ab der sechsten Stufe zeigt nur noch die Ziffer die Tiefe an.
+        row.style.marginLeft = (Math.min(tiefe, 5) * 22) + 'px';
+        if (tiefe > 5) el('span', 'achtiefe', row).textContent = tiefe + '.';
 
         var ico = el('div', 'slot mini achico', row);
         if (offen || frei) self.renderSlot(ico, { id: e.icon, count: 1 });
@@ -1050,7 +1054,9 @@
     var close = el('div', 'wclose', head); close.textContent = '✕';
     close.addEventListener('mousedown', function (e) { e.stopPropagation(); self.close(); });
 
-    var top = el('div', 'wrow', win);
+    // Im Inventar steht links die Rüstung, das Gitter gehört nach rechts.
+    // In der Werkbank steht links nichts – dort gehört es in die Mitte.
+    var top = el('div', 'wrow' + (craftSize === 3 ? ' nurcraft' : ''), win);
 
     // Rüstung
     if (craftSize === 2) {
@@ -1064,7 +1070,8 @@
         })(a);
       }
       var pv = el('div', 'preview', top);
-      pv.innerHTML = '<div class="pvbody"></div>';
+      var fig = el('div', 'pvbody', pv);
+      fig.style.backgroundImage = 'url(' + Icons.spielerUrl() + ')';
     }
 
     // Crafting
@@ -1124,8 +1131,14 @@
     var top = el('div', 'furnacebox', win);
     var col = el('div', 'fcol', top);
     this.makeSlot(col, function () { return te.input; }, function (v) { te.input = v; }, { area: 'ext' });
+    // Feuer und Fortschritt tragen echte Pixelgrafik statt eines grauen Kastens
+    // mit Farbverlauf — sie waren der einzige Stilbruch in einer sonst
+    // durchgehend gepixelten Oberfläche. Dunkel = aus, hell = brennt, und der
+    // helle Teil waechst von unten, wie im Original.
     var fire = el('div', 'fire', col);
+    fire.style.backgroundImage = 'url(' + Icons.texUrl('fire_0', 0.28) + ')';
     this.fireEl = el('i', '', fire);
+    this.fireEl.style.backgroundImage = 'url(' + Icons.texUrl('fire_0', 1) + ')';
     this.makeSlot(col, function () { return te.fuel; }, function (v) { te.fuel = v; }, { area: 'ext' });
 
     var mid = el('div', 'fmid', top);

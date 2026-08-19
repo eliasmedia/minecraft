@@ -278,7 +278,10 @@
   // die Textur der Speise — ein Apfel bröselt rot, Brot braun.
   Particles.prototype.kauen = function (x, y, z, stack) {
     var it = stack && MC.Items.get(stack.id);
-    var layer = T.layer(it && T.has(it.tex) ? it.tex : 'p_white');
+    // Dieselbe Auflösung wie Hand und Boden: 'it.tex' allein ist bei jedem
+    // Block mit mehreren Seiten kein Texturname, und die Krümel wurden weiß.
+    var r = MC.game && MC.game.renderer;
+    var layer = T.layer(it && r ? r.itemTexName(it) : 'p_white');
     for (var i = 0; i < 4; i++) {
       var u = Math.random() * 0.75, v = Math.random() * 0.75;
       this.spawn(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3,

@@ -62,7 +62,7 @@
     ['gunpowder', 'Schwarzpulver', 'material', 0],
     ['wheat_item', 'Weizen', 'material', 0],
     ['seeds', 'Weizensamen', 'material', 0],
-    ['sugar_cane_item', 'Zuckerrohr', 'material', 0],
+    ['sugar_cane_item', 'Zuckerrohrstange', 'material', 0],   // der Block heisst Zuckerrohr
     ['sugar', 'Zucker', 'material', 0],
     ['paper', 'Papier', 'material', 0],
     ['book', 'Buch', 'material', 0],
@@ -235,7 +235,9 @@
   // mit Diamanten belegt wird. Er schützt wie sein Vorgänger und meldet alle
   // halbe Minute, wenn in der Nähe etwas Wertvolles im Gestein steckt.
   define('detector_helmet', {
-    title: 'Detektorhelm', stack: 1, durability: 352,
+    // Haltbarkeit wie der Zanithelm, aus dem er entsteht. Vorher stand hier
+    // 352 - der Wert des Zanit-Brustpanzers.
+    title: 'Detektorhelm', stack: 1, durability: 242,
     armor: { slot: 0, defense: 2 }, group: 'ruestung'
   });
 

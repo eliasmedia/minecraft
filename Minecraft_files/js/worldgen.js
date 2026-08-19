@@ -967,14 +967,18 @@
   };
 
   // ---------- Erze ----------
+  // Versuche, Adergroesse und Hoehenfenster am Original gemessen. Redstone lag
+  // vorher bis y26 mit zwoelf Versuchen und war damit haeufiger und leichter
+  // zu finden als Eisen - im Original liegt es unter y16.
   var ORES = [
     { id: 'coal_ore', tries: 22, size: 9, min: 6, max: 96 },
     { id: 'iron_ore', tries: 16, size: 7, min: 6, max: 68 },
     { id: 'gold_ore', tries: 3, size: 6, min: 6, max: 34 },
-    { id: 'redstone_ore', tries: 12, size: 9, min: 5, max: 26 },
+    { id: 'redstone_ore', tries: 8, size: 8, min: 5, max: 16 },
     { id: 'lapis_ore', tries: 2, size: 6, min: 12, max: 36 },
     { id: 'diamond_ore', tries: 2, size: 5, min: 5, max: 16 },
-    { id: 'emerald_ore', tries: 1, size: 2, min: 6, max: 30 },
+    // Smaragd nur im Gebirge, und dort als Einzelkorn - siehe unten
+    { id: 'emerald_ore', tries: 1, size: 2, min: 6, max: 30, nurBerge: true },
     { id: 'gravel', tries: 6, size: 24, min: 20, max: 90 },
     { id: 'dirt', tries: 8, size: 26, min: 20, max: 100 }
   ];
@@ -983,8 +987,12 @@
     var rnd = U.rng((this.seed ^ (cx * 341873128) ^ (cz * 132897987)) >>> 0);
     var mult = this.o.ores;
     if (mult <= 0) return;
+    // Steht dieser Chunk im Gebirge? Ein Wert für den ganzen Chunk reicht:
+    // eine Ader ist kleiner als ein Chunk und liegt nie halb daneben.
+    var imGebirge = this.biomeAt(cx * CS + 8, cz * CS + 8) === BIOME.MOUNTAINS;
     for (var o = 0; o < ORES.length; o++) {
       var spec = ORES[o];
+      if (spec.nurBerge && !imGebirge) continue;
       var oid = B.id(spec.id);
       var tries = Math.max(1, Math.round(spec.tries * mult));
       for (var t = 0; t < tries; t++) {

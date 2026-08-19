@@ -988,6 +988,9 @@
   //  Mob
   // ============================================================
   var MOB_TYPES = {
+    // Trefferpunkte durchgehend wie im Original. Vier Werte wichen davon ab
+    // (Piglin 20, Magmawuerfel 12, Hoglin 24, Hauer 30) — ohne Absicht, die
+    // uebrigen dreiundzwanzig stimmten exakt.
     pig: { reitbar: true, reitsprung: 9.2, futter: 'apple', hp: 10, hostile: false, speed: 2.1, drops: [{ id: 'porkchop_raw', min: 1, max: 3 }], xp: 2, sound: 'pig' },
     cow: { futter: 'wheat_item', hp: 10, hostile: false, speed: 2.0, drops: [{ id: 'beef_raw', min: 1, max: 3 }, { id: 'leather', min: 0, max: 2 }], xp: 2, sound: 'cow' },
     sheep: { futter: 'wheat_item', hp: 8, hostile: false, speed: 2.0, drops: [{ id: 'mutton_raw', min: 1, max: 2 }], xp: 2, sound: 'sheep' },
@@ -995,14 +998,17 @@
     // Er greift nicht an, er nimmt keinen Schaden, er bewegt sich nicht von
     // selbst. Alles, was er tut, steuert herobrine.js.
     herobrine: { hp: 1, hostile: false, speed: 0, steht: true, starr: true, damage: 0, drops: [], xp: 0, unsterblich: true },
-    zombie: { hp: 20, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'porkchop_raw', min: 0, max: 0 }], xp: 5, sound: 'zombie', burns: true },
+    // Verfaultes Fleisch gibt es hier nicht, also lassen Zombies Eisen fallen
+    // wie im Original ihre seltene Beute. Vorher stand hier ein Eintrag mit
+    // min 0 und max 0 - ein Platzhalter, der nie etwas ergab.
+    zombie: { hp: 20, hostile: true, speed: 2.4, damage: 3, drops: [{ id: 'iron_ingot', min: 0, max: 1 }], xp: 5, sound: 'zombie', burns: true },
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
     creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },
     villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
     // ---- Nether ----
-    piglin: { hp: 20, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
+    piglin: { hp: 16, hostile: true, speed: 2.3, damage: 4, drops: [{ id: 'gold_ingot', min: 0, max: 1 }, { id: 'porkchop_raw', min: 0, max: 1 }], xp: 5, sound: 'pig', fireproof: true },
     ghast: { hp: 10, hostile: true, speed: 1.6, damage: 0, ranged: true, flying: true, projectile: 'fireball', drops: [{ id: 'gunpowder', min: 0, max: 2 }, { id: 'ghast_tear', min: 0, max: 1 }], xp: 5, sound: 'ghast', fireproof: true },
-    magma_cube: { hp: 12, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }, { id: 'slimeball', min: 0, max: 2 }], xp: 4, sound: 'thud', fireproof: true },
+    magma_cube: { hp: 16, hostile: true, speed: 1.9, damage: 3, hop: true, drops: [{ id: 'magma_block', min: 0, max: 1 }, { id: 'slimeball', min: 0, max: 2 }], xp: 4, sound: 'thud', fireproof: true },
     // Lohe: einzige Quelle für Lohenruten, darum nur bei den Bastionen
     blaze: { hp: 20, hostile: true, speed: 1.5, damage: 5, ranged: true, flying: true, projectile: 'flame', drops: [{ id: 'blaze_rod', min: 1, max: 2 }], xp: 10, sound: 'fizz', fireproof: true },
 
@@ -1022,11 +1028,11 @@
       drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'coal', min: 0, max: 2 }], xp: 8, sound: 'skeleton', fireproof: true },
     // Der Hoglin rennt an und schleudert weg. Nethergewächs verscheucht ihn –
     // wer im Karmesinwald baut, pflanzt sich einen Zaun.
-    hoglin: { hp: 24, hostile: true, speed: 2.6, damage: 5, ansturm: true, scheut: 'nether_wart',
+    hoglin: { hp: 40, hostile: true, speed: 2.6, damage: 5, ansturm: true, scheut: 'nether_wart',
       drops: [{ id: 'porkchop_raw', min: 2, max: 4 }, { id: 'leather', min: 0, max: 1 }], xp: 6, sound: 'pig', fireproof: true },
     // Nimmt kein Gold und handelt nicht – der Grund, weshalb man eine Bastion
     // nicht einfach ausräumt.
-    piglin_brute: { hp: 30, hostile: true, speed: 2.4, damage: 7,
+    piglin_brute: { hp: 50, hostile: true, speed: 2.4, damage: 7,
       drops: [{ id: 'gold_ingot', min: 1, max: 2 }], xp: 10, sound: 'pig', fireproof: true },
     // Zerfällt beim Tod in eine Aschewolke
     ash_wight: { hp: 12, hostile: true, speed: 2.0, damage: 3, ascheTod: true,
@@ -2150,7 +2156,6 @@
   Spawner.tick = function (game, dt) {
     var world = game.world, p = game.player;
     if (MC.Cmd && !MC.Cmd.regel(game, 'doMobSpawning')) return;
-    if (!p || game.mode === 'creative') { }
     Spawner.timer = (Spawner.timer || 0) + dt;
     if (Spawner.timer < 4) return;
     Spawner.timer = 0;

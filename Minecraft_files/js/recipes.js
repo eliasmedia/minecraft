@@ -91,15 +91,15 @@
   woods.forEach(function (wd) {
     shaped(['PSP', 'PSP'], { P: 'planks_' + wd, S: 'stick' }, 'fence_' + wd, 3);
     shaped(['SPS', 'SPS'], { P: 'planks_' + wd, S: 'stick' }, 'gate_' + wd, 1);
-    shaped(['P..', 'PP.', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
-    shaped(['..P', '.PP', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
+    shaped(['P  ', 'PP ', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
+    shaped(['  P', ' PP', 'PPP'], { P: 'planks_' + wd }, 'stairs_' + wd, 4);
     shaped(['PPP'], { P: 'planks_' + wd }, 'slab_planks_' + wd, 6);
   });
   [['cobblestone', 'stairs_cobblestone'], ['stone_bricks', 'stairs_stone_bricks'],
    ['sandstone', 'stairs_sandstone'], ['brick_block', 'stairs_brick']
   ].forEach(function (s) {
-    shaped(['X..', 'XX.', 'XXX'], { X: s[0] }, s[1], 4);
-    shaped(['..X', '.XX', 'XXX'], { X: s[0] }, s[1], 4);
+    shaped(['X  ', 'XX ', 'XXX'], { X: s[0] }, s[1], 4);
+    shaped(['  X', ' XX', 'XXX'], { X: s[0] }, s[1], 4);
   });
 
   // ---------------- Werkzeuge & Waffen ----------------
@@ -134,9 +134,9 @@
   // des eingesetzten Teils geht mit über – wer einen halb durchgeschlagenen
   // Panzer aufwertet, bekommt keinen fabrikneuen zurück.
   ARMOR_PIECES.forEach(function (p) {
-    shaped(['.Z.', 'ZDZ', '.Z.'], { Z: 'zanite_gemstone', D: 'diamond_' + p },
+    shaped([' Z ', 'ZDZ', ' Z '], { Z: 'zanite_gemstone', D: 'diamond_' + p },
            'zanite_' + p, 1, { keep: 'diamond_' + p });
-    shaped(['.G.', 'GZG', '.G.'], { G: 'gravitite', Z: 'zanite_' + p },
+    shaped([' G ', 'GZG', ' G '], { G: 'gravitite', Z: 'zanite_' + p },
            'gravitite_' + p, 1, { keep: 'zanite_' + p });
   });
 
@@ -188,22 +188,22 @@
   shapeless(['log_golden_oak'], 'planks_skyroot', 4);
   shaped(['PSP', 'PSP'], { P: 'planks_skyroot', S: 'stick' }, 'fence_skyroot', 3);
   shaped(['SPS', 'SPS'], { P: 'planks_skyroot', S: 'stick' }, 'gate_skyroot', 1);
-  shaped(['P..', 'PP.', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
-  shaped(['..P', '.PP', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
+  shaped(['P  ', 'PP ', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
+  shaped(['  P', ' PP', 'PPP'], { P: 'planks_skyroot' }, 'stairs_skyroot', 4);
   shaped(['PPP'], { P: 'planks_skyroot' }, 'slab_planks_skyroot', 6);
   shaped(['XXX'], { X: 'holystone' }, 'slab_holystone', 6);
-  shaped(['X..', 'XX.', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
-  shaped(['..X', '.XX', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
+  shaped(['X  ', 'XX ', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
+  shaped(['  X', ' XX', 'XXX'], { X: 'holystone' }, 'stairs_holystone', 4);
   shaped(['XXX'], { X: 'nether_bricks' }, 'slab_nether_bricks', 6);
-  shaped(['X..', 'XX.', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
-  shaped(['..X', '.XX', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
+  shaped(['X  ', 'XX ', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
+  shaped(['  X', ' XX', 'XXX'], { X: 'nether_bricks' }, 'stairs_nether_bricks', 4);
   shaped(['BB', 'BB'], { B: 'nether_brick' }, 'nether_bricks', 1);
   // Pilzholz aus den beiden Netherwaeldern
   shapeless(['crimson_stem'], 'crimson_planks', 4);
   shapeless(['warped_stem'], 'warped_planks', 4);
   shaped(['XXX'], { X: 'blackstone' }, 'slab_blackstone', 6);
-  shaped(['X..', 'XX.', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
-  shaped(['..X', '.XX', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
+  shaped(['X  ', 'XX ', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
+  shaped(['  X', ' XX', 'XXX'], { X: 'blackstone' }, 'stairs_blackstone', 4);
   shaped(['XXX'], { X: 'basalt' }, 'slab_basalt', 6);
   shaped(['QQ', 'QQ'], { Q: 'quartz' }, 'quartz_block', 1);
   shaped(['HH', 'HH'], { H: 'holystone' }, 'holystone_bricks', 4);
@@ -215,7 +215,7 @@
   // Karte: Papier um einen Kompass – der zeigt dem Blatt, wo es liegt
   shaped(['PPP', 'PCP', 'PPP'], { P: 'paper', C: 'compass' }, 'map', 1);
   // Kompass wie im Original: Eisen ringsum, Redstone in der Mitte
-  shaped(['.I.', 'IRI', '.I.'], { I: 'iron_ingot', R: 'redstone' }, 'compass', 1);
+  shaped([' I ', 'IRI', ' I '], { I: 'iron_ingot', R: 'redstone' }, 'compass', 1);
   // Enderauge: eine Lohenrute gibt zwei Staub, Staub plus Perle gibt das Auge
   shapeless(['blaze_rod'], 'blaze_powder', 2);
   shapeless(['blaze_powder', 'ender_pearl'], 'ender_eye', 1);
@@ -236,7 +236,7 @@
   shaped(['S', 'C'], { S: 'stick', C: 'cobblestone' }, 'lever', 1);
   shaped(['S'], { S: 'stone' }, 'stone_button', 1);
   shaped(['SS'], { S: 'stone' }, 'pressure_plate', 1);
-  shaped(['.R.', 'RGR', '.R.'], { R: 'redstone', G: 'glowstone' }, 'redstone_lamp', 1);
+  shaped([' R ', 'RGR', ' R '], { R: 'redstone', G: 'glowstone' }, 'redstone_lamp', 1);
   shaped(['RRR', 'RRR', 'RRR'], { R: 'redstone' }, 'redstone_block', 1);
   shaped(['TRT', 'SSS'], { T: 'redstone_torch', R: 'redstone', S: 'stone' }, 'repeater', 1);
   // Kolben wie im Original: Bretter oben, Stein und Eisen darunter, Redstone hinten

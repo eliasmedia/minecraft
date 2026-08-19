@@ -98,7 +98,9 @@
     '  float sd = dot(dir, uSunDir);',
     '  if (sd > 0.95) {',
     '    vec2 q = vec2(dot(dir,sunT), dot(dir,sunB)) / max(sd, 0.001);',
-    '    if (abs(q.x) < 0.045 && abs(q.y) < 0.045) col = mix(col, uSunColor*1.35, 1.0);',
+    // *1.35 hob den warmen Ton (1.00, 0.96, 0.82) ueber die Eins und liess ihn
+    // auf reines Weiss klemmen - die Sonne war ein grauweisser Fleck.
+    '    if (abs(q.x) < 0.045 && abs(q.y) < 0.045) col = uSunColor;',
     '  }',
     '  col += uSunColor * pow(max(sd,0.0), 30.0) * 0.10;',
     '  float md = dot(dir, -uSunDir);',
@@ -800,8 +802,14 @@
     var layer = T.layer('clouds');
     var d = this.dynData;
     var n = 0;
-    var uvScale = size / 26;
-    var uoff = t / 26;
+    // Ein Texel der Wolkentextur ist im Original zwoelf Bloecke breit. Bei
+    // size/26 waren es gut drei, die 16er-Kachel wiederholte sich zwanzigmal
+    // im Blickfeld und ergab eine geschlossene, sichtbar gekachelte Decke
+    // statt einzelner Baenke. 2*size / (uvScale*16) = 12 ergibt size/96.
+    // Der Versatz teilt denselben Nenner, damit die Drift in Bloecken je
+    // Sekunde gleich bleibt.
+    var uvScale = size / 96;
+    var uoff = t / 96;
     var corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     var uv = [[0, 0], [uvScale, 0], [uvScale, uvScale], [0, uvScale]];
     for (var i = 0; i < 4; i++) {
