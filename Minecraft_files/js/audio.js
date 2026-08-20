@@ -165,6 +165,9 @@
       case 'fizz': this.noise(t, 0.8, 0.3 * g, 'highpass', 2600, 1, 900); break;
       case 'click': this.tone(t, 0.04, 0.16 * g, 'square', 900, 700); break;
       case 'open': this.noise(t, 0.16, 0.2 * g, 'bandpass', 900, 2, 400); break;
+      // Falltuer und Tuer: ein kurzes Knarren mit Anschlag
+      case 'door': this.tone(t, 0.14, 0.16 * g, 'square', 220, 320, 8);
+        this.noise(t + 0.1, 0.07, 0.14 * g, 'lowpass', 900, 1, 300); break;
       case 'levelup': this.tone(t, 0.14, 0.2 * g, 'sine', 660, 880); this.tone(t + 0.12, 0.22, 0.2 * g, 'sine', 880, 1320); break;
       case 'splash': this.noise(t, 0.35, 0.3 * g, 'bandpass', 1400, 1, 500); break;
 
@@ -195,6 +198,32 @@
       // Enderman: ein trockenes, abwärts gleitendes Knurren
       case 'enderman': this.tone(t, 0.5, 0.22 * g, 'sawtooth', 520, 90, 3); this.noise(t, 0.3, 0.1 * g, 'bandpass', 1400, 3, 600); break;
       default: break;
+    }
+  };
+
+  // ---------- Notenblock ----------
+  // Fuenf Instrumente, wie im Original an den Block darunter gebunden. Die
+  // Tonhoehe kommt herein, die Klangfarbe steckt in Wellenform und Huellkurve.
+  Audio.prototype.note = function (art, hz, x, y, z) {
+    if (!this.enabled || !this.ctx) return;
+    var listener = MC.game && MC.game.player;
+    var g = 1;
+    if (listener) {
+      var dx = x - listener.x, dy = y - listener.y, dz = z - listener.z;
+      var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d > 30) return;
+      g = Math.max(0, 1 - d / 30);
+    }
+    var t = this.now();
+    switch (art) {
+      case 'note_bass':      this.tone(t, 0.85, 0.26 * g, 'triangle', hz / 2, hz / 2); break;
+      case 'note_bass_drum': this.noise(t, 0.16, 0.30 * g, 'lowpass', 260, 1, 90);
+                             this.tone(t, 0.13, 0.20 * g, 'sine', hz / 4, hz / 8); break;
+      case 'note_snare':     this.noise(t, 0.18, 0.24 * g, 'highpass', 1800, 1, 3400); break;
+      case 'note_click':     this.tone(t, 0.05, 0.20 * g, 'square', hz * 2, hz * 2); break;
+      case 'note_guitar':    this.tone(t, 0.45, 0.22 * g, 'sawtooth', hz, hz * 0.98); break;
+      default:               this.tone(t, 0.60, 0.22 * g, 'sine', hz, hz);
+                             this.tone(t, 0.30, 0.08 * g, 'sine', hz * 2, hz * 2); break;
     }
   };
 

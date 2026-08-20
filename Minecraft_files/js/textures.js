@@ -1956,6 +1956,23 @@
     }
     g.set(7, 7, [244, 112, 104]); g.set(8, 8, [126, 18, 16]);
   });
+  // Zwei Bausteine fuer die gerichtete Leitung: ein Klecks fuer die Mitte, ein
+  // Band fuer jeden Arm. Zusammengesetzt ergibt das Linie, Ecke, T und Kreuz —
+  // vorher lag auf jeder Zelle dasselbe Kreuz, egal wie sie verbunden war.
+  tex('redstone_dust_mitte', function (g) {
+    g.fill([0, 0, 0], 0);
+    g.rect(4, 4, 8, 8, [206, 44, 40]);
+    g.rect(5, 5, 6, 6, [178, 32, 28]);
+    g.rect(6, 6, 4, 4, [220, 62, 56]);
+    g.set(7, 7, [244, 112, 104]);
+  });
+  tex('redstone_dust_arm', function (g) {
+    g.fill([0, 0, 0], 0);
+    g.rect(4, 0, 8, 16, [196, 40, 36]);
+    g.rect(5, 0, 6, 16, [166, 28, 26]);
+    for (var i = 0; i < 16; i += 3) g.rect(5, i, 6, 1, [214, 56, 50]);
+  });
+
   tex('redstone_block', function (g) {
     g.qn([[128, 18, 16], [158, 24, 22], [186, 34, 30], [212, 50, 46]], [18, 32, 32, 18]);
   });
@@ -2582,6 +2599,20 @@
     '...OKKKO OKKKO..', '....OKO..OKO....', '................', '................'
   ], itemPal([128, 132, 140]));
 
+  // Lore mit Truhe und Lore mit Trichter: dieselbe Wanne, andere Fracht.
+  itemArt('minecart_chest', [
+    '................', '................', '.O............O.', '.OM..........MO.',
+    '.OM.WWWWWWWW.MO.', '.OM.WvvvvvvW.MO.', '.OM.WvKKKKvW.MO.', '.OM.WvvvvvvW.MO.',
+    '.OMMWWWWWWWWMMO.', '..OMMMMMMMMMMO..', '...OOOOOOOOOO...', '....OKO..OKO....',
+    '...OKKKO OKKKO..', '....OKO..OKO....', '................', '................'
+  ], itemPal([128, 132, 140]));
+  itemArt('minecart_hopper', [
+    '................', '................', '.O............O.', '.OM..........MO.',
+    '.OM.KKKKKKKK.MO.', '.OM..KKKKKKK.MO.', '.OM...KKKK...MO.', '.OM....KK....MO.',
+    '.OMMMMMKKMMMMMO.', '..OMMMMMMMMMMO..', '...OOOOOOOOOO...', '....OKO..OKO....',
+    '...OKKKO OKKKO..', '....OKO..OKO....', '................', '................'
+  ], itemPal([128, 132, 140]));
+
   // Das Schild als Item: Brett auf einem Stiel
   itemArt('sign_item', [
     '................', '..OOOOOOOOOOOO..', '..OWWWWWWWWWWO..', '..OWvvWvvWvvWO..',
@@ -2608,6 +2639,82 @@
     '.OWvvvvGGGGGGWO.', '.OWvvvGGGGGGGWO.', '.OWvvvvvvvvvvWO.', '.OWWWWWWWWWWWWO.',
     '.OOOOOOOOOOOOOO.', '................', '................', '................'
   ], itemPal([164, 134, 88]));
+
+  // ============================================================
+  //  Nachtrag: Vergleicher, Spender, Sensorschienen, Schleimblock
+  // ============================================================
+  // Der Vergleicher unterscheidet sich vom Verstaerker durch die Deckflaeche:
+  // helleres Grau und ein dunkler Steg zur Ausgangsseite.
+  tex('comparator_top', function (g) {
+    g.qn(greys([146, 158, 170, 180]), [16, 30, 34, 20]);
+    g.frame(0, 0, 16, 16, greys([120])[0]);
+    g.rect(7, 2, 2, 12, greys([108])[0]);
+  });
+  // Der Spender: dieselbe Kiste wie der Werfer, aber mit Muendung statt Loch
+  tex('dispenser_front', function (g) {
+    g.copyFrom(data('dropper_front'));
+    var dun = greys([46])[0], hel = greys([120])[0];
+    g.rect(5, 5, 6, 6, dun);
+    g.rect(6, 6, 4, 4, greys([26])[0]);
+    g.rect(5, 4, 6, 1, hel);
+    g.rect(5, 11, 6, 1, greys([72])[0]);
+  });
+  // Sensorschiene: Eisen mit rotem Kontaktband. Aktivierungsschiene: dunkles
+  // Metall mit rotem Kreuz — beide muessen sich im Gleis unterscheiden lassen.
+  tex('rail_detector', function (g) {
+    g.copyFrom(data('rail'));
+    var rot = [176, 32, 28];
+    g.rect(6, 0, 4, 16, rot);
+    g.rect(7, 0, 2, 16, [214, 54, 44]);
+  });
+  tex('rail_activator', function (g) {
+    g.copyFrom(data('rail'));
+    var rot2 = [186, 44, 36];
+    g.rect(0, 6, 16, 2, rot2);
+    g.rect(3, 2, 2, 12, rot2);
+    g.rect(11, 2, 2, 12, rot2);
+  });
+  // Schleimblock: durchscheinender Klumpen mit dunklerem Kern
+  tex('slime_block', function (g) {
+    var r = ramp([118, 200, 98], 0.6);
+    g.qn([r.dk, r.bs, r.lt], [26, 46, 28], 220);
+    g.frame(0, 0, 16, 16, r.sh, 235);
+    g.frame(3, 3, 10, 10, r.dk, 200);
+    for (var i = 0; i < 5; i++) g.set(3 + ((g.r() * 10) | 0), 3 + ((g.r() * 10) | 0), r.hi, 240);
+  });
+  // Notenblock: Holzkasten mit dunkler Platte und heller Maserung
+  tex('note_block', function (g) {
+    g.copyFrom(data('planks_oak'));
+    var d = ramp([78, 54, 34], 0.5);
+    g.rect(2, 2, 12, 12, d.bs);
+    g.frame(2, 2, 12, 12, d.sh);
+    for (var y = 4; y < 12; y += 3) g.rect(4, y, 8, 1, d.lt);
+  });
+  // Tageslichtsensor: Glasplatte ueber Holz, mit blauem Schimmer
+  tex('daylight_top', function (g) {
+    var h = ramp([164, 134, 88], 0.4);
+    g.qn([h.dk, h.bs, h.lt], [28, 44, 28]);
+    g.rect(2, 2, 12, 12, [58, 84, 116]);
+    for (var i = 0; i < 22; i++) g.set(2 + ((g.r() * 12) | 0), 2 + ((g.r() * 12) | 0), [92, 132, 176]);
+    g.frame(2, 2, 12, 12, [36, 52, 74]);
+  });
+  tex('daylight_side', function (g) {
+    g.copyFrom(data('planks_oak'));
+    g.rect(0, 0, 16, 5, [58, 84, 116]);
+    g.rect(0, 4, 16, 1, [36, 52, 74]);
+  });
+  // Falltuer: Bretter mit Beschlaegen
+  tex('trapdoor', function (g) {
+    g.fill([0, 0, 0], 0);
+    var h = ramp([150, 118, 74], 0.5);
+    for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+      if (x < 1 || x > 14) continue;
+      g.set(x, y, (y % 5 === 0) ? h.dk : ((y % 5 === 2) ? h.lt : h.bs));
+    }
+    var e = greys([64])[0];
+    g.rect(2, 1, 2, 14, e); g.rect(12, 1, 2, 14, e);
+    g.rect(2, 1, 12, 1, e); g.rect(2, 14, 12, 1, e);
+  });
 
   // ============================================================
   //  ZUGRIFF

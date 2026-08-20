@@ -40,6 +40,9 @@
   B.SHAPE_CAULDRON = 30;     // Kessel: Wanne mit Wasserstand in Meta 0..3
   B.SHAPE_HOPPER = 31;       // Trichter: Rand, Trog und Auslauf
   B.SHAPE_RAIL = 32;         // Schiene: flach auf dem Boden, Meta = Verlauf
+  B.SHAPE_COMPARATOR = 33;   // Vergleicher: wie der Verstaerker, mit drittem Stummel
+  B.SHAPE_TRAPDOOR = 34;     // Falltuer: waagerechte oder senkrechte Platte
+  B.SHAPE_DAYLIGHT = 35;     // Tageslichtsensor: flache Platte, 6/16 hoch
 
   // Kolbenkopf je Richtung: [Platte, Stange]. Die Platte sitzt am vorderen Ende
   // der Zelle, die Stange laeuft von dort zurueck zum Kolbenkoerper. Explizit
@@ -125,6 +128,7 @@
       // piston6 und fuhr den Werfer darum aus, sobald Strom anlag.
       dir6: !!o.dir6,
       sticky: !!o.sticky,          // Klebkolben: zieht beim Einfahren mit
+      slime: !!o.slime,            // klebt: was ihn beruehrt, wird mitgeschoben
       group: o.group || 'natur'
     };
     if (b.opacity === undefined) b.opacity = b.opaque ? 15 : (b.liquid ? 2 : (b.shape === B.SHAPE_CROSS ? 0 : 1));
@@ -802,6 +806,93 @@
   });
 
   // ============================================================
+  //  Nachtrag: Vergleicher, Spender, Sensorschienen und Zubehoer
+  // ============================================================
+  // ACHTUNG: Diese Bloecke stehen bewusst am ENDE. Ein Spielstand speichert die
+  // Blocknummer, nicht den Namen — ein Block in der Mitte verschoebe alle
+  // dahinter und machte jede alte Welt unbrauchbar.
+
+  // ---------- Vergleicher ----------
+  // Meta: Bits 0-1 Ausgangsrichtung, Bit 2 Abzugsmodus, Bits 3-6 Ausgangsstaerke.
+  // Anders als der Verstaerker gibt er ein ABGESTUFTES Signal weiter — das ist
+  // der ganze Sinn des Bauteils: er misst, statt nur zu schalten.
+  B.compDir = function (m) { return B.SIDE_DIRS[m & 3]; };
+  B.compAbzug = function (m) { return (m & 4) !== 0; };
+  B.compStaerke = function (m) { return (m >> 3) & 15; };
+  B.compMitStaerke = function (m, s) { return (m & 7) | ((s & 15) << 3); };
+
+  define('comparator', {
+    title: 'Vergleicher', shape: B.SHAPE_COMPARATOR, opaque: false, collide: true,
+    hardness: 0.5, sound: 'stone', opacity: 0, group: 'redstone',
+    tex: { top: 'comparator_top', bottom: 'stone', side: 'repeater_side' }
+  });
+
+  // ---------- Spender ----------
+  // Der Werfer laesst fallen, der Spender benutzt: er verschiesst Pfeile,
+  // giesst Eimer aus und zuendet mit dem Feuerzeug.
+  define('dispenser', {
+    title: 'Spender', hardness: 3.5, tool: 'pickaxe', level: 1, dir6: true,
+    tex: { top: 'dropper_side', side: 'dropper_side', bottom: 'dropper_side', front: 'dispenser_front' },
+    sound: 'stone', group: 'redstone'
+  });
+
+  // ---------- Sensor- und Aktivierungsschiene ----------
+  // Die Sensorschiene ist die einzige Moeglichkeit, dass eine Lore etwas
+  // ausloest; ohne sie gibt es keine Bahnhoefe. Die Aktivierungsschiene wirkt
+  // umgekehrt auf die Lore: unter Strom wirft sie den Fahrgast heraus.
+  define('detector_rail', {
+    title: 'Sensorschiene', shape: B.SHAPE_RAIL, opaque: false, collide: false, opacity: 0,
+    hardness: 0.7, tool: 'pickaxe', tex: 'rail_detector', sound: 'stone', group: 'redstone'
+  });
+  define('activator_rail', {
+    title: 'Aktivierungsschiene', shape: B.SHAPE_RAIL, opaque: false, collide: false, opacity: 0,
+    hardness: 0.7, tool: 'pickaxe', tex: 'rail_activator', sound: 'stone', group: 'redstone'
+  });
+
+  // ---------- Schleimblock ----------
+  // Federt beim Landen und klebt am Kolben: was ihn beruehrt, geht mit.
+  define('slime_block', {
+    title: 'Schleimblock', hardness: 0, opaque: false, alphaPass: true,
+    sound: 'cloth', bounce: 14, slime: true, group: 'bau'
+  });
+
+  // ---------- Notenblock ----------
+  // Meta ist die Tonhoehe 0..24. Das Instrument kommt aus dem Block darunter —
+  // Holz klingt anders als Stein, genau wie im Original.
+  define('note_block', {
+    title: 'Notenblock', hardness: 0.8, tool: 'axe', sound: 'wood',
+    tex: 'note_block', group: 'redstone'
+  });
+
+  // ---------- Tageslichtsensor ----------
+  // Meta: Bits 0-3 Staerke, Bit 4 umgekehrt (misst dann die Nacht).
+  define('daylight_detector', {
+    title: 'Tageslichtsensor', shape: B.SHAPE_DAYLIGHT, opaque: false,
+    hardness: 0.2, tool: 'axe', sound: 'wood', opacity: 0,
+    tex: { top: 'daylight_top', bottom: 'planks_oak', side: 'daylight_side' },
+    group: 'redstone'
+  });
+
+  // ---------- Falltuer ----------
+  // Meta: Bits 0-1 Wandseite, Bit 2 offen, Bit 3 oben montiert.
+  B.falltuerOffen = function (m) { return (m & 4) !== 0; };
+  B.falltuerBox = function (m) {
+    var d = 0.1875;
+    if (!B.falltuerOffen(m)) return (m & 8) ? [0, 1 - d, 0, 1, 1, 1] : [0, 0, 0, 1, d, 1];
+    switch (m & 3) {
+      case 0: return [0, 0, 0, 1, 1, d];
+      case 1: return [1 - d, 0, 0, 1, 1, 1];
+      case 2: return [0, 0, 1 - d, 1, 1, 1];
+      default: return [0, 0, 0, d, 1, 1];
+    }
+  };
+  define('trapdoor', {
+    title: 'Falltür', shape: B.SHAPE_TRAPDOOR, opaque: false, cutout: true, opacity: 0,
+    hardness: 3, tool: 'axe', sound: 'wood', flammable: true,
+    tex: 'trapdoor', group: 'bau'
+  });
+
+  // ============================================================
   //  Item-Modell
   // ============================================================
   // Woraus besteht das Bild eines Items? EINE Antwort fuer alle drei Orte, an
@@ -867,6 +958,15 @@
         // bei der Tuer am Meta-Bit 0 und nicht an der Flaeche.
         return [quader(b, [0, 0, 0.36, 1, 0.5, 0.64], 0),
                 quader(b, [0, 0.5, 0.36, 1, 1, 0.64], 1)];
+      case B.SHAPE_DAYLIGHT: return [quader(b, [0, 0, 0, 1, 0.375, 1])];
+      case B.SHAPE_TRAPDOOR:  return [quader(b, [0, 0, 0, 1, 0.1875, 1])];
+      case B.SHAPE_COMPARATOR: {
+        var stift2 = { name: 'comparator_stift', tex: 'redstone_torch', shape: B.SHAPE_CUBE };
+        return [quader(b, [0, 0, 0, 1, 0.125, 1]),
+                quader(stift2, [0.28, 0.125, 0.7, 0.44, 0.5, 0.86]),
+                quader(stift2, [0.56, 0.125, 0.7, 0.72, 0.5, 0.86]),
+                quader(stift2, [0.42, 0.125, 0.14, 0.58, 0.45, 0.3])];
+      }
       case B.SHAPE_REPEATER: {
         // Zwei Fackelstuempfe wie am gesetzten Block
         var stift = { name: 'repeater_stift', tex: 'redstone_torch_off', shape: B.SHAPE_CUBE };
@@ -1137,7 +1237,12 @@
       case B.SHAPE_PLATE:
         return [[0, 0, 0, 1, 0.0625, 1]];
       case B.SHAPE_REPEATER:
+      case B.SHAPE_COMPARATOR:
         return [[0, 0, 0, 1, 0.125, 1]];
+      case B.SHAPE_DAYLIGHT:
+        return [[0, 0, 0, 1, 0.375, 1]];
+      case B.SHAPE_TRAPDOOR:
+        return [B.falltuerBox(meta)];
       case B.SHAPE_FENCE:
         // etwas breiter als der Pfosten, damit man nicht durchschlüpft
         return [[0.25, 0, 0.25, 0.75, 1.5, 0.75]];
@@ -1192,7 +1297,10 @@
       case B.SHAPE_EGG: return [0.0625, 0, 0.0625, 0.9375, 1, 0.9375];
       case B.SHAPE_WIRE: return [0, 0, 0, 1, 0.0625, 1];
       case B.SHAPE_PLATE: return [0, 0, 0, 1, 0.0625, 1];
-      case B.SHAPE_REPEATER: return [0, 0, 0, 1, 0.125, 1];
+      case B.SHAPE_REPEATER:
+      case B.SHAPE_COMPARATOR: return [0, 0, 0, 1, 0.125, 1];
+      case B.SHAPE_DAYLIGHT: return [0, 0, 0, 1, 0.375, 1];
+      case B.SHAPE_TRAPDOOR: return B.falltuerBox(meta);
       case B.SHAPE_SIGN: return (meta & 1) ? [0.4, 0, 0.05, 0.6, 1, 0.95] : [0.05, 0, 0.4, 0.95, 1, 0.6];
       case B.SHAPE_SIGN_WALL:
       case B.SHAPE_FRAME:
@@ -1210,7 +1318,7 @@
   // in die Luft setzen und blieben liegen, wenn man den Boden darunter wegnahm.
   B.LIEGT_AUF = [
     B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_WIRE, B.SHAPE_REPEATER,
-    B.SHAPE_PLATE, B.SHAPE_RAIL
+    B.SHAPE_PLATE, B.SHAPE_RAIL, B.SHAPE_COMPARATOR, B.SHAPE_DAYLIGHT
   ];
 
   B.needsSupport = function (id) {
@@ -1242,7 +1350,8 @@
     // Leitung, Verstaerker, Druckplatte und Schiene brauchen eine Flaeche,
     // auf der sie aufliegen koennen — jeder feste Block taugt dafuer.
     if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_REPEATER ||
-        b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_RAIL) return !!g.collide;
+        b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_RAIL ||
+        b.shape === B.SHAPE_COMPARATOR || b.shape === B.SHAPE_DAYLIGHT) return !!g.collide;
     if (b.name === 'wheat') return groundId === B.id('farmland');
     if (b.name === 'nether_wart') return groundId === B.id('soul_sand') || groundId === B.id('soul_soil');
     if (b.name === 'kelp' || b.name === 'seagrass') {

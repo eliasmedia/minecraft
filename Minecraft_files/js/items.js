@@ -100,6 +100,10 @@
   // Ohne das war das Item im Inventar wie am Boden ein weißer Fleck.
   define('saddle', { title: 'Sattel', stack: 1, tex: 'saddle', group: 'werkzeug' });
   define('minecart', { title: 'Lore', stack: 1, tex: 'minecart', group: 'werkzeug' });
+  // Lore mit Truhe und Lore mit Trichter: dasselbe Fahrzeug, nur mit Fracht.
+  // Sie tragen ihr eigenes Bild, weil ein Wuerfel auf Raedern falsch aussaehe.
+  define('chest_minecart', { title: 'Lore mit Truhe', stack: 1, tex: 'minecart_chest', group: 'werkzeug' });
+  define('hopper_minecart', { title: 'Lore mit Trichter', stack: 1, tex: 'minecart_hopper', group: 'werkzeug' });
   define('shield', { title: 'Schild', stack: 1, tex: 'shield', durability: 336, group: 'werkzeug' });
   define('wand', { title: 'Auswahlstab', stack: 1, tex: 'wand', group: 'werkzeug' });
 

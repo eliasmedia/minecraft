@@ -246,6 +246,21 @@
   // Beobachter: Bruchstein, Redstone und Netherquarz
   shaped(['CCC', 'RRQ', 'CCC'], { C: 'cobblestone', R: 'redstone', Q: 'quartz' }, 'observer', 1);
 
+  // ---------------- Nachtrag: Vergleicher, Spender, Schienen ----------------
+  // Vergleicher wie im Original: drei Fackeln, Netherquarz, Stein darunter
+  shaped([' T ', 'TQT', 'SSS'], { T: 'redstone_torch', Q: 'quartz', S: 'stone' }, 'comparator', 1);
+  // Spender: der Werfer mit einem Bogen darin
+  shaped(['CCC', 'CBC', 'CRC'], { C: 'cobblestone', B: 'bow', R: 'redstone' }, 'dispenser', 1);
+  shaped(['I I', 'IPI', 'IRI'], { I: 'iron_ingot', P: 'pressure_plate', R: 'redstone' }, 'detector_rail', 6);
+  shaped(['ISI', 'IRI', 'ISI'], { I: 'iron_ingot', S: 'stick', R: 'redstone_torch' }, 'activator_rail', 6);
+  shaped(['SS', 'SS'], { S: 'slimeball' }, 'slime_block', 1);
+  shapeless(['slime_block'], 'slimeball', 4);
+  shaped(['PPP', 'PRP', 'PPP'], { P: '#planks', R: 'redstone' }, 'note_block', 1);
+  shaped(['GGG', 'QQQ', 'SSS'], { G: 'glass', Q: 'quartz', S: 'slab_stone' }, 'daylight_detector', 1);
+  shaped(['PPP', 'PPP'], { P: '#planks' }, 'trapdoor', 2);
+  shapeless(['chest', 'minecart'], 'chest_minecart', 1);
+  shapeless(['hopper', 'minecart'], 'hopper_minecart', 1);
+
   // ---------------- Schmelzen ----------------
   smelt('cobblestone', 'stone');
   smelt('sand', 'glass');
@@ -276,7 +291,8 @@
   fuel('stick', 100); fuel('lava_bucket', 20000);
   woods.forEach(function (w) { fuel('planks_' + w, 300); fuel('log_' + w, 300); });
   fuel('crafting_table', 300); fuel('chest', 300); fuel('bookshelf', 300); fuel('bowl', 200);
-  fuel('ladder', 300); fuel('door_oak', 200);
+  fuel('ladder', 300); fuel('door_oak', 200); fuel('trapdoor', 300); fuel('note_block', 300);
+  fuel('daylight_detector', 300);
   woods.forEach(function (w) { fuel('fence_' + w, 300); fuel('stairs_' + w, 300); fuel('slab_planks_' + w, 150); });
   ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'wood_sword', 'wood_hoe'].forEach(function (t) { fuel(t, 200); });
   fuel('slab_planks_oak', 150);

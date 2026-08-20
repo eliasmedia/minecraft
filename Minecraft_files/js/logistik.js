@@ -128,7 +128,11 @@
     var world = game.world;
     te.cd -= dt;
     if (te.cd > 0) return;
-    te.cd = L.TAKT;
+    // Den Rest mitnehmen statt wegzuwerfen: bei einem langen Bild ging sonst
+    // ein ganzer Takt verloren, und statt der 2,5 Stueck je Sekunde des
+    // Originals kamen nur 2,0 an.
+    te.cd += L.TAKT;
+    if (te.cd < 0) te.cd = 0;
 
     // Redstone hält ihn an, wie im Original
     if (MC.Redstone && MC.Redstone.poweredQC(world, x, y, z)) return;
@@ -207,6 +211,82 @@
   }
 
   // ============================================================
+  //  Spender
+  // ============================================================
+  // Der Werfer laesst fallen, der Spender BENUTZT: Pfeile fliegen, Eimer
+  // giessen aus, das Feuerzeug zuendet. Was er nicht benutzen kann, wirft er
+  // wie ein Werfer — genau wie im Original.
+  L.spenderTakt = function (game, x, y, z, te) {
+    var world = game.world;
+    var an = MC.Redstone ? MC.Redstone.poweredQC(world, x, y, z) : false;
+    if (an === te.an) return;
+    te.an = an;
+    if (!an) return;
+
+    var voll = [];
+    for (var i = 0; i < te.items.length; i++) if (te.items[i] && te.items[i].count > 0) voll.push(i);
+    if (!voll.length) { game.audio.play('nope'); return; }
+    var k = voll[(Math.random() * voll.length) | 0];
+    var s = te.items[k];
+    var art = s.id;
+    var d = B.DIR6[world.getMeta(x, y, z) & 7] || B.DIR6[0];
+    var mx = x + 0.5 + d[0] * 0.6, my = y + 0.5 + d[1] * 0.6, mz = z + 0.5 + d[2] * 0.6;
+
+    function verbrauche() { s.count--; if (s.count <= 0) te.items[k] = null; }
+
+    if (art === 'arrow') {
+      var a = new MC.Arrow(world, mx, my, mz, d[0] * 26, d[1] * 26 + 0.6, d[2] * 26, null, 4);
+      world.entities.push(a);
+      verbrauche(); game.audio.play('bow'); return;
+    }
+    if (art === 'water_bucket' || art === 'lava_bucket') {
+      var fl = B.id(art === 'water_bucket' ? 'water' : 'lava');
+      var zx = x + d[0], zy = y + d[1], zz = z + d[2];
+      if (world.getBlock(zx, zy, zz) === 0 || B.isReplaceable(world.getBlock(zx, zy, zz))) {
+        world.setBlock(zx, zy, zz, fl, 0);
+        te.items[k] = I.newStack('bucket', 1);
+        game.audio.play('splash'); return;
+      }
+    }
+    if (art === 'bucket') {
+      var qx = x + d[0], qy = y + d[1], qz = z + d[2];
+      var qid = world.getBlock(qx, qy, qz);
+      if (qid === B.id('water') || qid === B.id('lava')) {
+        world.setBlock(qx, qy, qz, 0, 0);
+        te.items[k] = I.newStack(qid === B.id('water') ? 'water_bucket' : 'lava_bucket', 1);
+        game.audio.play('splash'); return;
+      }
+    }
+    if (art === 'flint_and_steel') {
+      var fx = x + d[0], fy = y + d[1], fz = z + d[2];
+      if (world.getBlock(fx, fy, fz) === 0) {
+        world.setBlock(fx, fy, fz, B.id('fire'), 0);
+        game.audio.play('fizz'); return;
+      }
+    }
+    if (art.indexOf('egg_') === 0 && MC.MOB_TYPES) {
+      var typ = art.slice(4);
+      if (MC.MOB_TYPES[typ]) {
+        world.entities.push(new MC.Mob(world, typ, mx, my, mz));
+        verbrauche(); game.audio.play('pop'); return;
+      }
+    }
+    if (art.indexOf('potion_') === 0) {
+      // Traenke wirken beim Spender wie beim Trinken auf niemanden — sie
+      // fliegen als Gegenstand heraus. Wurftraenke gibt es hier nicht.
+    }
+    // Alles Uebrige faellt wie beim Werfer heraus
+    var raus = I.newStack(art, 1);
+    if (s.ench) raus.ench = s.ench;
+    verbrauche();
+    var e = new MC.ItemEntity(world, mx, my, mz, raus);
+    e.vx = d[0] * 6; e.vy = d[1] * 6 + 1.2; e.vz = d[2] * 6;
+    e.pickupDelay = 0.4;
+    world.entities.push(e);
+    game.audio.play('click');
+  };
+
+  // ============================================================
   //  Takt
   // ============================================================
   // Abgesucht wird ein Kasten um den Spieler — dieselbe Lösung wie beim
@@ -226,6 +306,8 @@
       if (te.type === 'hopper') {
         if (id !== B.id('hopper')) continue;
         trichterTakt(game, te.x, te.y, te.z, te, dt);
+      } else if (id === B.id('dispenser')) {
+        L.spenderTakt(game, te.x, te.y, te.z, te);
       } else {
         if (id !== B.id('dropper')) continue;
         werferTakt(game, te.x, te.y, te.z, te);
@@ -242,9 +324,15 @@
   // nachträglich angebautes Stück quer liegen.
   var NACHBARN = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
+  L.SCHIENEN = null;
   L.istSchiene = function (world, x, y, z) {
-    var id = world.getBlock(x, y, z);
-    return id === B.id('rail') || id === B.id('powered_rail');
+    if (!L.SCHIENEN) {
+      L.SCHIENEN = {};
+      ['rail', 'powered_rail', 'detector_rail', 'activator_rail'].forEach(function (n) {
+        var i = B.id(n); if (i) L.SCHIENEN[i] = true;
+      });
+    }
+    return !!L.SCHIENEN[world.getBlock(x, y, z)];
   };
 
   L.railAusrichten = function (world, x, y, z) {
@@ -336,7 +424,8 @@
       var by = Math.floor(this.y + 0.1) + dy;
       if (!L.istSchiene(w, bx, by, bz)) continue;
       return { x: bx, y: by, z: bz, meta: w.getMeta(bx, by, bz) & 15,
-               antrieb: w.getBlock(bx, by, bz) === B.id('powered_rail') };
+               antrieb: w.getBlock(bx, by, bz) === B.id('powered_rail'),
+               aktiv: w.getBlock(bx, by, bz) === B.id('activator_rail') };
     }
     return null;
   };
@@ -410,6 +499,19 @@
       } else {
         this.tempo *= Math.pow(0.02, dt);
       }
+    }
+
+    // 2b) Aktivierungsschiene: unter Strom wirft sie den Fahrgast heraus.
+    //     Das ist im Original ihre Hauptaufgabe an Bahnhoefen.
+    if (schiene.aktiv && this.reiter &&
+        MC.Redstone && MC.Redstone.powered(w, schiene.x, schiene.y, schiene.z)) {
+      var r0 = this.reiter;
+      this.reiter = null;
+      if (r0.reittier === this) r0.reittier = null;
+      r0.sitzt = false;
+      r0.y = this.y + 1.1;
+      r0.vy = 4;
+      if (game && game.audio) game.audio.play('click');
     }
 
     // 3) Der Reiter schiebt nur an — Tempo kommt aus Gefälle und Antrieb.

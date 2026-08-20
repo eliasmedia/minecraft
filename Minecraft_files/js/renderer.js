@@ -1156,7 +1156,11 @@
   // Die Lore: ein offener Kasten aus fünf Platten. Sie wird nach ihrer
   // Fahrtrichtung gedreht, damit die lange Seite am Gleis liegt.
   Renderer.prototype.drawCart = function (e, bl, sl) {
-    var lay = T.layer('hopper_side');
+    // Die Fracht faerbt die Wanne: Truhenholz oder Trichtereisen statt des
+    // gewoehnlichen Blechs. Billiger als ein zweites Modell, und man erkennt
+    // die Sorte auf dem Gleis sofort.
+    var lay = T.layer(e.fracht === 'chest' ? 'chest_side'
+                    : (e.fracht === 'hopper' ? 'hopper_top' : 'hopper_side'));
     var quer = Math.abs(e.dir[0]) > Math.abs(e.dir[1]);
     var lx = quer ? 0.9 : 0.62, lz = quer ? 0.62 : 0.9;
     // Auf einer Rampe steht die Lore schräg. Gekippt wird um die Achse quer

@@ -135,6 +135,55 @@
   }
   M.faceLayer = faceLayer;
 
+  // ============================================================
+  //  Leitungsbild
+  // ============================================================
+  // Welche der vier Seiten haengen an dieser Leitung? Dieselbe Frage, die auch
+  // redstone.js beim Rechnen stellt — und dieselben Antworten, damit Bild und
+  // Verhalten nicht auseinanderlaufen: waagerecht immer, eine Stufe hinauf nur
+  // ohne Deckel, eine Stufe hinunter nur ohne Deckel ueber der tieferen.
+  var WIRE_ID = -1;
+  function wireArme(gb, x, y, z) {
+    if (WIRE_ID < 0) WIRE_ID = B.id('redstone_wire');
+    var nb = [0, 0, 0, 0];               // -Z, +X, +Z, -X wie B.SIDE_DIRS
+    for (var i = 0; i < 4; i++) {
+      var d = B.SIDE_DIRS[i];
+      var ax = x + d[0], az = z + d[1];
+      var aid = gb(ax, y, az);
+      if (aid === WIRE_ID) { nb[i] = 1; continue; }
+      if (gb(ax, y + 1, az) === WIRE_ID && !B.isOpaque(gb(x, y + 1, z))) { nb[i] = 1; continue; }
+      if (gb(ax, y - 1, az) === WIRE_ID && !B.isOpaque(aid)) { nb[i] = 1; continue; }
+      // Bauteile, die aufnehmen, bekommen ebenfalls einen Arm
+      var ab = B.byId[aid];
+      if (ab && (ab.shape === B.SHAPE_REPEATER || ab.shape === B.SHAPE_COMPARATOR ||
+                 ab.shape === B.SHAPE_TORCH || ab.name === 'redstone_block' ||
+                 ab.name === 'lever' || ab.name === 'stone_button')) nb[i] = 1;
+    }
+    return nb;
+  }
+
+  // Aus den vier Armen die Vierecke bauen: [x0, z0, x1, z1, Textur, UV-Drehung].
+  // Zwei gegenueberliegende Arme ergeben eine durchgehende Linie ohne Klecks —
+  // das ist der Fall, den man am haeufigsten sieht.
+  var W_A = 0.3125, W_B = 0.6875;
+  function wireTeile(nb) {
+    var mitte = T.layer('redstone_dust_mitte');
+    var arm = T.layer('redstone_dust_arm');
+    var n = nb[0] + nb[1] + nb[2] + nb[3];
+    var out = [];
+    if (n === 0) { out.push([W_A, W_A, W_B, W_B, mitte, 0]); return out; }
+    var laengsZ = (n === 2 && nb[0] && nb[2]);
+    var laengsX = (n === 2 && nb[1] && nb[3]);
+    if (laengsZ) { out.push([W_A, 0, W_B, 1, arm, 0]); return out; }
+    if (laengsX) { out.push([0, W_A, 1, W_B, arm, 1]); return out; }
+    out.push([W_A, W_A, W_B, W_B, mitte, 0]);
+    if (nb[0]) out.push([W_A, 0, W_B, W_A, arm, 0]);
+    if (nb[2]) out.push([W_A, W_B, W_B, 1, arm, 0]);
+    if (nb[1]) out.push([W_B, W_A, 1, W_B, arm, 1]);
+    if (nb[3]) out.push([0, W_A, W_A, W_B, arm, 1]);
+    return out;
+  }
+
   // ---------- Hauptfunktion ----------
   M.build = function (world, chunk) {
     var opaque = new Buf(), alpha = new Buf();
@@ -409,19 +458,30 @@
 
             // Redstoneleitung: flach auf dem Boden. Die Signalstärke steuert
             // die Helligkeit über den Shadewert, darum nur eine Textur.
+            // Die Leitung zeigt ihren VERLAUF, nicht nur ihre Staerke: ein
+            // Klecks in der Mitte und je ein Band zu jedem Nachbarn. Vorher lag
+            // auf jeder Zelle dasselbe Kreuz, und in einer dichten Schaltung
+            // sah man nicht, was womit verbunden war.
             case B.SHAPE_WIRE: {
-              var wlay = T.layer('redstone_dust');
               var kraft = 0.32 + (meta / 15) * 0.68;
-              buf.need(4 * 9);
-              var wa = buf.a, wn = buf.n;
-              var wq = [[0, 0.0625, 1], [1, 0.0625, 1], [1, 0.0625, 0], [0, 0.0625, 0]];
-              for (var wi = 0; wi < 4; wi++) {
-                wa[wn++] = bx0 + x + wq[wi][0]; wa[wn++] = y + wq[wi][1]; wa[wn++] = bz0 + z + wq[wi][2];
-                wa[wn++] = UVS[wi][0]; wa[wn++] = UVS[wi][1]; wa[wn++] = wlay;
-                var wl = gl(x, y, z);
-                wa[wn++] = (wl & 15) / 15; wa[wn++] = ((wl >> 4) & 15) / 15; wa[wn++] = kraft;
+              var wl = gl(x, y, z);
+              var wbl = (wl & 15) / 15, wsl = ((wl >> 4) & 15) / 15;
+              var nb = wireArme(gb, x, y, z);
+              var teile = wireTeile(nb);
+              for (var wt = 0; wt < teile.length; wt++) {
+                var q = teile[wt];
+                buf.need(4 * 9);
+                var wa = buf.a, wn = buf.n;
+                // Ecken gegen den Uhrzeigersinn von oben gesehen
+                var ek = [[q[0], q[3]], [q[2], q[3]], [q[2], q[1]], [q[0], q[1]]];
+                for (var wi = 0; wi < 4; wi++) {
+                  var uv = UVS[(wi + q[5]) & 3];
+                  wa[wn++] = bx0 + x + ek[wi][0]; wa[wn++] = y + 0.0625; wa[wn++] = bz0 + z + ek[wi][1];
+                  wa[wn++] = uv[0]; wa[wn++] = uv[1]; wa[wn++] = q[4];
+                  wa[wn++] = wbl; wa[wn++] = wsl; wa[wn++] = kraft;
+                }
+                buf.n = wn;
               }
-              buf.n = wn;
               break;
             }
 
@@ -445,6 +505,36 @@
                             0.5 - rd[1] * (0.0625 + stufe * 0.0833)];
               emitRepeaterPin(buf, x, y, z, vorn, tl);
               emitRepeaterPin(buf, x, y, z, hinten, tl);
+              break;
+            }
+
+            // Der Vergleicher: dieselbe Platte wie der Verstaerker, aber DREI
+            // Stummel — zwei vorne nebeneinander, einer hinten. Der hintere
+            // brennt im Abzugsmodus; daran sieht man die Betriebsart, ohne
+            // hineinzuklicken.
+            case B.SHAPE_COMPARATOR: {
+              emitShapedBox(buf, x, y, z, [0, 0, 0], [1, 0.125, 1], block, meta);
+              var cd = B.SIDE_DIRS[meta & 3];
+              var quer = [-cd[1], cd[0]];
+              var anTl = T.layer(B.compStaerke(meta) > 0 ? 'redstone_torch' : 'redstone_torch_off');
+              var subTl = T.layer(B.compAbzug(meta) ? 'redstone_torch' : 'redstone_torch_off');
+              emitRepeaterPin(buf, x, y, z,
+                [0.5 + cd[0] * 0.28 + quer[0] * 0.17, 0.5 + cd[1] * 0.28 + quer[1] * 0.17], anTl);
+              emitRepeaterPin(buf, x, y, z,
+                [0.5 + cd[0] * 0.28 - quer[0] * 0.17, 0.5 + cd[1] * 0.28 - quer[1] * 0.17], anTl);
+              emitRepeaterPin(buf, x, y, z,
+                [0.5 - cd[0] * 0.3, 0.5 - cd[1] * 0.3], subTl);
+              break;
+            }
+
+            case B.SHAPE_DAYLIGHT: {
+              emitShapedBox(buf, x, y, z, [0, 0, 0], [1, 0.375, 1], block, meta);
+              break;
+            }
+
+            case B.SHAPE_TRAPDOOR: {
+              var tb = B.falltuerBox(meta);
+              emitShapedBox(buf, x, y, z, [tb[0], tb[1], tb[2]], [tb[3], tb[4], tb[5]], block, meta);
               break;
             }
 

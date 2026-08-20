@@ -637,6 +637,15 @@
     }
   };
 
+  // Rechtsklick auf eine Lore: eine mit Fracht oeffnet ihren Kasten, eine leere
+  // nimmt einen mit. Ohne die Unterscheidung saesse man in der Truhenlore.
+  Game.prototype.loreBenutzen = function (e) {
+    if (!e.fracht) return false;
+    if (!e.items) e.items = new Array(e.fracht === 'chest' ? 27 : 5);
+    this.ui.openScreen('chest', { type: e.fracht === 'chest' ? 'chest' : 'hopper', items: e.items });
+    return true;
+  };
+
   Game.prototype.attackEntity = function (e) {
     if (this.mode === 'spectator') return;
     var p = this.player;
@@ -645,7 +654,17 @@
     if (e.type === 'cart') {
       if (e.reiter) this.absitzen();
       e.dead = true;
-      if (this.mode !== 'creative') this.spawnItem(e.x, e.y + 0.3, e.z, I.newStack('minecart', 1));
+      if (this.mode !== 'creative') {
+        var sorte = e.fracht === 'chest' ? 'chest_minecart'
+                  : (e.fracht === 'hopper' ? 'hopper_minecart' : 'minecart');
+        this.spawnItem(e.x, e.y + 0.3, e.z, I.newStack(sorte, 1));
+        // Was sie geladen hat, faellt heraus — wie bei jeder Truhe
+        if (e.items) {
+          for (var ci = 0; ci < e.items.length; ci++) {
+            if (e.items[ci]) this.spawnItem(e.x, e.y + 0.4, e.z, e.items[ci]);
+          }
+        }
+      }
       this.audio.play('break_tool');
       return;
     }
@@ -806,10 +825,10 @@
       this.ui.openScreen('trade', this.targetEntity);
       return;
     }
-    // Lore: aufsitzen
-    if (this.targetEntity && this.targetEntity.type === 'cart' && !p.reittier) {
-      this.aufsitzen(this.targetEntity);
-      return;
+    // Lore: eine mit Fracht oeffnet ihren Kasten, eine leere nimmt einen mit
+    if (this.targetEntity && this.targetEntity.type === 'cart') {
+      if (this.loreBenutzen(this.targetEntity)) return;
+      if (!p.reittier) { this.aufsitzen(this.targetEntity); return; }
     }
     // Tiere: füttern, satteln, aufsitzen
     if (this.targetEntity && this.targetEntity.isMob && this.tierBenutzen(this.targetEntity)) {
@@ -845,7 +864,7 @@
         this.ui.openScreen('chest', MC.Logistik.trichterDaten(w, t.x, t.y, t.z));
         return;
       }
-      if (b.name === 'dropper' && MC.Logistik) {
+      if ((b.name === 'dropper' || b.name === 'dispenser') && MC.Logistik) {
         this.ui.openScreen('chest', MC.Logistik.werferDaten(w, t.x, t.y, t.z));
         return;
       }
@@ -916,11 +935,14 @@
       return;
     }
 
-    // Lore auf eine Schiene setzen
-    if (it.name === 'minecart' && this.target && MC.Logistik) {
+    // Lore auf eine Schiene setzen — jede Sorte auf jede Schiene
+    if (it.name.indexOf('minecart') >= 0 && this.target && MC.Logistik) {
       var rt = this.target;
-      if (w.getBlock(rt.x, rt.y, rt.z) === B.id('rail')) {
+      if (MC.Logistik.istSchiene(w, rt.x, rt.y, rt.z)) {
         var lore = new MC.Minecart(w, rt.x + 0.5, rt.y + 0.12, rt.z + 0.5);
+        if (it.name === 'chest_minecart') lore.fracht = 'chest';
+        if (it.name === 'hopper_minecart') lore.fracht = 'hopper';
+        if (lore.fracht) lore.items = new Array(lore.fracht === 'chest' ? 27 : 5);
         w.entities.push(lore);
         if (this.mode !== 'creative') p.inventory.consumeSelected(1);
         this.audio.play('thud');
@@ -1187,10 +1209,20 @@
       // brauchen festen Boden darunter
       if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
       meta = 0;
-    } else if (block.shape === B.SHAPE_REPEATER) {
+    } else if (block.shape === B.SHAPE_REPEATER || block.shape === B.SHAPE_COMPARATOR) {
       if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
       // Ausgang zeigt weg vom Spieler
       meta = (this.facingFromYaw() + 2) & 3;
+    } else if (block.shape === B.SHAPE_DAYLIGHT) {
+      if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
+      meta = 0;
+    } else if (block.shape === B.SHAPE_TRAPDOOR) {
+      // An die angeklickte Wand geheftet; auf Boden oder Decke waagerecht.
+      var tm2 = LADDER_META[t.face];
+      if (tm2 !== undefined) meta = tm2;
+      else meta = (this.facingFromYaw() + 2) & 3;
+      if (t.face === 3) meta |= 8;          // an die Unterseite gesetzt
+      else if (t.face !== 2 && p.lookDir().y < -0.4) meta |= 8;
     } else if (block.shape === B.SHAPE_LEVER || block.shape === B.SHAPE_BUTTON) {
       // Auf den Boden gesetzt oder an eine Wand geklebt
       var wm2 = LADDER_META[t.face];
@@ -2426,6 +2458,11 @@
       if (MC.Effekte) MC.Effekte.tickStand(this);
       // Druckplatten und gedrückte Knöpfe
       if ((this.tickCount % 4) === 0) MC.Redstone.tickPlates(this);
+      // Sensorschienen jeden Takt: eine Lore faehrt schnell darueber hinweg.
+      // Tageslichtsensoren nur jede Sekunde — die Helligkeit braucht zwanzig
+      // Minuten fuer eine Runde, da waere jeder Takt Verschwendung.
+      MC.Redstone.tickSensorSchienen(this);
+      if ((this.tickCount % 20) === 0) MC.Redstone.tickLichtsensoren(this);
       if (MC.Caves) { MC.Caves.tick(this, dt); MC.Caves.waechter(this, dt); }
       if (MC.Cmd) MC.Cmd.Block.tick(this, dt);
       if (MC.Herobrine) MC.Herobrine.tick(this, dt);
