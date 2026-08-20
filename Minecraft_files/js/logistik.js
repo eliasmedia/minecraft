@@ -457,6 +457,11 @@
       if (this.tempo !== 0) {
         this.vx += this.dir[0] * this.tempo;
         this.vz += this.dir[1] * this.tempo;
+        // Wer mit Schwung ueber die Kante faehrt, fliegt ein Stueck. Ohne den
+        // Anstoss nach oben faellt die Lore am Gleisende einfach senkrecht ab,
+        // und das sieht aus wie ein Fehler statt wie Fahrt.
+        var wucht = Math.abs(this.tempo);
+        if (wucht > 4 && this.vy <= 0.1) this.vy = Math.min(6, wucht * 0.42);
         this.tempo = 0;
       }
       this.applyPhysics(dt, 0.98, 0.4);
@@ -547,22 +552,36 @@
       if (!zelle) break;
       // Neue Zelle: Achse an ihren Verlauf anpassen, sonst faehrt die Lore in
       // der Kurve geradeaus weiter
-      if (zelle.x !== schiene.x || zelle.z !== schiene.z || zelle.y !== schiene.y) {
+      var neueZelle = (zelle.x !== schiene.x || zelle.z !== schiene.z || zelle.y !== schiene.y);
+      if (neueZelle) {
+        var alteRichtung = this.dir;
         schiene = zelle;
         var st2 = B.railSteigung(zelle.meta);
         var en2 = st2 ? B.RAIL_ENDEN_STEIGUNG[zelle.meta - 6]
                       : (B.RAIL_ENDEN[zelle.meta] || B.RAIL_ENDEN[0]);
         var b2 = en2[0], p2 = -9;
         for (var e2 = 0; e2 < 2; e2++) {
-          var pk2 = en2[e2][0] * this.dir[0] + en2[e2][1] * this.dir[1];
+          var pk2 = en2[e2][0] * alteRichtung[0] + en2[e2][1] * alteRichtung[1];
           if (pk2 > p2) { p2 = pk2; b2 = en2[e2]; }
         }
         this.dir = [b2[0], b2[1]];
         mx = zelle.x + 0.5; mz = zelle.z + 0.5;
+        // Die Achse hat gewechselt — also eine Kurve. Hier wird HART auf die
+        // Gleismitte gesetzt, nicht sanft herangezogen: bei elf Bloecken je
+        // Sekunde reicht das sanfte Ziehen nicht, die Lore driftet aus dem
+        // Bogen und faellt aus dem Gleis.
+        if (alteRichtung[0] !== this.dir[0] || alteRichtung[1] !== this.dir[1]) {
+          if (this.dir[0] === 0) this.x = mx; else this.z = mz;
+          if (alteRichtung[0] === 0) this.z = mz; else this.x = mx;
+        }
       }
-      // In der Querachse immer auf die Gleismitte ziehen
+      // In der Querachse auf die Gleismitte ziehen ...
       if (this.dir[0] === 0) this.x += (mx - this.x) * Math.min(1, sdt * 12);
       if (this.dir[1] === 0) this.z += (mz - this.z) * Math.min(1, sdt * 12);
+      // ... und niemals weiter als einen halben Block daneben. Das ist die
+      // Reissleine: was auch immer schiefgeht, die Lore bleibt im Gleisbett.
+      if (this.dir[0] === 0 && Math.abs(this.x - mx) > 0.5) this.x = mx + (this.x > mx ? 0.5 : -0.5);
+      if (this.dir[1] === 0 && Math.abs(this.z - mz) > 0.5) this.z = mz + (this.z > mz ? 0.5 : -0.5);
     }
 
     // Nach dem Zug erneut nachsehen, welche Schiene jetzt unter uns liegt —
@@ -584,10 +603,56 @@
       this.tempo = 0;
       this.x = mx; this.z = mz;
     }
+    // Trichterlore: sie sammelt auf, was auf ihr liegt, und zieht aus einem
+    // Behaelter ueber ihr. Genau dafuer gibt es sie — als fahrender Trichter.
+    if (this.fracht === 'hopper') this.trichterFracht(dt, game);
+
     // Die Neigung merken, damit der Renderer die Lore schräg stellen kann
+    // Neigung: positiv heisst "Nase hoch". Vorher stand hier ein Minus, und die
+    // Zeichnung kippte auf der X-Achse anders als auf der Z-Achse — darum stand
+    // die Lore je nach Himmelsrichtung mal richtig und mal verkehrt.
     var auf = B.railSteigung(jetzt.meta);
-    this.neigung = auf ? -(auf[0] * this.dir[0] + auf[1] * this.dir[1]) * 0.72 : 0;
+    this.neigung = auf ? (auf[0] * this.dir[0] + auf[1] * this.dir[1]) * 0.72 : 0;
     if (this.reiter) this.reiterSetzen();
+  };
+
+  // Der fahrende Trichter. Derselbe Takt wie der feste, dieselben Helfer —
+  // einlegen() und entnehmen() kennen die Frachtliste als gewoehnlichen
+  // Behaelter, weil sie nur nach `items` fragen.
+  Minecart.prototype.trichterFracht = function (dt, game) {
+    if (!this.items) this.items = new Array(L.HOPPER_SLOTS);
+    this.frachtCd = (this.frachtCd || 0) - dt;
+    if (this.frachtCd > 0) return;
+    this.frachtCd += L.TAKT;
+    if (this.frachtCd < 0) this.frachtCd = 0;
+    var w = this.world;
+    var mich = { items: this.items };
+
+    // 1) aus einem Behaelter ueber der Lore ziehen
+    var bx = Math.floor(this.x), by = Math.floor(this.y + 0.4), bz = Math.floor(this.z);
+    var oben = L.behaelter(w, bx, by + 1, bz);
+    if (oben) {
+      var rein = L.entnehmen(oben, true);
+      if (rein && !L.einlegen(mich, rein, true)) L.einlegen(oben, rein, true);
+    }
+
+    // 2) aufsammeln, was auf und ueber ihr liegt
+    var ents = w.entities;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e.dead || e.type !== 'item' || e.pickupDelay > 0) continue;
+      var dx = e.x - this.x, dz = e.z - this.z, dy = e.y - this.y;
+      if (dx * dx + dz * dz > 1.4 || dy < -0.6 || dy > 1.4) continue;
+      while (e.stack.count > 0 && L.einlegen(mich, e.stack, true)) { /* Stueck fuer Stueck */ }
+      if (e.stack.count <= 0) e.dead = true;
+    }
+
+    // 3) in einen Trichter unter der Schiene abgeben
+    var unten = L.behaelter(w, bx, by - 1, bz);
+    if (unten) {
+      var raus = L.entnehmen(mich, false);
+      if (raus && !L.einlegen(unten, raus, true)) L.einlegen(mich, raus, true);
+    }
   };
 
   // Anschieben — von Hand oder vom Reiter. Der Deckel ist der Punkt: mit der

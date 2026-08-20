@@ -335,10 +335,15 @@
               // Texturkoordinaten, nicht in der Geometrie; nur die Steigung
               // hebt zwei der vier Ecken an.
               var rm = meta & 15;
-              var rtex = B.railKurve(rm) ? 'rail_curve'
-                       : (block.name === 'powered_rail'
-                           ? ((meta & 16) ? 'rail_powered_on' : 'rail_powered')
-                           : 'rail');
+              // Die Textur haengt am Schienentyp, nicht nur an "gerade oder Kurve".
+              // Vorher fiel alles ausser der Antriebsschiene auf 'rail' zurueck,
+              // und Sensor- wie Aktivierungsschiene sahen im Gleis aus wie eine
+              // gewoehnliche Schiene.
+              var rtex;
+              if (block.name === 'powered_rail') rtex = (meta & 16) ? 'rail_powered_on' : 'rail_powered';
+              else if (block.name === 'detector_rail') rtex = (meta & 16) ? 'rail_detector_on' : 'rail_detector';
+              else if (block.name === 'activator_rail') rtex = 'rail_activator';
+              else rtex = B.railKurve(rm) ? 'rail_curve' : 'rail';
               emitRail(buf, x, y, z, T.layer(rtex), gl(x, y, z), rm);
               break;
             }

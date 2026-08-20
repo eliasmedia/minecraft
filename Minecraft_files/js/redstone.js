@@ -69,7 +69,10 @@
         id === d.obs || id === d.obsLit ||
         id === d.comp || id === d.licht) return false;
     var b = B.byId[id];
-    return !!(b && b.opaque);
+    // Der Schleimblock ist durchsichtig, leitet aber Redstone — im Original
+    // ist das genau der Unterschied zum Honigblock, und Flugmaschinen leben
+    // davon: der Beobachter speist durch den Schleim in den Kolben.
+    return !!(b && (b.opaque || b.slime));
   }
 
   // Der Block, an dem ein Hebel oder Knopf hängt
@@ -330,6 +333,37 @@
   // und eine Strecke zu bauen wird unbezahlbar.
   R.ANTRIEB_KETTE = 8;
 
+  // Den ganzen zusammenhaengenden Lauf einer Antriebsschiene neu bewerten und
+  // das Strom-Bit setzen. Vorher las die Anzeige nur R.powered fuer die eine
+  // Schiene: an einer Fackel leuchtete genau ein Stueck, obwohl die Kette
+  // laengst acht weitere versorgte.
+  R.antriebAktualisieren = function (w, x, y, z) {
+    var prail = B.id('powered_rail');
+    if (w.getBlock(x, y, z) !== prail) return;
+    var lauf = [[x, y, z]];
+    var enden = B.RAIL_ENDEN[w.getMeta(x, y, z) & 15] || B.RAIL_ENDEN[0];
+    for (var e = 0; e < 2; e++) {
+      var d = enden[e], cx = x, cy = y, cz = z;
+      for (var n = 1; n <= R.ANTRIEB_KETTE; n++) {
+        cx += d[0]; cz += d[1];
+        var yy = cy;
+        if (w.getBlock(cx, yy, cz) !== prail) {
+          if (w.getBlock(cx, yy + 1, cz) === prail) yy += 1;
+          else if (w.getBlock(cx, yy - 1, cz) === prail) yy -= 1;
+          else break;
+        }
+        cy = yy;
+        lauf.push([cx, cy, cz]);
+      }
+    }
+    for (var i = 0; i < lauf.length; i++) {
+      var q = lauf[i];
+      var an = R.antriebAn(w, q[0], q[1], q[2]);
+      var m = w.getMeta(q[0], q[1], q[2]);
+      if (!!(m & 16) !== !!an) w.setMetaOnly(q[0], q[1], q[2], an ? (m | 16) : (m & ~16));
+    }
+  };
+
   R.antriebAn = function (w, x, y, z) {
     var prail = B.id('powered_rail');
     if (w.getBlock(x, y, z) !== prail) return false;
@@ -526,6 +560,17 @@
   // durchschnittlichen Fuellung.
   R.behaelterStaerke = function (w, x, y, z) {
     var L = MC.Logistik;
+    // Der Kessel hat keine Faecher, sondern einen Fuellstand im Meta 0..3.
+    // Im Original misst der Vergleicher genau diesen Stand — das ist die
+    // einzige Art, Regen oder Wasserverbrauch in eine Schaltung zu holen.
+    if (w.getBlock(x, y, z) === B.id('cauldron')) return w.getMeta(x, y, z) & 3;
+    // Ein Braustand meldet, wie viele Flaschen darin stehen
+    var bt = w.tileEntities[x + ',' + y + ',' + z];
+    if (bt && bt.glas) {
+      var n = 0;
+      for (var gi = 0; gi < bt.glas.length; gi++) if (bt.glas[gi]) n++;
+      return n;
+    }
     if (!L) return 0;
     var te = L.behaelter(w, x, y, z);
     if (!te) return 0;
@@ -729,6 +774,8 @@
       return;
     }
 
+    if (id === d.prail) { R.antriebAktualisieren(w, x, y, z); return; }
+
     // Der Beobachter gehoert zur Kolbenfamilie nur, was die Blickrichtung
     // angeht - geschaltet wird er von Blockaenderungen, nicht von Strom.
     if (id === d.obs || id === d.obsLit) return;
@@ -892,6 +939,10 @@
       var s = liste[j];
       w.setBlock(s.x + d[0], s.y + d[1], s.z + d[2], s.id, s.meta, { noUpdate: true });
     }
+    // Verschobene Beobachter melden sich, siehe R.beobachterVerschoben
+    for (var jb = 0; jb < liste.length; jb++) {
+      R.beobachterVerschoben(w, liste[jb].x + d[0], liste[jb].y + d[1], liste[jb].z + d[2]);
+    }
     var klebrig = B.byId[id].sticky;
     w.setBlock(x, y, z, B.id(klebrig ? 'sticky_piston_ext' : 'piston_ext'), m, { noUpdate: true });
     w.setBlock(x + d[0], y + d[1], z + d[2],
@@ -924,6 +975,9 @@
             var zs = zug[zj];
             w.setBlock(zs.x + rueck[0], zs.y + rueck[1], zs.z + rueck[2], zs.id, zs.meta, { noUpdate: true });
           }
+          for (var zb = 0; zb < zug.length; zb++) {
+            R.beobachterVerschoben(w, zug[zb].x + rueck[0], zug[zb].y + rueck[1], zug[zb].z + rueck[2]);
+          }
         } else {
           var zm = w.getMeta(zx, zy, zz);
           w.setBlock(zx, zy, zz, 0, 0, { noUpdate: true });
@@ -952,9 +1006,25 @@
       var od = R.kolbenRichtung(w.getMeta(ox, oy, oz));
       // Nur wenn er wirklich auf diesen Block schaut
       if (ox + od[0] !== x || oy + od[1] !== y || oz + od[2] !== z) continue;
-      plane(w, ox, oy, oz, true, 1);
-      plane2(w, ox, oy, oz, false, 3);
+      R.beobachterFeuert(w, ox, oy, oz);
     }
+  };
+
+  // Ein Beobachter feuert: kurzer Impuls nach hinten, zwei Ticks lang.
+  R.beobachterFeuert = function (w, x, y, z) {
+    plane(w, x, y, z, true, 1);
+    plane2(w, x, y, z, false, 3);
+  };
+
+  // Wird ein Beobachter SELBST verschoben, hat sich der Block vor ihm ebenfalls
+  // geaendert — aus seiner Sicht. Im Original feuert er dann, und genau darauf
+  // beruht jede Flugmaschine: der Kolben schiebt den Beobachter, der Beobachter
+  // zuendet den naechsten Kolben, und das Ganze laeuft von selbst weiter.
+  // Ohne diese Zeile steht jede Flugmaschine nach einem Schritt still.
+  R.beobachterVerschoben = function (w, x, y, z) {
+    var d = ids();
+    if (w.getBlock(x, y, z) !== d.obs && w.getBlock(x, y, z) !== d.obsLit) return;
+    R.beobachterFeuert(w, x, y, z);
   };
 
   // Zweiter Plan für das Abschalten: `plane` würde den Einschalttermin

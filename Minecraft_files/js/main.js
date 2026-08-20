@@ -827,7 +827,9 @@
     }
     // Lore: eine mit Fracht oeffnet ihren Kasten, eine leere nimmt einen mit
     if (this.targetEntity && this.targetEntity.type === 'cart') {
+      // In eine Frachtlore steigt niemand ein — dort steht der Behaelter.
       if (this.loreBenutzen(this.targetEntity)) return;
+      if (this.targetEntity.fracht) return;
       if (!p.reittier) { this.aufsitzen(this.targetEntity); return; }
     }
     // Tiere: füttern, satteln, aufsitzen

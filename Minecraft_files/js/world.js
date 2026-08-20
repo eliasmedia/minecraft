@@ -634,9 +634,9 @@
     // Antriebsschiene: das Strom-Bit im Meta hält die Textur aktuell. Der
     // Mesher kennt kein Redstone, also muss der Zustand im Block stehen.
     if (b.name === 'powered_rail' && MC.Redstone) {
-      var anR = MC.Redstone.powered(this, x, y, z);
-      var mR = this.getMeta(x, y, z);
-      if (!!(mR & 16) !== !!anR) this.setMetaOnly(x, y, z, anR ? (mR | 16) : (mR & ~16));
+      // Der ganze Lauf, nicht nur dieses Stueck: eine Quelle versorgt acht
+      // weitere Schienen, und die muessen alle leuchten.
+      MC.Redstone.antriebAktualisieren(this, x, y, z);
     }
     // Eine Schiene ohne Boden fällt — wie eine Fackel ohne Wand
     if (b.shape === B.SHAPE_RAIL && !B.isSolid(this.getBlock(x, y - 1, z))) {

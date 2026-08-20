@@ -2661,18 +2661,32 @@
   });
   // Sensorschiene: Eisen mit rotem Kontaktband. Aktivierungsschiene: dunkles
   // Metall mit rotem Kreuz — beide muessen sich im Gleis unterscheiden lassen.
-  tex('rail_detector', function (g) {
-    g.copyFrom(data('rail'));
-    var rot = [176, 32, 28];
-    g.rect(6, 0, 4, 16, rot);
-    g.rect(7, 0, 2, 16, [214, 54, 44]);
-  });
+  // Sensorschiene: helle Steinschwellen mit einer Druckleiste in der Mitte.
+  // Sie muss sich im Gleis auf einen Blick von der gewoehnlichen unterscheiden
+  // lassen — dieselbe Ueberlegung wie bei der goldenen Antriebsschiene.
+  function sensorSchiene(name, an) {
+    tex(name, function (g) {
+      g.fill([0, 0, 0], 0);
+      var st = ramp([150, 150, 154], 0.55).list;
+      for (var y = 1; y < 16; y += 4) { g.rect(1, y, 14, 2, st[1]); g.rect(1, y, 14, 1, st[3]); }
+      g.rect(3, 0, 2, 16, EISEN[3]); g.rect(11, 0, 2, 16, EISEN[3]);
+      g.rect(3, 0, 1, 16, EISEN[4]); g.rect(11, 0, 1, 16, EISEN[4]);
+      var leiste = an ? [236, 72, 60] : [128, 34, 30];
+      g.rect(6, 0, 4, 16, leiste);
+      g.rect(7, 0, 2, 16, an ? [255, 140, 120] : [88, 22, 20]);
+    });
+  }
+  sensorSchiene('rail_detector', false);
+  sensorSchiene('rail_detector_on', true);
+  // Aktivierungsschiene: dunkles Metall mit zwei roten Querstegen
   tex('rail_activator', function (g) {
-    g.copyFrom(data('rail'));
-    var rot2 = [186, 44, 36];
-    g.rect(0, 6, 16, 2, rot2);
-    g.rect(3, 2, 2, 12, rot2);
-    g.rect(11, 2, 2, 12, rot2);
+    g.fill([0, 0, 0], 0);
+    var d = ramp([74, 70, 78], 0.6).list;
+    for (var y = 1; y < 16; y += 4) { g.rect(1, y, 14, 2, d[1]); g.rect(1, y, 14, 1, d[3]); }
+    var rot2 = [196, 48, 40];
+    g.rect(3, 0, 2, 16, rot2); g.rect(11, 0, 2, 16, rot2);
+    g.rect(3, 0, 1, 16, [232, 82, 70]); g.rect(11, 0, 1, 16, [232, 82, 70]);
+    g.rect(1, 3, 14, 2, [40, 38, 44]); g.rect(1, 11, 14, 2, [40, 38, 44]);
   });
   // Schleimblock: durchscheinender Klumpen mit dunklerem Kern
   tex('slime_block', function (g) {

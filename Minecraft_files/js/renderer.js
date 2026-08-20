@@ -1156,29 +1156,48 @@
   // Die Lore: ein offener Kasten aus fünf Platten. Sie wird nach ihrer
   // Fahrtrichtung gedreht, damit die lange Seite am Gleis liegt.
   Renderer.prototype.drawCart = function (e, bl, sl) {
-    // Die Fracht faerbt die Wanne: Truhenholz oder Trichtereisen statt des
-    // gewoehnlichen Blechs. Billiger als ein zweites Modell, und man erkennt
-    // die Sorte auf dem Gleis sofort.
-    var lay = T.layer(e.fracht === 'chest' ? 'chest_side'
-                    : (e.fracht === 'hopper' ? 'hopper_top' : 'hopper_side'));
     var quer = Math.abs(e.dir[0]) > Math.abs(e.dir[1]);
     var lx = quer ? 0.9 : 0.62, lz = quer ? 0.62 : 0.9;
-    // Auf einer Rampe steht die Lore schräg. Gekippt wird um die Achse quer
-    // zur Fahrt, also je nach Gleisrichtung um X oder um Z.
+    // Neigung: positiv heisst "Nase hoch", und zwar entlang der Fahrtrichtung.
+    // Vorher rechnete die X-Achse mit anderem Vorzeichen als die Z-Achse, und
+    // die Lore stand je nach Himmelsrichtung mal richtig, mal verkehrt herum.
     var nei = e.neigung || 0;
+    var vz = quer ? (e.dir[0] >= 0 ? 1 : -1) : (e.dir[1] >= 0 ? 1 : -1);
     var cn = Math.cos(nei), sn = Math.sin(nei);
+
+    // Die Wanne. Eine Frachtlore ist keine Sitzgelegenheit: statt der offenen
+    // Kiste bekommt sie einen flachen Boden mit dem Behaelter obendrauf, damit
+    // man auf einen Blick sieht, dass dort ein Trichter oder eine Truhe steht
+    // und kein Platz zum Einsteigen ist.
+    var wanne = T.layer('hopper_side');
+    var teile;
+    if (e.fracht) {
+      var frLay = T.layer(e.fracht === 'chest' ? 'chest_side' : 'hopper_side');
+      teile = [
+        { box: [-lx / 2, 0, -lz / 2, lx / 2, 0.16, lz / 2], lay: wanne },
+        { box: [-lx / 2 + 0.06, 0.16, -lz / 2 + 0.06, lx / 2 - 0.06, 0.74, lz / 2 - 0.06], lay: frLay }
+      ];
+      if (e.fracht === 'hopper') {
+        // Der Trichter hat oben einen Rand und darunter den Trog
+        teile[1].box[4] = 0.56;
+        teile.push({ box: [-lx / 2 + 0.16, 0.56, -lz / 2 + 0.16, lx / 2 - 0.16, 0.78, lz / 2 - 0.16],
+                     lay: T.layer('hopper_top') });
+      }
+    } else {
+      teile = [
+        { box: [-lx / 2, 0, -lz / 2, lx / 2, 0.12, lz / 2], lay: wanne },
+        { box: [-lx / 2, 0.12, -lz / 2, lx / 2, 0.55, -lz / 2 + 0.1], lay: wanne },
+        { box: [-lx / 2, 0.12, lz / 2 - 0.1, lx / 2, 0.55, lz / 2], lay: wanne },
+        { box: [-lx / 2, 0.12, -lz / 2, -lx / 2 + 0.1, 0.55, lz / 2], lay: wanne },
+        { box: [lx / 2 - 0.1, 0.12, -lz / 2, lx / 2, 0.55, lz / 2], lay: wanne }
+      ];
+    }
+
     var d = this.dynData, n = 0;
-    this.ensureDyn(5 * 6 * 4 * FPV + 64);
+    this.ensureDyn(teile.length * 6 * 4 * FPV + 64);
     d = this.dynData;
-    var kasten = [
-      [-lx / 2, 0, -lz / 2, lx / 2, 0.12, lz / 2],                       // Boden
-      [-lx / 2, 0.12, -lz / 2, lx / 2, 0.55, -lz / 2 + 0.1],             // vier Wände
-      [-lx / 2, 0.12, lz / 2 - 0.1, lx / 2, 0.55, lz / 2],
-      [-lx / 2, 0.12, -lz / 2, -lx / 2 + 0.1, 0.55, lz / 2],
-      [lx / 2 - 0.1, 0.12, -lz / 2, lx / 2, 0.55, lz / 2]
-    ];
-    for (var k = 0; k < kasten.length; k++) {
-      var bx = kasten[k];
+    for (var k = 0; k < teile.length; k++) {
+      var bx = teile[k].box, lay = teile[k].lay;
       for (var f = 0; f < 6; f++) {
         var F = MC.Mesher.FACES[f];
         for (var i = 0; i < 4; i++) {
@@ -1187,12 +1206,10 @@
           var py = bx[1] + v[1] * (bx[4] - bx[1]);
           var pz = bx[2] + v[2] * (bx[5] - bx[2]);
           if (nei) {
-            if (quer) { var t1 = px * cn - py * sn; py = px * sn + py * cn; px = t1; }
-            else { var t2 = pz * cn + py * sn; py = -pz * sn + py * cn; pz = t2; }
+            if (quer) { var t1 = px * cn - py * vz * sn; py = px * vz * sn + py * cn; px = t1; }
+            else { var t2 = pz * cn - py * vz * sn; py = pz * vz * sn + py * cn; pz = t2; }
           }
-          d[n++] = e.x + px;
-          d[n++] = e.y + py;
-          d[n++] = e.z + pz;
+          d[n++] = e.x + px; d[n++] = e.y + py; d[n++] = e.z + pz;
           d[n++] = MC.Mesher.UVS[i][0]; d[n++] = MC.Mesher.UVS[i][1]; d[n++] = lay;
           d[n++] = bl; d[n++] = sl; d[n++] = F.shade;
         }
