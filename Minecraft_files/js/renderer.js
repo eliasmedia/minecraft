@@ -1248,7 +1248,7 @@
     var d = this.dynData, n = 0;
     // Ein Junges ist halb so groß. Das gilt für das ganze Modell, also auch für
     // die Drehpunkte — sonst säße der Kopf neben dem Körper.
-    var s = (model.scale || 1) * (mob.baby ? 0.5 : 1) / 16;
+    var s = (model.scale || 1) * (mob.baby ? 0.5 : 1) * (mob.modellSkala || 1) / 16;
     var walk = mob.walkTime;
     var swing = mob.moving ? 1 : 0;
     // Die Modelle blicken in Modellrichtung -Z, die Laufrichtung eines Mobs bei yaw

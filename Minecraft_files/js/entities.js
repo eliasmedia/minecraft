@@ -691,6 +691,19 @@
         part('leg1', 'mob_chicken_leg', 1, 0, -1, 1, 5, 3, 'legFL', [1, 5, 0])
       ]
     },
+    // Der Schleim: derselbe Aufbau wie der Magmawuerfel. Seine Groesse haengt
+    // an mob.groesse und wird im Renderer ueber die Skalierung geregelt.
+    slime: {
+      // Der Klumpen misst im Modell zwoelf Einheiten, also drei Viertel Block.
+      // Die Trefferbox eines grossen Schleims ist 1,4 breit — ohne die
+      // Streckung sass ein sichtbar zu kleiner Wuerfel in einer zu grossen Box.
+      height: 1.0, width: 1.0, scale: 1.87,
+      parts: [
+        part('kern', 'mob_slime_core', -5, 1, -5, 10, 10, 10),
+        part('huelleO', { all: 'mob_slime', front: 'mob_slime_face' }, -6, 8, -6, 12, 5, 12),
+        part('huelleU', 'mob_slime', -6, 0, -6, 12, 5, 12)
+      ]
+    },
     // Die Spinne: Hinterleib, Brust, Kopf und acht Beine. Die vier Paare setzen
     // von vorn nach hinten am Koerper an; nach aussen und nach unten geknickt
     // werden sie erst in animRot(). So stehen die Winkel an einer Stelle statt
@@ -1026,6 +1039,11 @@
     skeleton: { hp: 20, hostile: true, speed: 2.5, damage: 2, ranged: true, drops: [{ id: 'bone', min: 0, max: 2 }, { id: 'arrow', min: 0, max: 2 }], xp: 5, sound: 'skeleton', burns: true },
     creeper: { hp: 20, hostile: true, speed: 2.2, damage: 0, drops: [{ id: 'gunpowder', min: 0, max: 2 }], xp: 5, sound: 'creeper' },
     villager: { hp: 20, hostile: false, speed: 1.5, drops: [], xp: 0, sound: 'villager' },
+    // Der Schleim huepft und teilt sich beim Sterben in zwei kleinere. Erst die
+    // kleinste Stufe laesst Schleimbaelle fallen — im Original genauso, und es
+    // ist der Grund, warum man ihn nicht einfach einmal erschlaegt.
+    slime: { hp: 16, hostile: true, speed: 1.4, damage: 2, hop: true, teilt: true,
+      drops: [{ id: 'slimeball', min: 1, max: 2 }], xp: 4, sound: 'thud' },
     // Die Spinne klettert an Waenden hoch und ist nur im Dunkeln feindlich —
     // beides wie im Original. Ihr Faden ist die einzige Quelle ausserhalb der
     // Spinnweben in den verlassenen Minen; ohne sie hing der Bogen an einem
@@ -1097,6 +1115,10 @@
     this.height = model.height;
     this.hp = spec.hp;
     this.maxHp = spec.hp;
+    // Der Schleim gibt es in drei Groessen. Wie im Original haengt alles an
+    // dieser einen Zahl: Trefferpunkte sind ihr Quadrat, der Schaden ist sie
+    // selbst, und die kleinste Stufe tut gar nichts.
+    if (spec.teilt) this.setzeGroesse(4);
     this.hostile = spec.hostile;
     this.speed = spec.speed;
     this.walkTime = 0;
@@ -1360,7 +1382,7 @@
         this.moveToward(dt, wantYaw, tempo);
         if (dist < 1.9 && this.attackCd <= 0) {
           this.attackCd = this.spec.ansturm ? 1.6 : 1.0;
-          p.hurt(this.spec.damage, this, game);
+          p.hurt(this.schadenEigen !== undefined ? this.schadenEigen : this.spec.damage, this, game);
           // Was der Treffer überträgt, steht in den Werten der Kreatur
           if (this.spec.effekt && MC.Effekte) {
             MC.Effekte.gib(p, this.spec.effekt, 1, this.spec.effektZeit || 6);
@@ -2165,8 +2187,36 @@
     if (this.hp <= 0) this.die(game, source);
   };
 
+  // Groesse 4 = gross, 2 = mittel, 1 = klein. Masse, Trefferpunkte und Schaden
+  // haengen daran, das Modell wird im Renderer entsprechend skaliert.
+  Mob.prototype.setzeGroesse = function (g) {
+    this.groesse = g;
+    this.modellSkala = g / 4;
+    this.width = this.model.width * this.modellSkala * 1.4;
+    this.height = this.model.height * this.modellSkala * 1.4;
+    this.maxHp = g * g;
+    this.hp = this.maxHp;
+    this.schadenEigen = (g > 1) ? g : 0;
+  };
+
   Mob.prototype.die = function (game, source) {
     this.dead = true;
+    // Ein grosser Schleim zerfaellt in kleinere, statt Beute zu lassen. Erst
+    // die kleinste Stufe gibt Schleimbaelle her.
+    if (this.spec.teilt && this.groesse > 1) {
+      var neu = this.groesse / 2;
+      var anzahl = 2 + ((Math.random() * 3) | 0);
+      for (var t = 0; t < anzahl; t++) {
+        var kind = new Mob(this.world, this.mobType,
+          this.x + (Math.random() - 0.5) * 0.9, this.y + 0.1, this.z + (Math.random() - 0.5) * 0.9);
+        kind.setzeGroesse(neu);
+        kind.vy = 3;
+        this.world.entities.push(kind);
+      }
+      game.particles.death(this.x, this.y + this.height / 2, this.z);
+      game.audio.play3d('thud', this.x, this.y, this.z, game.player);
+      return;
+    }
     var drops = this.spec.drops || [];
     // Plünderung hebt nur die Obergrenze an, wie im Original – der Wurf selbst
     // bleibt gleichverteilt, es fällt also nicht garantiert mehr.
@@ -2273,8 +2323,16 @@
         var kinds2 = ['zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie', 'zombie',
                       'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton', 'skeleton',
                       'creeper', 'creeper', 'creeper', 'creeper', 'creeper', 'creeper',
-                      'spider', 'spider', 'spider', 'enderman'];
+                      'spider', 'spider', 'spider', 'slime', 'slime', 'enderman'];
         var kind2 = kinds2[(Math.random() * kinds2.length) | 0];
+        // Schleime gehoeren in die Tiefe und in den Sumpf, nicht auf jede Wiese.
+        // Im Original sind es Schleimchunks und Sumpfnaechte; der Sumpf plus
+        // eine Tiefengrenze trifft dasselbe, ohne eine zweite Zufallsschicht.
+        if (kind2 === 'slime') {
+          var tief = y < 40;
+          var sumpf = world.gen && world.gen.biomeAt(x, z) === MC.WorldGen.BIOME.SWAMP;
+          if (!tief && !sumpf) continue;
+        }
         if (kind2 === 'enderman') {
           var anzahlE = 0;
           for (var ie = 0; ie < world.entities.length; ie++) {

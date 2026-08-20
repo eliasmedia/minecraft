@@ -1614,6 +1614,17 @@
     auge(g, 4, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
     auge(g, 9, 6, AUGE_W, [40, 60, 90], [10, 14, 24]);
   });
+  // ---- Schleim ----
+  // Durchscheinender Klumpen: der Kern ist dunkler und liegt in einer helleren
+  // Huelle, genau wie beim Magmawuerfel — nur gruen statt gluehend.
+  mob('mob_slime', [116, 196, 96], 'v');
+  mob('mob_slime_core', [78, 146, 64], 'v');
+  mobFace('mob_slime_face', [116, 196, 96], function (g) {
+    auge(g, 4, 6, [24, 40, 22], [12, 22, 12], [6, 12, 6]);
+    auge(g, 9, 6, [24, 40, 22], [12, 22, 12], [6, 12, 6]);
+    g.rect(6, 11, 4, 1, [58, 110, 48]);
+  });
+
   // ---- Spinne ----
   // Der Koerper traegt dieselbe Hautfunktion wie alle anderen, die Beine eine
   // Stufe dunkler - sonst verschwinden sie vor dem Hinterleib.

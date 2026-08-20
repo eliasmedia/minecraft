@@ -1205,10 +1205,27 @@
 
   // Pflanzen brauchen Untergrund. Fackeln nicht – die hängen auch an Wänden und
   // prüfen ihren Halt über torchSupported().
+  // Formen, die auf einem festen Block liegen muessen. Vorher standen hier nur
+  // Pflanzen: Leitung, Verstaerker, Druckplatte und Schiene liessen sich frei
+  // in die Luft setzen und blieben liegen, wenn man den Boden darunter wegnahm.
+  B.LIEGT_AUF = [
+    B.SHAPE_CROSS, B.SHAPE_CROP, B.SHAPE_WIRE, B.SHAPE_REPEATER,
+    B.SHAPE_PLATE, B.SHAPE_RAIL
+  ];
+
   B.needsSupport = function (id) {
     var b = B.byId[id];
     if (!b) return false;
-    return b.shape === B.SHAPE_CROSS || b.shape === B.SHAPE_CROP;
+    return B.LIEGT_AUF.indexOf(b.shape) >= 0;
+  };
+
+  // Hebel und Knopf haengen wie eine Fackel: Meta-Bit 2 heisst Boden, sonst
+  // steckt in Bits 0-1 die Wand. Liefert die Richtung zur tragenden Wand oder
+  // null, wenn das Ding auf dem Boden steht.
+  B.schalterHalt = function (getBlock, x, y, z, meta) {
+    if (meta & 4) return B.isSolid(getBlock(x, y - 1, z));
+    var d = B.SIDE_DIRS[meta & 3];
+    return B.isOpaque(getBlock(x + d[0], y, z + d[1]));
   };
 
   // Hat eine Fackel an dieser Stelle Halt? getBlock(x,y,z) -> id
@@ -1222,6 +1239,10 @@
     var b = B.byId[id], g = B.byId[groundId];
     if (!g) return false;
     if (b.shape === B.SHAPE_TORCH) return g.opaque || g.shape === B.SHAPE_SLAB || g.shape === B.SHAPE_FENCE;
+    // Leitung, Verstaerker, Druckplatte und Schiene brauchen eine Flaeche,
+    // auf der sie aufliegen koennen — jeder feste Block taugt dafuer.
+    if (b.shape === B.SHAPE_WIRE || b.shape === B.SHAPE_REPEATER ||
+        b.shape === B.SHAPE_PLATE || b.shape === B.SHAPE_RAIL) return !!g.collide;
     if (b.name === 'wheat') return groundId === B.id('farmland');
     if (b.name === 'nether_wart') return groundId === B.id('soul_sand') || groundId === B.id('soul_soil');
     if (b.name === 'kelp' || b.name === 'seagrass') {

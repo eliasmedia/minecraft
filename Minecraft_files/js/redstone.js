@@ -203,8 +203,12 @@
       var h = HOR[i];
       var nx = x + h[0], nz = z + h[1];
       if (isWire(w, nx, y, nz)) { out.push([nx, y, nz]); continue; }
-      if (isWire(w, nx, y + 1, nz)) out.push([nx, y + 1, nz]);
-      if (isWire(w, nx, y - 1, nz)) out.push([nx, y - 1, nz]);
+      // Eine Stufe hinauf geht nur, wenn ueber DIESER Leitung nichts liegt —
+      // ein massiver Deckel trennt. Eine Stufe hinunter nur, wenn ueber der
+      // TIEFEREN Leitung nichts liegt. Ohne die beiden Pruefungen sprang das
+      // Signal durch jede Decke, und verdeckte Schaltungen leckten nach oben.
+      if (isWire(w, nx, y + 1, nz) && !B.isOpaque(w.getBlock(x, y + 1, z))) out.push([nx, y + 1, nz]);
+      if (isWire(w, nx, y - 1, nz) && !B.isOpaque(w.getBlock(nx, y, nz))) out.push([nx, y - 1, nz]);
     }
     return out;
   }
@@ -280,6 +284,51 @@
   };
 
   // ============================================================
+  //  Quasi-Konnektivität
+  // ============================================================
+  // Kolben, Werfer und Trichter schalten im Original auch dann, wenn nicht sie
+  // selbst geladen sind, sondern der PLATZ ÜBER IHNEN geladen wäre — auch wenn
+  // dort nur Luft ist. Das ist eine Eigenheit der Java-Ausgabe, aber eine, auf
+  // der halbe Bauwerksklassen beruhen; ohne sie funktioniert kein Bauplan aus
+  // dem Original. Lampe, Tür, Zauntor, Schiene und TNT haben sie NICHT.
+  R.poweredQC = function (w, x, y, z) {
+    return R.powered(w, x, y, z) || R.powered(w, x, y + 1, z);
+  };
+
+  // ============================================================
+  //  Antriebsschienen
+  // ============================================================
+  // Eine Antriebsschiene reicht ihren Strom an bis zu acht weitere in derselben
+  // Achse weiter. Ohne das braucht jedes Schienenstueck seine eigene Quelle,
+  // und eine Strecke zu bauen wird unbezahlbar.
+  R.ANTRIEB_KETTE = 8;
+
+  R.antriebAn = function (w, x, y, z) {
+    var prail = B.id('powered_rail');
+    if (w.getBlock(x, y, z) !== prail) return false;
+    if (R.powered(w, x, y, z)) return true;
+    // Der Achse folgen, in die diese Schiene liegt
+    var enden = B.RAIL_ENDEN[w.getMeta(x, y, z) & 15] || B.RAIL_ENDEN[0];
+    for (var e = 0; e < 2; e++) {
+      var d = enden[e];
+      var cx = x, cy = y, cz = z;
+      for (var n = 1; n <= R.ANTRIEB_KETTE; n++) {
+        cx += d[0]; cz += d[1];
+        // Steigungen: die naechste Schiene kann eine Ebene hoeher oder tiefer liegen
+        var yy = cy;
+        if (w.getBlock(cx, yy, cz) !== prail) {
+          if (w.getBlock(cx, yy + 1, cz) === prail) yy += 1;
+          else if (w.getBlock(cx, yy - 1, cz) === prail) yy -= 1;
+          else break;
+        }
+        cy = yy;
+        if (R.powered(w, cx, cy, cz)) return true;
+      }
+    }
+    return false;
+  };
+
+  // ============================================================
   //  Verzögerte Bauteile: Sollzustand und eigene Schaltplanung
   // ============================================================
   // Zeigt eine stromführende Leitung waagerecht in diesen Block hinein?
@@ -300,6 +349,25 @@
     var bx = att ? x + att[0] : x, by = att ? y : y - 1, bz = att ? z + att[1] : z;
     return R.strong(w, bx, by, bz) <= 0 && !leitungZeigtAuf(w, bx, by, bz);
   }
+
+  // Verriegelung: zeigt von der Seite ein EINGESCHALTETER Verstaerker in diesen
+  // hinein, friert er ein und behaelt seinen Ausgang. Daraus baut man das
+  // Speicherglied — ohne die Regel gibt es im Spiel keinen Latch.
+  function repVerriegelt(w, x, y, z, m) {
+    var d = ids();
+    var rd = R.repDir(m);
+    var quer = [[-rd[1], rd[0]], [rd[1], -rd[0]]];
+    for (var i = 0; i < 2; i++) {
+      var sx = x + quer[i][0], sz = z + quer[i][1];
+      if (w.getBlock(sx, y, sz) !== d.repeater) continue;
+      var sm = w.getMeta(sx, y, sz);
+      if (!R.repOn(sm)) continue;
+      var sd = R.repDir(sm);
+      if (sx + sd[0] === x && sz + sd[1] === z) return true;
+    }
+    return false;
+  }
+  R.repVerriegelt = repVerriegelt;
 
   // Der Verstärker hört nur auf das, was hinten anliegt.
   function repInput(w, x, y, z, m) {
@@ -366,16 +434,22 @@
     var d = ids();
     var id = w.getBlock(x, y, z);
 
+    // Der geplante Wechsel wird durchgezogen, auch wenn der Eingang inzwischen
+    // wieder abgefallen ist. Vorher wurde hier neu geprueft und abgebrochen —
+    // damit verschluckte ein Verstaerker JEDEN Impuls, der kuerzer war als
+    // seine eigene Verzoegerung, ein Beobachterpuls von zwei Ticks also immer.
+    // Im Original haelt das Bauteil beim Planen fest, was es tun wird, und
+    // dehnt einen kurzen Impuls auf seine Laenge. Das anschliessende onChange
+    // bewertet die Lage neu und plant bei Bedarf den Gegenwechsel.
     if (id === d.torch || id === d.torchOff) {
-      // Zwischenzeitlich kann sich die Lage geändert haben
-      if (torchSoll(w, x, y, z) !== an || an === (id === d.torch)) return;
+      if (an === (id === d.torch)) return;
       w.setBlock(x, y, z, an ? d.torch : d.torchOff, w.getMeta(x, y, z), { noUpdate: true, noRedstone: true });
       R.onChange(w, x, y, z);
       return;
     }
     if (id === d.repeater) {
       var m = w.getMeta(x, y, z);
-      if (repInput(w, x, y, z, m) !== an || an === R.repOn(m)) return;
+      if (an === R.repOn(m)) return;
       w.setMetaOnly(x, y, z, an ? (m | 16) : (m & ~16));
       R.onChange(w, x, y, z);
       return;
@@ -390,12 +464,40 @@
   // ============================================================
   //  Verbraucher schalten
   // ============================================================
+  // Kolbenkoerper und Kopf gehoeren zusammen. Faellt einer weg, muss der andere
+  // mit — sonst bleibt ein Kopf ohne Koerper stehen, und der laesst sich mangels
+  // Drop nicht einmal wiederbeschaffen.
+  function kolbenPaarPruefen(w, x, y, z, id) {
+    var kopfN = B.id('piston_head'), kopfK = B.id('piston_head_sticky');
+    var extN = B.id('piston_ext'), extK = B.id('sticky_piston_ext');
+    var m = w.getMeta(x, y, z);
+    var d = R.kolbenRichtung(m);
+    if (id === kopfN || id === kopfK) {
+      var kx = x - d[0], ky = y - d[1], kz = z - d[2];
+      var koerper = w.getBlock(kx, ky, kz);
+      if (koerper !== extN && koerper !== extK) {
+        w.setBlock(x, y, z, 0, 0, { noUpdate: true });
+        return true;
+      }
+    }
+    if (id === extN || id === extK) {
+      var hx = x + d[0], hy = y + d[1], hz = z + d[2];
+      var kopf = w.getBlock(hx, hy, hz);
+      if (kopf !== kopfN && kopf !== kopfK) {
+        w.setBlock(x, y, z, B.id(id === extK ? 'sticky_piston' : 'piston'), m, { noUpdate: true });
+        return true;
+      }
+    }
+    return false;
+  }
+
   function applyConsumer(w, x, y, z) {
     var d = ids();
     var id = w.getBlock(x, y, z);
     if (!id) return;
     var b = B.byId[id];
     if (!b) return;
+    if (b.piston6 && kolbenPaarPruefen(w, x, y, z, id)) return;
 
     // Fackel und Verstärker schalten verzögert und regeln sich selbst
     if (id === d.torch || id === d.torchOff) {
@@ -405,6 +507,11 @@
     }
     if (id === d.repeater) {
       var rm = w.getMeta(x, y, z);
+      if (repVerriegelt(w, x, y, z, rm)) {
+        // Verriegelt: geplante Wechsel verfallen, der Ausgang bleibt stehen
+        if (w._rsPlan) delete w._rsPlan[x + ',' + y + ',' + z];
+        return;
+      }
       var rein = repInput(w, x, y, z, rm);
       if (rein !== R.repOn(rm)) plane(w, x, y, z, rein, R.repDelay(rm) * 2);
       return;
@@ -470,6 +577,20 @@
     return false;
   }
 
+  // Was der Kolben zerbricht, faellt als Gegenstand — vorher verschwand es
+  // ersatzlos, und beim Redstonestaub merkt man das sofort.
+  function zerlege(w, x, y, z) {
+    var id = w.getBlock(x, y, z);
+    if (!id) return;
+    var b = B.byId[id];
+    var game = MC.game;
+    if (b && b.drop && game && game.world === w && game.mode !== 'creative') {
+      var it = MC.Items.get(b.drop);
+      if (it) game.spawnItem(x + 0.5, y + 0.4, z + 0.5, { id: b.drop, count: b.dropCount || 1 });
+    }
+    w.setBlock(x, y, z, 0, 0, { noUpdate: true });
+  }
+
   // Zerbricht beim Schieben statt mitzugehen (Pflanzen, Fackeln, Leitungen)
   function zerbricht(id) {
     var b = B.byId[id];
@@ -502,6 +623,11 @@
     var d = R.kolbenRichtung(m);
     var liste = schiebeListe(w, x, y, z, d);
     if (!liste) return false;
+    // Am Ende der Reihe steht entweder Luft oder etwas Zerbrechliches. Im
+    // zweiten Fall faellt es als Gegenstand — vorher wurde es stumm
+    // ueberschrieben. Das muss VOR dem Umsetzen passieren.
+    var letzte = liste.length ? liste[liste.length - 1] : { x: x, y: y, z: z };
+    zerlege(w, letzte.x + d[0], letzte.y + d[1], letzte.z + d[2]);
     // Von hinten nach vorne umsetzen, sonst überschreibt man sich selbst
     for (var i = liste.length - 1; i >= 0; i--) {
       var s = liste[i];
@@ -510,10 +636,6 @@
     if (liste.length) {
       var e = liste[0];
       w.setBlock(e.x, e.y, e.z, 0, 0, { noUpdate: true });
-    } else {
-      // Ein zerbrechlicher Block direkt davor wird abgeräumt
-      var vx = x + d[0], vy = y + d[1], vz = z + d[2];
-      if (w.getBlock(vx, vy, vz) !== 0) w.setBlock(vx, vy, vz, 0, 0, { noUpdate: true });
     }
     var klebrig = B.byId[id].sticky;
     w.setBlock(x, y, z, B.id(klebrig ? 'sticky_piston_ext' : 'piston_ext'), m, { noUpdate: true });
@@ -577,7 +699,7 @@
   function kolbenPruefen(w, x, y, z, id) {
     var b = B.byId[id];
     var m = w.getMeta(x, y, z);
-    var an = R.powered(w, x, y, z);
+    var an = R.poweredQC(w, x, y, z);
     var ausgefahren = (b.name === 'piston_ext' || b.name === 'sticky_piston_ext');
     if (an === ausgefahren) return;
     var game = MC.game;

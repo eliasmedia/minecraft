@@ -131,7 +131,7 @@
     te.cd = L.TAKT;
 
     // Redstone hält ihn an, wie im Original
-    if (MC.Redstone && MC.Redstone.powered(world, x, y, z)) return;
+    if (MC.Redstone && MC.Redstone.poweredQC(world, x, y, z)) return;
 
     var meta = world.getMeta(x, y, z);
     var d = B.hopperDir(meta);
@@ -172,7 +172,7 @@
   // sonst leert er sich in einem Takt komplett.
   function werferTakt(game, x, y, z, te) {
     var world = game.world;
-    var an = MC.Redstone ? MC.Redstone.powered(world, x, y, z) : false;
+    var an = MC.Redstone ? MC.Redstone.poweredQC(world, x, y, z) : false;
     if (an === te.an) return;
     te.an = an;
     if (!an) return;
@@ -190,6 +190,13 @@
 
     var meta = world.getMeta(x, y, z);
     var d = B.DIR6[meta & 7] || B.DIR6[0];
+
+    // Steht davor ein Behaelter, wird eingelegt statt geworfen — wie im
+    // Original. Nur ins Leere fliegt der Gegenstand wirklich. Ohne das liess
+    // sich keine Werfer-Truhen-Kette bauen, alles landete auf dem Boden.
+    var ziel = L.behaelter(world, x + d[0], y + d[1], z + d[2]);
+    if (ziel && L.einlegen(ziel, raus, d[1] < 0)) { game.audio.play('click'); return; }
+
     var e = new MC.ItemEntity(world, x + 0.5 + d[0] * 0.7, y + 0.5 + d[1] * 0.7, z + 0.5 + d[2] * 0.7, raus);
     e.vx = d[0] * 6 + (Math.random() - 0.5) * 0.6;
     e.vy = d[1] * 6 + 1.2;
@@ -248,6 +255,11 @@
       if (L.istSchiene(world, x + n[0], y, z + n[1])) da.push(i);
       // Eine Schiene einen Block höher nebenan macht aus dieser eine Rampe
       else if (L.istSchiene(world, x + n[0], y + 1, z + n[1])) { da.push(i); if (hoch < 0) hoch = i; }
+      // Eine Schiene einen Block TIEFER nebenan zaehlt als Nachbar, macht aus
+      // dieser hier aber keine Rampe — die Rampe ist die untere. Ohne diesen
+      // Fall sah die erste Schiene oben auf einer Stufe gar keinen Nachbarn
+      // und legte sich quer zur Strecke.
+      else if (L.istSchiene(world, x + n[0], y - 1, z + n[1])) da.push(i);
     }
     // Steigung schlägt alles andere: sonst läge am Fuß eines Anstiegs eine
     // flache Schiene und die Lore stünde vor einer Stufe.
@@ -349,9 +361,23 @@
     var schiene = this.railUnter();
 
     if (!schiene) {
+      // Vom Gleis herunter: der Schwung steckt bis hierher in `tempo` entlang
+      // `dir` und wurde nie in echte Geschwindigkeit umgesetzt — die Lore blieb
+      // wie angenagelt liegen und liess sich auch nicht mehr anschieben.
+      // Einmal umbuchen, dann ist sie ein gewoehnlicher Koerper.
+      if (this.tempo !== 0) {
+        this.vx += this.dir[0] * this.tempo;
+        this.vz += this.dir[1] * this.tempo;
+        this.tempo = 0;
+      }
       this.applyPhysics(dt, 0.98, 0.4);
       if (this.reiter) this.reiterSetzen();
       return;
+    }
+    // Zurueck auf dem Gleis: die Restgeschwindigkeit wieder in Fahrt umbuchen
+    if (this.vx !== 0 || this.vz !== 0) {
+      this.tempo += this.vx * this.dir[0] + this.vz * this.dir[1];
+      this.vx = 0; this.vz = 0;
     }
 
     var steigung = B.railSteigung(schiene.meta);
@@ -377,7 +403,7 @@
     // 2) Antriebsschiene: unter Strom Gas, ohne Strom Bremse. Steht die Lore,
     //    stößt sie in Achsenrichtung an.
     if (schiene.antrieb) {
-      var an = MC.Redstone ? MC.Redstone.powered(w, schiene.x, schiene.y, schiene.z) : false;
+      var an = MC.Redstone ? MC.Redstone.antriebAn(w, schiene.x, schiene.y, schiene.z) : false;
       if (an) {
         if (Math.abs(this.tempo) < 0.3) this.tempo = 1.2;
         else this.tempo += (this.tempo > 0 ? 1 : -1) * 14 * dt;
@@ -403,11 +429,39 @@
     if (this.tempo < -MAX_TEMPO) this.tempo = -MAX_TEMPO;
 
     // ---- Fahren ----
-    this.x += this.dir[0] * this.tempo * dt;
-    this.z += this.dir[1] * this.tempo * dt;
+    // In Schritten von hoechstens einem halben Block. Bei elf Bloecken je
+    // Sekunde und einem langen Bild sprang die Lore sonst ueber eine ganze
+    // Kurvenzelle hinweg: die Richtung wurde nie umgesetzt, und sie flog
+    // geradeaus aus dem Gleis. Zwischen den Schritten wird die Schiene neu
+    // gelesen, damit jede Zelle ihre Kurve auch bekommt.
+    var weg = Math.abs(this.tempo) * dt;
+    var schritte = Math.max(1, Math.ceil(weg / 0.5));
+    var sdt = dt / schritte;
     var mx = schiene.x + 0.5, mz = schiene.z + 0.5;
-    if (this.dir[0] === 0) this.x += (mx - this.x) * Math.min(1, dt * 12);
-    if (this.dir[1] === 0) this.z += (mz - this.z) * Math.min(1, dt * 12);
+    for (var si = 0; si < schritte; si++) {
+      this.x += this.dir[0] * this.tempo * sdt;
+      this.z += this.dir[1] * this.tempo * sdt;
+      var zelle = this.railUnter();
+      if (!zelle) break;
+      // Neue Zelle: Achse an ihren Verlauf anpassen, sonst faehrt die Lore in
+      // der Kurve geradeaus weiter
+      if (zelle.x !== schiene.x || zelle.z !== schiene.z || zelle.y !== schiene.y) {
+        schiene = zelle;
+        var st2 = B.railSteigung(zelle.meta);
+        var en2 = st2 ? B.RAIL_ENDEN_STEIGUNG[zelle.meta - 6]
+                      : (B.RAIL_ENDEN[zelle.meta] || B.RAIL_ENDEN[0]);
+        var b2 = en2[0], p2 = -9;
+        for (var e2 = 0; e2 < 2; e2++) {
+          var pk2 = en2[e2][0] * this.dir[0] + en2[e2][1] * this.dir[1];
+          if (pk2 > p2) { p2 = pk2; b2 = en2[e2]; }
+        }
+        this.dir = [b2[0], b2[1]];
+        mx = zelle.x + 0.5; mz = zelle.z + 0.5;
+      }
+      // In der Querachse immer auf die Gleismitte ziehen
+      if (this.dir[0] === 0) this.x += (mx - this.x) * Math.min(1, sdt * 12);
+      if (this.dir[1] === 0) this.z += (mz - this.z) * Math.min(1, sdt * 12);
+    }
 
     // Nach dem Zug erneut nachsehen, welche Schiene jetzt unter uns liegt —
     // sonst hängt die Höhe auf einer Rampe ein Feld hinterher.
@@ -458,6 +512,20 @@
   Minecart.prototype.anstossen = function (p, dt) {
     dt = dt || 1 / 60;
     var dx = this.x - p.x, dz = this.z - p.z;
+    // Neben dem Gleis gibt es keine Achse, an der ein Schub entlanglaufen
+    // koennte — dort wird die Lore einfach weggeschoben. Vorher lief der Schub
+    // immer in `tempo`, und das wertet ohne Schiene niemand aus: eine
+    // herausgesprungene Lore war unbewegbar.
+    if (!this.railUnter()) {
+      var l = Math.sqrt(dx * dx + dz * dz) || 1;
+      var soll = SCHUB_MAX;
+      var vl = Math.sqrt(this.vx * this.vx + this.vz * this.vz);
+      if (vl < soll) {
+        this.vx += dx / l * 9 * dt;
+        this.vz += dz / l * 9 * dt;
+      }
+      return;
+    }
     var richtung = (dx * this.dir[0] + dz * this.dir[1]) >= 0 ? 1 : -1;
     this.schub(richtung, dt);
   };

@@ -1217,10 +1217,14 @@
       // Gleise in die Luft und sogar aufeinander setzen.
       if (!B.isSolid(w.getBlock(nx, ny - 1, nz))) return;
     } else if (block.shape === B.SHAPE_HOPPER) {
-      // Der Auslauf zeigt dorthin, wohin man geklickt hat: auf die Oberseite
-      // eines Blocks gesetzt läuft er nach unten, an eine Wand zur Seite.
+      // Der Auslauf zeigt IN den angeklickten Block, also vom Spieler weg —
+      // wie im Original: klickt man die Seite einer Truhe an, haengt der
+      // Trichter daran und gibt in sie hinein. Auf eine Oberseite gesetzt
+      // laeuft er nach unten. LADDER_META[face] ist genau die Richtung vom
+      // gesetzten Block zum angeklickten; vorher stand hier ein +2, und damit
+      // zeigte das Rohr immer zum Spieler zurueck.
       var hm = LADDER_META[t.face];
-      meta = (hm === undefined) ? 0 : ((hm + 2) & 3) + 1;
+      meta = (hm === undefined) ? 0 : hm + 1;
     } else if (block.shape === B.SHAPE_SIGN) {
       // Auf den Boden gesetzt steht das Schild, an eine Wand geklebt hängt es.
       // Beides ist derselbe Gegenstand — das ist im Original genauso.
